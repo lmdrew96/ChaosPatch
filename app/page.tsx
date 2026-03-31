@@ -1,8 +1,9 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getProjects } from "@/lib/queries";
 import type { Project } from "@/lib/queries";
+import { NewProjectButton } from "./new-project-button";
 
 export default async function ProjectsPage() {
   const { userId } = await auth();
@@ -15,9 +16,10 @@ export default async function ProjectsPage() {
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">ChaosPatch</h1>
         <div className="flex items-center gap-3">
+          <NewProjectButton />
           <Link
             href="/add"
-            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium transition-colors"
+            className="rounded-md border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 text-sm text-zinc-300 hover:text-zinc-100 font-medium transition-colors"
           >
             + New patch
           </Link>
@@ -75,11 +77,11 @@ function EmptyState() {
     <div className="text-center py-24">
       <p className="text-zinc-500 text-sm">No projects yet.</p>
       <p className="text-zinc-600 text-xs mt-1">
-        Add one from Claude Code with{" "}
+        Use <strong className="text-zinc-400">+ New project</strong> above, or from Claude Code with{" "}
         <code className="font-mono bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400">
-          cp_add_patch
+          cp_add_project
         </code>
-        , or create a project first.
+        .
       </p>
     </div>
   );

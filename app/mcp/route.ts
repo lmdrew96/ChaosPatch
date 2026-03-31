@@ -18,6 +18,25 @@ const TOOLS = [
     inputSchema: { type: "object" as const, properties: {} },
   },
   {
+    name: "cp_add_project",
+    description: "Create a new ChaosPatch project for the authenticated user.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Display name for the project" },
+        slug: {
+          type: "string",
+          description: "URL-safe identifier (lowercase, hyphens)",
+        },
+        color: {
+          type: "string",
+          description: "Hex color for the project dot (default: #6366f1)",
+        },
+      },
+      required: ["name", "slug"],
+    },
+  },
+  {
     name: "cp_list_patches",
     description:
       "Get patches for a project, optionally filtered by status (open | in_progress | done).",
@@ -107,6 +126,16 @@ async function handleTool(
   userId: string
 ): Promise<string> {
   switch (name) {
+    case "cp_add_project": {
+      const color = args.color ?? "#6366f1";
+      const [project] = await sql`
+        INSERT INTO projects (user_id, name, slug, color)
+        VALUES (${userId}, ${args.name!}, ${args.slug!}, ${color})
+        RETURNING *
+      `;
+      return JSON.stringify(project, null, 2);
+    }
+
     case "cp_list_projects": {
       const rows = await sql`
         SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open') AS open_count
