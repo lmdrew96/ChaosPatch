@@ -270,4 +270,4 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 });
 
 const transport = new StdioServerTransport();
-await server.connect(transport);
+void (async () => { await server.connect(transport); })();
