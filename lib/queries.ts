@@ -1,0 +1,160 @@
+import { sql } from "./db";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export type Project = {
+  id: string;
+  user_id: string;
+  name: string;
+  slug: string;
+  color: string;
+  created_at: string;
+  open_count?: number;
+};
+
+export type Patch = {
+  id: string;
+  project_id: string;
+  title: string;
+  status: "open" | "in_progress" | "done";
+  priority: "low" | "medium" | "high";
+  notes: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+// ── Projects ───────────────────────────────────────────────────────────────
+
+export async function getProjects(userId: string): Promise<Project[]> {
+  const rows = await sql`
+    SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open') AS open_count
+    FROM projects p
+    LEFT JOIN patches pa ON pa.project_id = p.id
+    WHERE p.user_id = ${userId}
+    GROUP BY p.id
+    ORDER BY p.created_at DESC
+  `;
+  return rows as Project[];
+}
+
+export async function getProjectBySlug(
+  userId: string,
+  slug: string
+): Promise<Project | null> {
+  const rows = await sql`
+    SELECT * FROM projects
+    WHERE user_id = ${userId} AND slug = ${slug}
+    LIMIT 1
+  `;
+  return (rows[0] as Project) ?? null;
+}
+
+export async function createProject(
+  userId: string,
+  name: string,
+  slug: string,
+  color = "#6366f1"
+): Promise<Project> {
+  const rows = await sql`
+    INSERT INTO projects (user_id, name, slug, color)
+    VALUES (${userId}, ${name}, ${slug}, ${color})
+    RETURNING *
+  `;
+  return rows[0] as Project;
+}
+
+export async function deleteProject(
+  userId: string,
+  slug: string
+): Promise<void> {
+  await sql`
+    DELETE FROM projects
+    WHERE user_id = ${userId} AND slug = ${slug}
+  `;
+}
+
+// ── Patches ────────────────────────────────────────────────────────────────
+
+export async function getPatches(
+  userId: string,
+  projectSlug: string,
+  status?: Patch["status"]
+): Promise<Patch[]> {
+  if (status) {
+    const rows = await sql`
+      SELECT pa.* FROM patches pa
+      JOIN projects p ON p.id = pa.project_id
+      WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+        AND pa.status = ${status}
+      ORDER BY pa.created_at DESC
+    `;
+    return rows as Patch[];
+  }
+  const rows = await sql`
+    SELECT pa.* FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+    ORDER BY pa.created_at DESC
+  `;
+  return rows as Patch[];
+}
+
+export async function createPatch(
+  projectId: string,
+  title: string,
+  priority: Patch["priority"] = "medium"
+): Promise<Patch> {
+  const rows = await sql`
+    INSERT INTO patches (project_id, title, priority)
+    VALUES (${projectId}, ${title}, ${priority})
+    RETURNING *
+  `;
+  return rows[0] as Patch;
+}
+
+export async function updatePatchStatus(
+  patchId: string,
+  status: Patch["status"]
+): Promise<Patch> {
+  const now = new Date().toISOString();
+  if (status === "in_progress") {
+    const rows = await sql`
+      UPDATE patches SET status = ${status}, started_at = ${now}
+      WHERE id = ${patchId}
+      RETURNING *
+    `;
+    return rows[0] as Patch;
+  }
+  if (status === "done") {
+    const rows = await sql`
+      UPDATE patches SET status = ${status}, completed_at = ${now}
+      WHERE id = ${patchId}
+      RETURNING *
+    `;
+    return rows[0] as Patch;
+  }
+  const rows = await sql`
+    UPDATE patches SET status = ${status}
+    WHERE id = ${patchId}
+    RETURNING *
+  `;
+  return rows[0] as Patch;
+}
+
+export async function addNote(patchId: string, note: string): Promise<Patch> {
+  const rows = await sql`
+    UPDATE patches
+    SET notes = CASE
+      WHEN notes IS NULL THEN ${note}
+      ELSE notes || E'\n\n' || ${note}
+    END
+    WHERE id = ${patchId}
+    RETURNING *
+  `;
+  return rows[0] as Patch;
+}
+
+export async function deletePatch(patchId: string): Promise<void> {
+  await sql`DELETE FROM patches WHERE id = ${patchId}`;
+}
