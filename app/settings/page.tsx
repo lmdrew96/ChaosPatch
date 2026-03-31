@@ -2,12 +2,17 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignOutButton } from "@clerk/nextjs";
+import { getOrCreateMcpToken } from "@/lib/queries";
+import { McpTokenDisplay } from "./mcp-token";
 
 export default async function SettingsPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const user = await currentUser();
+  const [user, mcpToken] = await Promise.all([
+    currentUser(),
+    getOrCreateMcpToken(userId),
+  ]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
@@ -53,21 +58,23 @@ export default async function SettingsPage() {
           </div>
         </section>
 
-        {/* MCP Info */}
+        {/* MCP Token */}
         <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-300">
-            Claude Code MCP
-          </h2>
+          <h2 className="text-sm font-semibold text-zinc-300">MCP Token</h2>
           <p className="text-xs text-zinc-500">
-            Your user ID — pass this as{" "}
+            Add this as{" "}
             <code className="font-mono bg-zinc-950 px-1 rounded text-zinc-400">
-              user_id
+              CHAOSPATCH_TOKEN
             </code>{" "}
-            in MCP tool calls.
+            in your Claude Code or Claude Desktop MCP config to authenticate.
           </p>
-          <code className="block font-mono text-xs bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-indigo-300 break-all select-all">
-            {userId}
-          </code>
+          <McpTokenDisplay token={mcpToken} />
+          <p className="text-xs text-zinc-600 pt-1">
+            MCP endpoint:{" "}
+            <code className="font-mono text-zinc-500">
+              https://chaospatch.adhdesigns.dev/mcp
+            </code>
+          </p>
         </section>
       </main>
     </div>

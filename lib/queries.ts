@@ -158,3 +158,22 @@ export async function addNote(patchId: string, note: string): Promise<Patch> {
 export async function deletePatch(patchId: string): Promise<void> {
   await sql`DELETE FROM patches WHERE id = ${patchId}`;
 }
+
+// ── MCP Tokens ─────────────────────────────────────────────────────────────
+
+export async function getOrCreateMcpToken(userId: string): Promise<string> {
+  const rows = await sql`SELECT token FROM mcp_tokens WHERE user_id = ${userId} LIMIT 1`;
+  if (rows[0]?.token) return rows[0].token as string;
+  const token =
+    crypto.randomUUID().replace(/-/g, "") +
+    crypto.randomUUID().replace(/-/g, "");
+  await sql`INSERT INTO mcp_tokens (token, user_id) VALUES (${token}, ${userId})`;
+  return token;
+}
+
+export async function getUserIdFromToken(
+  token: string
+): Promise<string | null> {
+  const rows = await sql`SELECT user_id FROM mcp_tokens WHERE token = ${token} LIMIT 1`;
+  return (rows[0]?.user_id as string) ?? null;
+}

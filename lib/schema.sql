@@ -19,3 +19,9 @@ CREATE TABLE IF NOT EXISTS patches (
   started_at   TIMESTAMPTZ,
   completed_at TIMESTAMPTZ
 );
+
+CREATE TABLE IF NOT EXISTS mcp_tokens (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
