@@ -129,6 +129,23 @@ const TOOLS = [
       required: ["project_slug", "user_id"],
     },
   },
+  {
+    name: "cp_add_project",
+    description: "Create a new ChaosPatch project for a user.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        user_id: { type: "string", description: "Clerk user ID" },
+        name: { type: "string", description: "Display name of the project" },
+        slug: { type: "string", description: "URL-safe unique identifier" },
+        color: {
+          type: "string",
+          description: "Hex accent color (default: #6366f1)",
+        },
+      },
+      required: ["user_id", "name", "slug"],
+    },
+  },
 ] as const;
 
 // ── Tool handlers ──────────────────────────────────────────────────────────
@@ -237,6 +254,16 @@ async function handleTool(name: string, args: Args): Promise<string> {
         throw new Error(`Project '${args.project_slug}' not found`);
       }
       return `Project '${args.project_slug}' and all its patches deleted.`;
+    }
+
+    case "cp_add_project": {
+      const color = args.color ?? "#6366f1";
+      const [project] = await sql`
+        INSERT INTO projects (user_id, name, slug, color)
+        VALUES (${args.user_id!}, ${args.name!}, ${args.slug!}, ${color})
+        RETURNING *
+      `;
+      return JSON.stringify(project, null, 2);
     }
 
     default:
