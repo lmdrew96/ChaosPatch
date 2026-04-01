@@ -24,6 +24,25 @@ export type Patch = {
   completed_at: string | null;
 };
 
+export type PatchWithProject = Patch & {
+  project_name: string;
+  project_slug: string;
+  project_color: string;
+};
+
+// ── All Patches (cross-project) ────────────────────────────────────────────
+
+export async function getAllPatches(userId: string): Promise<PatchWithProject[]> {
+  const rows = await sql`
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId}
+    ORDER BY pa.created_at DESC
+  `;
+  return rows as PatchWithProject[];
+}
+
 // ── Projects ───────────────────────────────────────────────────────────────
 
 export async function getProjects(userId: string): Promise<Project[]> {

@@ -1,0 +1,158 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import type { Patch } from "@/lib/queries";
+import { PatchList } from "./patch-list";
+
+type StatusFilter = "all" | "open" | "in_progress" | "done";
+type PriorityFilter = "all" | "low" | "medium" | "high";
+type SortField = "created" | "priority" | "status";
+type SortDir = "asc" | "desc";
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 };
+
+export function ProjectPatchView({ patches }: { patches: Patch[] }) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
+  const [sortField, setSortField] = useState<SortField>("status");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const statusCounts = useMemo(() => {
+    const counts = { open: 0, in_progress: 0, done: 0 };
+    patches.forEach((p) => counts[p.status]++);
+    return counts;
+  }, [patches]);
+
+  const filteredPatches = useMemo(() => {
+    let result = [...patches];
+
+    if (statusFilter !== "all") {
+      result = result.filter((p) => p.status === statusFilter);
+    }
+    if (priorityFilter !== "all") {
+      result = result.filter((p) => p.priority === priorityFilter);
+    }
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "created":
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "priority":
+          cmp = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+          break;
+        case "status":
+          cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+          break;
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+
+    return result;
+  }, [patches, statusFilter, priorityFilter, sortField, sortDir]);
+
+  if (patches.length === 0) {
+    return (
+      <p className="text-center text-zinc-600 text-sm py-16">
+        No patches yet. Add one with the button above.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Controls row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Status filter chips */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-600 mr-1">
+            Status
+          </span>
+          {(
+            [
+              { value: "all", label: "All", count: patches.length },
+              { value: "open", label: "Open", count: statusCounts.open },
+              { value: "in_progress", label: "In Progress", count: statusCounts.in_progress },
+              { value: "done", label: "Done", count: statusCounts.done },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+                statusFilter === opt.value
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+              }`}
+            >
+              {opt.label}
+              <span className="ml-1 font-mono text-[10px] opacity-60">{opt.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-zinc-800" />
+
+        {/* Priority filter chips */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-600 mr-1">
+            Priority
+          </span>
+          {(
+            [
+              { value: "all", label: "All" },
+              { value: "high", label: "High" },
+              { value: "medium", label: "Med" },
+              { value: "low", label: "Low" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setPriorityFilter(opt.value)}
+              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+                priorityFilter === opt.value
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Sort controls */}
+        <div className="flex items-center gap-2">
+          <select
+            value={sortField}
+            onChange={(e) => setSortField(e.target.value as SortField)}
+            className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="status">Sort: Status</option>
+            <option value="created">Sort: Date</option>
+            <option value="priority">Sort: Priority</option>
+          </select>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-md px-2 py-1 transition-colors"
+            title={sortDir === "desc" ? "Descending" : "Ascending"}
+          >
+            {sortDir === "desc" ? "↓" : "↑"}
+          </button>
+        </div>
+      </div>
+
+      {/* Patch list */}
+      {filteredPatches.length === 0 ? (
+        <p className="text-center text-zinc-600 text-sm py-8">
+          No patches match your filters.
+        </p>
+      ) : (
+        <PatchList patches={filteredPatches} />
+      )}
+    </div>
+  );
+}

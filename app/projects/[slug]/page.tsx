@@ -2,9 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getPatches, getProjectBySlug } from "@/lib/queries";
-import type { Patch } from "@/lib/queries";
-import { PatchList } from "./patch-list";
 import { DeleteProjectButton } from "./delete-project-button";
+import { ProjectPatchView } from "./project-patch-view";
 
 export default async function ProjectPage({
   params,
@@ -19,10 +18,6 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   const patches = await getPatches(userId, slug);
-
-  const open = patches.filter((p) => p.status === "open");
-  const inProgress = patches.filter((p) => p.status === "in_progress");
-  const done = patches.filter((p) => p.status === "done");
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
@@ -52,16 +47,7 @@ export default async function ProjectPage({
       </header>
 
       <main className="px-6 py-8 max-w-3xl mx-auto space-y-8">
-        {inProgress.length > 0 && (
-          <Section title="In Progress" patches={inProgress} />
-        )}
-        <Section title="Open" patches={open} />
-        {done.length > 0 && <Section title="Done" patches={done} />}
-        {patches.length === 0 && (
-          <p className="text-center text-zinc-600 text-sm py-16">
-            No patches yet. Add one with the button above.
-          </p>
-        )}
+        <ProjectPatchView patches={patches} />
 
         {/* Danger zone */}
         <div className="border-t border-zinc-800 pt-8 mt-12">
@@ -78,19 +64,6 @@ export default async function ProjectPage({
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function Section({ title, patches }: { title: string; patches: Patch[] }) {
-  if (patches.length === 0) return null;
-  return (
-    <div>
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">
-        {title}
-        <span className="ml-2 font-mono text-zinc-600">{patches.length}</span>
-      </h2>
-      <PatchList patches={patches} />
     </div>
   );
 }
