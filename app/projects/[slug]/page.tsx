@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getPatches, getProjectBySlug } from "@/lib/queries";
 import type { Patch } from "@/lib/queries";
 import { PatchList } from "./patch-list";
+import { DeleteProjectButton } from "./delete-project-button";
 
 export default async function ProjectPage({
   params,
@@ -61,6 +62,21 @@ export default async function ProjectPage({
             No patches yet. Add one with the button above.
           </p>
         )}
+
+        {/* Danger zone */}
+        <div className="border-t border-zinc-800 pt-8 mt-12">
+          <div className="rounded-lg border border-red-950 bg-red-950/10 p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-red-400 mb-2">
+              Danger zone
+            </h3>
+            <p className="text-xs text-zinc-500 mb-4">
+              Permanently delete <strong className="text-zinc-300">{project.name}</strong> and
+              all {patches.length} {patches.length === 1 ? "patch" : "patches"}.
+              This cannot be undone.
+            </p>
+            <DeleteProjectButton slug={slug} projectName={project.name} />
+          </div>
+        </div>
       </main>
     </div>
   );
