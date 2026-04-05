@@ -3,30 +3,39 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "mcp": "tsx mcp/index.ts"
+    "db:migrate": "node -r esbuild-register lib/migrate.ts",
+    "db:seed": "node -r esbuild-register lib/seed.ts",
+    "db:clean": "node -r esbuild-register lib/clean.ts",
+    "test:mcp": "node -r esbuild-register mcp/index.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.7",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^1.0.2",
+    "@radix-ui/react-slot": "^1.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "geist": "^1.7.0",
+    "next": "^16.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^2.2.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "eslint": "^10.1.0",
+    "esbuild-register": "^3.5.0",
+    "eslint": "^9.38.0",
     "eslint-config-next": "^16.2.1",
-    "geist": "^1.7.0",
-    "next": "^16.2.1",
     "postcss": "^8.5.8",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "tailwindcss": "^4.2.2",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "zod": "^4.3.6"
+    "typescript": "^5"
   }
 }
