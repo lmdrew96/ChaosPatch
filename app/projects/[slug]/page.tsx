@@ -23,7 +23,7 @@ export default async function ProjectPage({
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center gap-3">
         <Link
-          href="/"
+          href="/dashboard"
           className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
         >
           ← Projects

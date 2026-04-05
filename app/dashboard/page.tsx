@@ -16,8 +16,8 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
+    <main className="flex min-h-screen flex-col items-center p-24 gap-6">
+      <div className="z-10 flex w-full max-w-5xl justify-end">
         <NewProjectButton />
       </div>
       <div className="w-full max-w-5xl">
