@@ -20,6 +20,12 @@ export function AddPatchForm({
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [error, setError] = useState("");
 
+  const cancelHref = slug ? `/projects/${slug}` : "/dashboard";
+
+  function handleCancel() {
+    startTransition(() => router.push(cancelHref));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
@@ -112,13 +118,23 @@ export function AddPatchForm({
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2.5 text-sm font-medium transition-colors"
-      >
-        {isPending ? "Adding…" : "Add patch"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={handleCancel}
+          disabled={isPending}
+          className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-600 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-indigo-500 disabled:opacity-50"
+        >
+          {isPending ? "Adding…" : "Add patch"}
+        </button>
+      </div>
     </form>
   );
 }
