@@ -315,33 +315,28 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
   return (
     <Link href={`/projects/${patch.project_slug}`}>
       <li className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 hover:border-zinc-600 transition-colors cursor-pointer list-none">
-        <div className="flex items-center gap-3">
-          {/* Priority badge */}
+        {/* Title */}
+        <span className="block text-sm text-zinc-200 truncate mb-1.5">
+          {patch.title}
+        </span>
+        {/* Metadata row */}
+        <div className="flex items-center gap-2 flex-wrap">
           <span
             className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider border rounded px-1.5 py-0.5 ${PRIORITY_STYLES[patch.priority]}`}
           >
             {patch.priority}
           </span>
-
-          {/* Title */}
-          <span className="flex-1 text-sm text-zinc-200 truncate">
-            {patch.title}
-          </span>
-
-          {/* Project dot + name */}
           <span className="flex items-center gap-1.5 shrink-0">
             <span
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: patch.project_color }}
             />
-            <span className="text-xs text-zinc-500 font-mono max-w-[100px] truncate">
+            <span className="text-xs text-zinc-500 font-mono max-w-[120px] truncate">
               {patch.project_slug}
             </span>
           </span>
-
-          {/* Status */}
           <span
-            className={`text-[10px] font-medium uppercase tracking-wider shrink-0 ${STATUS_STYLES[patch.status]}`}
+            className={`text-[10px] font-medium uppercase tracking-wider shrink-0 ml-auto ${STATUS_STYLES[patch.status]}`}
           >
             {STATUS_LABELS[patch.status]}
           </span>
