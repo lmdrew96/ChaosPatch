@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getPatches, getProjectBySlug } from "@/lib/queries";
 import { DeleteProjectButton } from "./delete-project-button";
+import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
 
 export default async function ProjectPage({
@@ -35,6 +36,11 @@ export default async function ProjectPage({
             style={{ backgroundColor: project.color }}
           />
           <h1 className="text-sm font-medium text-zinc-200">{project.name}</h1>
+          <EditProjectButton
+            slug={slug}
+            currentName={project.name}
+            currentColor={project.color}
+          />
         </div>
         <div className="ml-auto">
           <Link

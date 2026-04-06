@@ -174,8 +174,35 @@ export async function addNote(patchId: string, note: string): Promise<Patch> {
   return rows[0] as Patch;
 }
 
+export async function updatePatch(
+  patchId: string,
+  title: string,
+  priority: Patch["priority"]
+): Promise<Patch> {
+  const rows = await sql`
+    UPDATE patches SET title = ${title}, priority = ${priority}
+    WHERE id = ${patchId}
+    RETURNING *
+  `;
+  return rows[0] as Patch;
+}
+
 export async function deletePatch(patchId: string): Promise<void> {
   await sql`DELETE FROM patches WHERE id = ${patchId}`;
+}
+
+export async function updateProject(
+  userId: string,
+  slug: string,
+  name: string,
+  color: string
+): Promise<Project> {
+  const rows = await sql`
+    UPDATE projects SET name = ${name}, color = ${color}
+    WHERE user_id = ${userId} AND slug = ${slug}
+    RETURNING *
+  `;
+  return rows[0] as Project;
 }
 
 // ── MCP Tokens ─────────────────────────────────────────────────────────────

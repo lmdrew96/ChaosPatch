@@ -39,9 +39,31 @@ function PatchRow({ patch }: { patch: Patch }) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(patch.title);
+  const [editPriority, setEditPriority] = useState(patch.priority);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const editTitleRef = useRef<HTMLInputElement>(null);
 
   const nextStatus = STATUS_NEXT[patch.status];
+
+  function startEditing() {
+    setEditTitle(patch.title);
+    setEditPriority(patch.priority);
+    setEditing(true);
+    setTimeout(() => editTitleRef.current?.focus(), 50);
+  }
+
+  async function saveEdit() {
+    if (!editTitle.trim()) return;
+    await fetch(`/api/patches/${patch.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editTitle.trim(), priority: editPriority }),
+    });
+    setEditing(false);
+    startTransition(() => router.refresh());
+  }
 
   async function advance() {
     if (!nextStatus) return;
@@ -79,121 +101,160 @@ function PatchRow({ patch }: { patch: Patch }) {
 
   return (
     <li className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3">
-      <div className="flex items-start gap-3">
-        {/* Priority badge */}
-        <span
-          className={`mt-0.5 shrink-0 text-[10px] font-semibold uppercase tracking-wider border rounded px-1.5 py-0.5 ${PRIORITY_STYLES[patch.priority]}`}
-        >
-          {patch.priority}
-        </span>
-
-        {/* Title + notes */}
-        <div className="flex-1 min-w-0">
-          <button
-            className="text-left text-sm text-zinc-200 hover:text-white w-full truncate"
-            onClick={() => setExpanded((v) => !v)}
+      {editing ? (
+        /* ── Edit mode ── */
+        <div className="space-y-2">
+          <input
+            ref={editTitleRef}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveEdit();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <div className="flex items-center gap-2">
+            <select
+              value={editPriority}
+              onChange={(e) => setEditPriority(e.target.value as Patch["priority"])}
+              className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button
+              onClick={saveEdit}
+              disabled={isPending || !editTitle.trim()}
+              className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded px-2.5 py-1 transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* ── View mode ── */
+        <div className="flex items-start gap-3">
+          {/* Priority badge */}
+          <span
+            className={`mt-0.5 shrink-0 text-[10px] font-semibold uppercase tracking-wider border rounded px-1.5 py-0.5 ${PRIORITY_STYLES[patch.priority]}`}
           >
-            {patch.title}
-          </button>
+            {patch.priority}
+          </span>
 
-          {expanded && (
-            <div className="mt-2 space-y-2">
-              {/* Existing notes */}
-              {patch.notes && (
-                <p className="text-xs text-zinc-400 whitespace-pre-wrap font-mono bg-zinc-950 rounded p-2">
-                  {patch.notes}
-                </p>
-              )}
+          {/* Title + notes */}
+          <div className="flex-1 min-w-0">
+            <button
+              className="text-left text-sm text-zinc-200 hover:text-white w-full truncate"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {patch.title}
+            </button>
 
-              {/* Add note toggle */}
-              {showNoteInput ? (
-                <div className="space-y-2">
-                  <textarea
-                    ref={noteRef}
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Add a note…"
-                    rows={2}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && e.metaKey) addNote();
-                      if (e.key === "Escape") {
-                        setShowNoteInput(false);
-                        setNoteText("");
-                      }
-                    }}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={addNote}
-                      disabled={isPending || !noteText.trim()}
-                      className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded px-2.5 py-1 transition-colors"
-                    >
-                      Save note
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowNoteInput(false);
-                        setNoteText("");
+            {expanded && (
+              <div className="mt-2 space-y-2">
+                {patch.notes && (
+                  <p className="text-xs text-zinc-400 whitespace-pre-wrap font-mono bg-zinc-950 rounded p-2">
+                    {patch.notes}
+                  </p>
+                )}
+                {showNoteInput ? (
+                  <div className="space-y-2">
+                    <textarea
+                      ref={noteRef}
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Add a note…"
+                      rows={2}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.metaKey) addNote();
+                        if (e.key === "Escape") {
+                          setShowNoteInput(false);
+                          setNoteText("");
+                        }
                       }}
-                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={addNote}
+                        disabled={isPending || !noteText.trim()}
+                        className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded px-2.5 py-1 transition-colors"
+                      >
+                        Save note
+                      </button>
+                      <button
+                        onClick={() => { setShowNoteInput(false); setNoteText(""); }}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                ) : (
+                  <button
+                    onClick={handleNoteToggle}
+                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                  >
+                    + Add note
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={startEditing}
+              className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+            >
+              Edit
+            </button>
+            {nextStatus && (
+              <button
+                onClick={advance}
+                disabled={isPending}
+                className="text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors"
+              >
+                {STATUS_LABEL[patch.status]}
+              </button>
+            )}
+            {confirmDelete ? (
+              <span className="flex items-center gap-1.5">
                 <button
-                  onClick={handleNoteToggle}
+                  onClick={remove}
+                  disabled={isPending}
+                  className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 transition-colors font-medium"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
                   className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
-                  + Add note
+                  ✕
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {nextStatus && (
-            <button
-              onClick={advance}
-              disabled={isPending}
-              className="text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors"
-            >
-              {STATUS_LABEL[patch.status]}
-            </button>
-          )}
-
-          {/* Delete — available for all statuses */}
-          {confirmDelete ? (
-            <span className="flex items-center gap-1.5">
+              </span>
+            ) : (
               <button
-                onClick={remove}
+                onClick={() => setConfirmDelete(true)}
                 disabled={isPending}
-                className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 transition-colors font-medium"
+                className="text-xs text-zinc-600 hover:text-red-400 disabled:opacity-40 transition-colors"
               >
-                Confirm
+                Delete
               </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-              >
-                ✕
-              </button>
-            </span>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              disabled={isPending}
-              className="text-xs text-zinc-600 hover:text-red-400 disabled:opacity-40 transition-colors"
-            >
-              Delete
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </li>
   );
 }
