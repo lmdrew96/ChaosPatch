@@ -39,7 +39,7 @@ export function AppHeader() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </Link>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </div>
       </div>
