@@ -76,7 +76,7 @@ export function NewProjectButton() {
     <>
       <button
         onClick={handleOpen}
-        className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium transition-colors"
+        className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors"
       >
         + New project
       </button>
@@ -86,13 +86,13 @@ export function NewProjectButton() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
         >
-          <div className="w-full max-w-sm rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
-            <h2 className="text-base font-semibold text-zinc-100 mb-4">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <h2 className="text-base font-semibold text-foreground mb-4">
               New project
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs text-zinc-400 mb-1">
+                <label className="block text-xs text-muted-foreground mb-1">
                   Name
                 </label>
                 <input
@@ -100,11 +100,11 @@ export function NewProjectButton() {
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="My Project"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-400 mb-1">
+                <label className="block text-xs text-muted-foreground mb-1">
                   Slug
                 </label>
                 <input
@@ -114,11 +114,11 @@ export function NewProjectButton() {
                     setSlug(e.target.value);
                   }}
                   placeholder="my-project"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-400 mb-2">
+                <label className="block text-xs text-muted-foreground mb-2">
                   Color
                 </label>
                 <div className="flex gap-2">
@@ -131,7 +131,7 @@ export function NewProjectButton() {
                       style={{
                         backgroundColor: c,
                         boxShadow:
-                          color === c ? `0 0 0 2px #18181b, 0 0 0 4px ${c}` : undefined,
+                          color === c ? `0 0 0 2px var(--card), 0 0 0 4px ${c}` : undefined,
                       }}
                     />
                   ))}
@@ -142,14 +142,14 @@ export function NewProjectButton() {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+                  className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground/90 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !name.trim() || !slug.trim()}
-                  className="rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium transition-colors"
+                  className="rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-white transition-colors"
                 >
                   {loading ? "Creating…" : "Create"}
                 </button>

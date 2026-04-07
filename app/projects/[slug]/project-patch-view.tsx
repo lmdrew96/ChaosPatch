@@ -55,7 +55,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
 
   if (patches.length === 0) {
     return (
-      <p className="text-center text-zinc-600 text-sm py-16">
+      <p className="text-center text-muted-foreground/50 text-sm py-16">
         No patches yet. Add one with the button above.
       </p>
     );
@@ -67,7 +67,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
       <div className="flex flex-wrap items-center gap-3">
         {/* Status filter chips */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-600 mr-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
             Status
           </span>
           {(
@@ -83,8 +83,8 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
               onClick={() => setStatusFilter(opt.value)}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 statusFilter === opt.value
-                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+                  ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+                  : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
               }`}
             >
               {opt.label}
@@ -93,11 +93,11 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
           ))}
         </div>
 
-        <div className="w-px h-5 bg-zinc-800" />
+        <div className="w-px h-5 bg-border" />
 
         {/* Priority filter chips */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-600 mr-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
             Priority
           </span>
           {(
@@ -113,8 +113,8 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
               onClick={() => setPriorityFilter(opt.value)}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 priorityFilter === opt.value
-                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+                  ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+                  : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
               }`}
             >
               {opt.label}
@@ -129,7 +129,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value as SortField)}
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="status">Sort: Status</option>
             <option value="created">Sort: Date</option>
@@ -137,7 +137,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
           </select>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-md px-2 py-1 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
             title={sortDir === "desc" ? "Descending" : "Ascending"}
           >
             {sortDir === "desc" ? "↓" : "↑"}
@@ -147,7 +147,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
 
       {/* Patch list */}
       {filteredPatches.length === 0 ? (
-        <p className="text-center text-zinc-600 text-sm py-8">
+        <p className="text-center text-muted-foreground/50 text-sm py-8">
           No patches match your filters.
         </p>
       ) : (

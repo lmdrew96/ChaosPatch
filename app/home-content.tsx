@@ -92,13 +92,13 @@ export function HomeContent({
       <div className="flex flex-col gap-4 mb-6">
         {/* Top row: toggle + sort */}
         <div className="flex items-center justify-between">
-          <div className="flex bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
+          <div className="flex bg-card rounded-lg p-0.5 border border-border">
             <button
               onClick={() => setView("projects")}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 view === "projects"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
               }`}
             >
               Projects
@@ -107,12 +107,12 @@ export function HomeContent({
               onClick={() => setView("patches")}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 view === "patches"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
               }`}
             >
               Patches
-              <span className="ml-1.5 font-mono text-[10px] text-zinc-500">
+              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
                 {patches.length}
               </span>
             </button>
@@ -123,7 +123,7 @@ export function HomeContent({
               <select
                 value={sortField}
                 onChange={(e) => setSortField(e.target.value as SortField)}
-                className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="created">Sort: Date</option>
                 <option value="priority">Sort: Priority</option>
@@ -132,7 +132,7 @@ export function HomeContent({
               </select>
               <button
                 onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-                className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-md px-2 py-1 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
                 title={sortDir === "desc" ? "Newest first" : "Oldest first"}
               >
                 {sortDir === "desc" ? "↓" : "↑"}
@@ -157,7 +157,7 @@ export function HomeContent({
               ]}
             />
 
-            <div className="w-px bg-zinc-800 mx-1 self-stretch" />
+            <div className="w-px bg-border mx-1 self-stretch" />
 
             {/* Priority filters */}
             <FilterChipGroup
@@ -175,11 +175,11 @@ export function HomeContent({
             {/* Project filter */}
             {projects.length > 1 && (
               <>
-                <div className="w-px bg-zinc-800 mx-1 self-stretch" />
+                <div className="w-px bg-border mx-1 self-stretch" />
                 <select
                   value={projectFilter}
                   onChange={(e) => setProjectFilter(e.target.value)}
-                  className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   <option value="all">All projects</option>
                   {projects.map((p) => (
@@ -207,7 +207,7 @@ export function HomeContent({
         )
       ) : filteredPatches.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-zinc-600 text-sm">
+          <p className="text-muted-foreground/50 text-sm">
             {patches.length === 0
               ? "No patches yet across any project."
               : "No patches match your filters."}
@@ -239,7 +239,7 @@ function FilterChipGroup({
 }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] uppercase tracking-wider text-zinc-600 mr-1">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
         {label}
       </span>
       {options.map((opt) => (
@@ -248,8 +248,8 @@ function FilterChipGroup({
           onClick={() => onChange(opt.value)}
           className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
             value === opt.value
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-              : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+              ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+              : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
           }`}
         >
           {opt.label}
@@ -270,22 +270,22 @@ function ProjectCard({ project }: { project: Project }) {
   const openCount = Number(project.open_count ?? 0);
   return (
     <Link href={`/projects/${project.slug}`}>
-      <div className="group rounded-lg border border-zinc-800 bg-zinc-900 p-5 hover:border-zinc-600 transition-colors cursor-pointer">
+      <div className="group rounded-lg border border-border bg-card p-5 hover:border-muted-foreground/40 transition-colors cursor-pointer">
         <div className="flex items-start justify-between mb-3">
           <div
             className="w-3 h-3 rounded-full mt-1 shrink-0"
             style={{ backgroundColor: project.color }}
           />
           {openCount > 0 && (
-            <span className="text-xs font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               {openCount} open
             </span>
           )}
         </div>
-        <p className="font-medium text-zinc-100 group-hover:text-white truncate">
+        <p className="font-medium text-foreground group-hover:text-foreground truncate">
           {project.name}
         </p>
-        <p className="mt-1 text-xs font-mono text-zinc-500">{project.slug}</p>
+        <p className="mt-1 text-xs font-mono text-muted-foreground/70">{project.slug}</p>
       </div>
     </Link>
   );
@@ -295,14 +295,14 @@ function ProjectCard({ project }: { project: Project }) {
 
 const PRIORITY_STYLES: Record<string, string> = {
   high: "text-red-400 bg-red-950/40 border-red-900",
-  medium: "text-yellow-400 bg-yellow-950/40 border-yellow-900",
-  low: "text-zinc-400 bg-zinc-800/40 border-zinc-700",
+  medium: "text-yellow-500 dark:text-yellow-400 bg-yellow-950/40 border-yellow-900",
+  low: "text-muted-foreground bg-muted/60 border-border",
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  open: "text-blue-400",
-  in_progress: "text-amber-400",
-  done: "text-emerald-400",
+  open: "text-blue-500 dark:text-blue-400",
+  in_progress: "text-amber-500 dark:text-amber-400",
+  done: "text-emerald-500 dark:text-emerald-400",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -314,9 +314,9 @@ const STATUS_LABELS: Record<string, string> = {
 function PatchRow({ patch }: { patch: PatchWithProject }) {
   return (
     <Link href={`/projects/${patch.project_slug}`}>
-      <li className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 hover:border-zinc-600 transition-colors cursor-pointer list-none">
+      <li className="rounded-lg border border-border bg-card px-4 py-3 hover:border-muted-foreground/40 transition-colors cursor-pointer list-none">
         {/* Title */}
-        <span className="block text-sm text-zinc-200 truncate mb-1.5">
+        <span className="block text-sm text-foreground/90 truncate mb-1.5">
           {patch.title}
         </span>
         {/* Metadata row */}
@@ -331,7 +331,7 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: patch.project_color }}
             />
-            <span className="text-xs text-zinc-500 font-mono max-w-[120px] truncate">
+            <span className="text-xs text-muted-foreground/70 font-mono max-w-[120px] truncate">
               {patch.project_slug}
             </span>
           </span>
@@ -351,11 +351,11 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
 function EmptyState() {
   return (
     <div className="text-center py-24">
-      <p className="text-zinc-500 text-sm">No projects yet.</p>
-      <p className="text-zinc-600 text-xs mt-1">
-        Use <strong className="text-zinc-400">+ New project</strong> above, or
+      <p className="text-muted-foreground/70 text-sm">No projects yet.</p>
+      <p className="text-muted-foreground/50 text-xs mt-1">
+        Use <strong className="text-muted-foreground">+ New project</strong> above, or
         from Claude Code with{" "}
-        <code className="font-mono bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400">
+        <code className="font-mono bg-card px-1.5 py-0.5 rounded text-muted-foreground">
           cp_add_project
         </code>
         .

@@ -21,21 +21,21 @@ export default async function ProjectPage({
   const patches = await getPatches(userId, slug);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center gap-3">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border px-6 py-4 flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
+          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
           ← Projects
         </Link>
-        <span className="text-zinc-700">/</span>
+        <span className="text-border">/</span>
         <div className="flex items-center gap-2">
           <div
             className="w-2.5 h-2.5 rounded-full"
             style={{ backgroundColor: project.color }}
           />
-          <h1 className="text-sm font-medium text-zinc-200">{project.name}</h1>
+          <h1 className="text-sm font-medium text-foreground/90">{project.name}</h1>
           <EditProjectButton
             slug={slug}
             currentName={project.name}
@@ -45,7 +45,7 @@ export default async function ProjectPage({
         <div className="ml-auto">
           <Link
             href={`/add?project=${slug}`}
-            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium transition-colors"
+            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors"
           >
             + Add patch
           </Link>
@@ -56,13 +56,13 @@ export default async function ProjectPage({
         <ProjectPatchView patches={patches} />
 
         {/* Danger zone */}
-        <div className="border-t border-zinc-800 pt-8 mt-12">
+        <div className="border-t border-border pt-8 mt-12">
           <div className="rounded-lg border border-red-950 bg-red-950/10 p-5">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-red-400 mb-2">
               Danger zone
             </h3>
-            <p className="text-xs text-zinc-500 mb-4">
-              Permanently delete <strong className="text-zinc-300">{project.name}</strong> and
+            <p className="text-xs text-muted-foreground/70 mb-4">
+              Permanently delete <strong className="text-foreground/70">{project.name}</strong> and
               all {patches.length} {patches.length === 1 ? "patch" : "patches"}.
               This cannot be undone.
             </p>

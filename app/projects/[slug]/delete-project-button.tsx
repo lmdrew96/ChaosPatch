@@ -36,8 +36,8 @@ export function DeleteProjectButton({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-zinc-400">
-        Type <strong className="text-zinc-200 font-mono">{projectName}</strong> to confirm:
+      <p className="text-xs text-muted-foreground">
+        Type <strong className="text-foreground/70 font-mono">{projectName}</strong> to confirm:
       </p>
       <input
         type="text"
@@ -45,7 +45,7 @@ export function DeleteProjectButton({
         onChange={(e) => setConfirmText(e.target.value)}
         placeholder={projectName}
         autoFocus
-        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono"
+        className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono"
       />
       <div className="flex gap-2">
         <button
@@ -60,7 +60,7 @@ export function DeleteProjectButton({
             setConfirmStep(false);
             setConfirmText("");
           }}
-          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
         >
           Cancel
         </button>

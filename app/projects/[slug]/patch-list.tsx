@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 
 const PRIORITY_STYLES: Record<Patch["priority"], string> = {
   high: "text-red-400 bg-red-950/40 border-red-900",
-  medium: "text-yellow-400 bg-yellow-950/40 border-yellow-900",
-  low: "text-zinc-400 bg-zinc-800/40 border-zinc-700",
+  medium: "text-yellow-500 dark:text-yellow-400 bg-yellow-950/40 border-yellow-900",
+  low: "text-muted-foreground bg-muted/60 border-border",
 };
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
@@ -100,7 +100,7 @@ function PatchRow({ patch }: { patch: Patch }) {
   }
 
   return (
-    <li className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3">
+    <li className="rounded-lg border border-border bg-card px-4 py-3">
       {editing ? (
         /* ── Edit mode ── */
         <div className="space-y-2">
@@ -112,13 +112,13 @@ function PatchRow({ patch }: { patch: Patch }) {
               if (e.key === "Enter") saveEdit();
               if (e.key === "Escape") setEditing(false);
             }}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <div className="flex items-center gap-2">
             <select
               value={editPriority}
               onChange={(e) => setEditPriority(e.target.value as Patch["priority"])}
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground/70 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="high">High</option>
               <option value="medium">Medium</option>
@@ -133,7 +133,7 @@ function PatchRow({ patch }: { patch: Patch }) {
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
             >
               Cancel
             </button>
@@ -152,7 +152,7 @@ function PatchRow({ patch }: { patch: Patch }) {
           {/* Title + notes */}
           <div className="flex-1 min-w-0">
             <button
-              className="text-left text-sm text-zinc-200 hover:text-white w-full truncate"
+              className="text-left text-sm text-foreground/90 hover:text-foreground w-full truncate"
               onClick={() => setExpanded((v) => !v)}
             >
               {patch.title}
@@ -161,7 +161,7 @@ function PatchRow({ patch }: { patch: Patch }) {
             {expanded && (
               <div className="mt-2 space-y-2">
                 {patch.notes && (
-                  <p className="text-xs text-zinc-400 whitespace-pre-wrap font-mono bg-zinc-950 rounded p-2">
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-input rounded p-2">
                     {patch.notes}
                   </p>
                 )}
@@ -173,7 +173,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder="Add a note…"
                       rows={2}
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && e.metaKey) addNote();
                         if (e.key === "Escape") {
@@ -192,7 +192,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                       </button>
                       <button
                         onClick={() => { setShowNoteInput(false); setNoteText(""); }}
-                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
                       >
                         Cancel
                       </button>
@@ -201,7 +201,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                 ) : (
                   <button
                     onClick={handleNoteToggle}
-                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                    className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   >
                     + Add note
                   </button>
@@ -214,7 +214,7 @@ function PatchRow({ patch }: { patch: Patch }) {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={startEditing}
-              className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+              className="text-xs text-muted-foreground/50 hover:text-foreground/70 transition-colors"
             >
               Edit
             </button>
@@ -222,7 +222,7 @@ function PatchRow({ patch }: { patch: Patch }) {
               <button
                 onClick={advance}
                 disabled={isPending}
-                className="text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors"
+                className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-40 transition-colors"
               >
                 {STATUS_LABEL[patch.status]}
               </button>
@@ -238,7 +238,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                 >
                   ✕
                 </button>
@@ -247,7 +247,7 @@ function PatchRow({ patch }: { patch: Patch }) {
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={isPending}
-                className="text-xs text-zinc-600 hover:text-red-400 disabled:opacity-40 transition-colors"
+                className="text-xs text-muted-foreground/50 hover:text-red-400 disabled:opacity-40 transition-colors"
               >
                 Delete
               </button>

@@ -58,36 +58,36 @@ export default function AddProjectForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-foreground/70">
           Project Name
         </label>
         <input
           type="text"
           id="name"
           name="name"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+          className="mt-1 block w-full border border-border rounded-md bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           required
           disabled={isLoading}
         />
       </div>
       <div>
-        <label htmlFor="slug" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="slug" className="block text-sm font-medium text-foreground/70">
           Project Slug (unique identifier for URL)
         </label>
         <input
           type="text"
           id="slug"
           name="slug"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+          className="mt-1 block w-full border border-border rounded-md bg-input px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           required
           pattern="[a-z0-9-]+"
           title="Slug must contain only lowercase letters, numbers, and hyphens."
           disabled={isLoading}
         />
       </div>
-      {formState.error && <p className="text-red-500 text-sm">{formState.error}</p>}
+      {formState.error && <p className="text-red-400 text-sm">{formState.error}</p>}
       {formState.success && (
-        <p className="text-green-500 text-sm">Project added successfully!</p>
+        <p className="text-emerald-500 text-sm">Project added successfully!</p>
       )}
       <div className="flex justify-end space-x-2">
         <Button

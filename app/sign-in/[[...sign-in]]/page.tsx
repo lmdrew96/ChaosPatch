@@ -9,7 +9,7 @@ export default async function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <SignIn />
     </div>
   );
