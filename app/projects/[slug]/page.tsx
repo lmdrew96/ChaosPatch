@@ -21,31 +21,33 @@ export default async function ProjectPage({
   const patches = await getPatches(userId, slug);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border px-6 py-4 flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-        >
-          ← Projects
-        </Link>
-        <span className="text-border">/</span>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ backgroundColor: project.color }}
-          />
-          <h1 className="text-sm font-medium text-foreground/90">{project.name}</h1>
-          <EditProjectButton
-            slug={slug}
-            currentName={project.name}
-            currentColor={project.color}
-          />
-        </div>
-        <div className="ml-auto">
+    <div className="min-h-screen bg-background text-foreground pt-16">
+      <header className="border-b border-border px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link
+              href="/dashboard"
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0"
+            >
+              ← Projects
+            </Link>
+            <span className="text-border shrink-0">/</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: project.color }}
+              />
+              <h1 className="text-sm font-medium text-foreground/90 truncate">{project.name}</h1>
+              <EditProjectButton
+                slug={slug}
+                currentName={project.name}
+                currentColor={project.color}
+              />
+            </div>
+          </div>
           <Link
             href={`/add?project=${slug}`}
-            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors shrink-0"
           >
             + Add patch
           </Link>

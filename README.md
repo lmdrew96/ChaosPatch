@@ -145,8 +145,8 @@ chaospatch/
 |---|---|
 | [ControlledChaos](https://controlledchaos.adhdesigns.dev) | ADHD-friendly task manager |
 | [ChaosLimbă](https://chaoslimba.adhdesigns.dev) | English → Romanian CALL platform |
-| [Cha(t)os](https://github.com/lmdrew96) | BYOK group chat with Claude instances |
-| **ChaosPatch** | Dev patch tracker + Claude Code MCP |
+| [Cha(t)os](https://chatos.adhdesigns.dev) | BYOK group chat with Claude instances |
+| [ChaosPatch](https://chaospatch.adhdesigns.dev) | Dev patch tracker + Claude Code MCP |
 
 ---
 
