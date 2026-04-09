@@ -9,6 +9,7 @@ import type { Project, PatchWithProject } from "@/lib/queries";
 type ViewMode = "projects" | "patches";
 type StatusFilter = "all" | "open" | "in_progress" | "done";
 type PriorityFilter = "all" | "low" | "medium" | "high";
+type ProjectSortField = "name" | "open_count" | "created";
 type SortField = "created" | "priority" | "status" | "project";
 type SortDir = "asc" | "desc";
 
@@ -30,6 +31,8 @@ export function HomeContent({
   const [sortField, setSortField] = useState<SortField>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [projectSort, setProjectSort] = useState<ProjectSortField>("open_count");
+  const [projectSortDir, setProjectSortDir] = useState<SortDir>("desc");
 
   // ── Filtered + sorted patches ──────────────────────────────────────────
 
@@ -74,9 +77,23 @@ export function HomeContent({
 
   const filteredProjects = useMemo(() => {
     const result = [...projects];
-    // Projects are always sorted by open count desc for now
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (projectSort) {
+        case "name":
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case "open_count":
+          cmp = Number(a.open_count ?? 0) - Number(b.open_count ?? 0);
+          break;
+        case "created":
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+      return projectSortDir === "desc" ? -cmp : cmp;
+    });
     return result;
-  }, [projects]);
+  }, [projects, projectSort, projectSortDir]);
 
   // ── Counts for filter badges ───────────────────────────────────────────
 
@@ -117,6 +134,27 @@ export function HomeContent({
               </span>
             </button>
           </div>
+
+          {view === "projects" && (
+            <div className="flex items-center gap-2">
+              <select
+                value={projectSort}
+                onChange={(e) => setProjectSort(e.target.value as ProjectSortField)}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="open_count">Sort: Open patches</option>
+                <option value="name">Sort: Name</option>
+                <option value="created">Sort: Date</option>
+              </select>
+              <button
+                onClick={() => setProjectSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+                className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
+                title={projectSortDir === "desc" ? "Descending" : "Ascending"}
+              >
+                {projectSortDir === "desc" ? "↓" : "↑"}
+              </button>
+            </div>
+          )}
 
           {view === "patches" && (
             <div className="flex items-center gap-2">

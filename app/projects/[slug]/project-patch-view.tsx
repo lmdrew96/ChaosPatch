@@ -4,6 +4,34 @@ import { useState, useMemo } from "react";
 import type { Patch } from "@/lib/queries";
 import { PatchList } from "./patch-list";
 
+function CompletedAccordion({ patches }: { patches: Patch[] }) {
+  const [open, setOpen] = useState(false);
+  if (patches.length === 0) return null;
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground/70 hover:bg-muted/40 transition-colors"
+      >
+        <span>
+          Completed
+          <span className="ml-1.5 font-mono text-[10px] opacity-60">
+            {patches.length}
+          </span>
+        </span>
+        <span className="text-muted-foreground/50 transition-transform" style={{ transform: open ? "rotate(180deg)" : undefined }}>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-border">
+          <PatchList patches={patches} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 type StatusFilter = "all" | "open" | "in_progress" | "done";
 type PriorityFilter = "all" | "low" | "medium" | "high";
 type SortField = "created" | "priority" | "status";
@@ -150,8 +178,13 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
         <p className="text-center text-muted-foreground/50 text-sm py-8">
           No patches match your filters.
         </p>
-      ) : (
+      ) : statusFilter === "done" ? (
         <PatchList patches={filteredPatches} />
+      ) : (
+        <>
+          <PatchList patches={filteredPatches.filter((p) => p.status !== "done")} />
+          <CompletedAccordion patches={filteredPatches.filter((p) => p.status === "done")} />
+        </>
       )}
     </div>
   );
