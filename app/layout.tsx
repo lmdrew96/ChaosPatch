@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: "ChaosPatch",
   description: "Project-scoped patch tracker for developers",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
