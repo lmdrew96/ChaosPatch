@@ -119,6 +119,73 @@ const TOOLS = [
       required: ["project_slug"],
     },
   },
+  {
+    name: "cp_update_patch",
+    description: "Update a patch's title and/or priority.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        title: { type: "string", description: "New title (optional)" },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "New priority (optional)",
+        },
+      },
+      required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_update_project",
+    description: "Update a project's name and/or color.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        project_slug: { type: "string" },
+        name: { type: "string", description: "New display name (optional)" },
+        color: { type: "string", description: "New hex color (optional)" },
+      },
+      required: ["project_slug"],
+    },
+  },
+  {
+    name: "cp_reopen_patch",
+    description:
+      "Reopen a done or in_progress patch. Reverts to open (clears started_at and completed_at) or in_progress (clears completed_at).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        status: {
+          type: "string",
+          enum: ["open", "in_progress"],
+          description: "Target status (default: open)",
+        },
+      },
+      required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_get_project_summary",
+    description: "Get open/in_progress/done counts for each project.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "cp_search_patches",
+    description:
+      "Search patches across all projects by title or notes (case-insensitive).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Search text" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 async function handleTool(
@@ -235,6 +302,89 @@ async function handleTool(
       if (result.length === 0)
         throw new Error(`Project '${args.project_slug}' not found`);
       return `Project '${args.project_slug}' and all its patches deleted.`;
+    }
+
+    case "cp_update_patch": {
+      const [existing] = await sql`
+        SELECT * FROM patches WHERE id = ${args.patch_id!}
+      `;
+      if (!existing) throw new Error(`Patch '${args.patch_id}' not found`);
+      const title = args.title ?? existing.title;
+      const priority = args.priority ?? existing.priority;
+      const [patch] = await sql`
+        UPDATE patches SET title = ${title}, priority = ${priority}
+        WHERE id = ${args.patch_id!}
+        RETURNING *
+      `;
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_update_project": {
+      const [existing] = await sql`
+        SELECT * FROM projects
+        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
+      `;
+      if (!existing) throw new Error(`Project '${args.project_slug}' not found`);
+      const name = args.name ?? existing.name;
+      const color = args.color ?? existing.color;
+      const [project] = await sql`
+        UPDATE projects SET name = ${name}, color = ${color}
+        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
+        RETURNING *
+      `;
+      return JSON.stringify(project, null, 2);
+    }
+
+    case "cp_reopen_patch": {
+      const status = args.status ?? "open";
+      if (status === "in_progress") {
+        const [patch] = await sql`
+          UPDATE patches SET status = 'in_progress', completed_at = NULL
+          WHERE id = ${args.patch_id!}
+          RETURNING *
+        `;
+        if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+        return JSON.stringify(patch, null, 2);
+      }
+      const [patch] = await sql`
+        UPDATE patches SET status = 'open', started_at = NULL, completed_at = NULL
+        WHERE id = ${args.patch_id!}
+        RETURNING *
+      `;
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_get_project_summary": {
+      const rows = await sql`
+        SELECT
+          p.name AS project_name,
+          p.slug AS project_slug,
+          p.color AS project_color,
+          COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
+          COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress,
+          COUNT(pa.id) FILTER (WHERE pa.status = 'done')::int AS done,
+          COUNT(pa.id)::int AS total
+        FROM projects p
+        LEFT JOIN patches pa ON pa.project_id = p.id
+        WHERE p.user_id = ${userId}
+        GROUP BY p.id
+        ORDER BY p.name ASC
+      `;
+      return JSON.stringify(rows, null, 2);
+    }
+
+    case "cp_search_patches": {
+      const pattern = `%${args.query!}%`;
+      const rows = await sql`
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId}
+          AND (pa.title ILIKE ${pattern} OR pa.notes ILIKE ${pattern})
+        ORDER BY pa.created_at DESC
+      `;
+      return JSON.stringify(rows, null, 2);
     }
 
     default:

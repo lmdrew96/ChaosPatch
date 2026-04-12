@@ -205,6 +205,77 @@ export async function updateProject(
   return rows[0] as Project;
 }
 
+// ── Reopen Patch ──────────────────────────────────────────────────────────
+
+export async function reopenPatch(
+  patchId: string,
+  status: "open" | "in_progress" = "open"
+): Promise<Patch> {
+  if (status === "in_progress") {
+    const rows = await sql`
+      UPDATE patches SET status = 'in_progress', completed_at = NULL
+      WHERE id = ${patchId}
+      RETURNING *
+    `;
+    return rows[0] as Patch;
+  }
+  const rows = await sql`
+    UPDATE patches SET status = 'open', started_at = NULL, completed_at = NULL
+    WHERE id = ${patchId}
+    RETURNING *
+  `;
+  return rows[0] as Patch;
+}
+
+// ── Project Summary ───────────────────────────────────────────────────────
+
+export type ProjectSummary = {
+  project_name: string;
+  project_slug: string;
+  project_color: string;
+  open: number;
+  in_progress: number;
+  done: number;
+  total: number;
+};
+
+export async function getProjectSummary(userId: string): Promise<ProjectSummary[]> {
+  const rows = await sql`
+    SELECT
+      p.name AS project_name,
+      p.slug AS project_slug,
+      p.color AS project_color,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'done')::int AS done,
+      COUNT(pa.id)::int AS total
+    FROM projects p
+    LEFT JOIN patches pa ON pa.project_id = p.id
+    WHERE p.user_id = ${userId}
+    GROUP BY p.id
+    ORDER BY p.name ASC
+  `;
+  return rows as ProjectSummary[];
+}
+
+// ── Search Patches ────────────────────────────────────────────────────────
+
+export async function searchPatches(
+  userId: string,
+  query: string
+): Promise<PatchWithProject[]> {
+  const pattern = `%${query}%`;
+  const rows = await sql`
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId}
+      AND (pa.title ILIKE ${pattern} OR pa.notes ILIKE ${pattern})
+    ORDER BY pa.created_at DESC
+  `;
+  return rows as PatchWithProject[];
+}
+
 // ── MCP Tokens ─────────────────────────────────────────────────────────────
 
 export async function getOrCreateMcpToken(userId: string): Promise<string> {
