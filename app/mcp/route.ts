@@ -6,6 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { neon } from "@neondatabase/serverless";
 import { getUserIdFromToken } from "@/lib/queries";
+import { getBaseUrl } from "@/lib/oauth";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -246,10 +247,27 @@ async function handler(req: Request): Promise<Response> {
   const token = authHeader?.startsWith("Bearer ")
     ? authHeader.slice(7).trim()
     : null;
-  if (!token) return new Response("Unauthorized", { status: 401 });
+
+  const resourceMetadataUrl = `${getBaseUrl()}/.well-known/oauth-protected-resource`;
+
+  if (!token) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
+      },
+    });
+  }
 
   const userId = await getUserIdFromToken(token);
-  if (!userId) return new Response("Unauthorized", { status: 401 });
+  if (!userId) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
+      },
+    });
+  }
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless — new server per request

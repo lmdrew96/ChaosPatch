@@ -25,3 +25,21 @@ CREATE TABLE IF NOT EXISTS mcp_tokens (
   user_id    TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id     TEXT PRIMARY KEY,
+  client_secret TEXT,
+  redirect_uris TEXT[] NOT NULL,
+  client_name   TEXT,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code            TEXT PRIMARY KEY,
+  client_id       TEXT NOT NULL REFERENCES oauth_clients(client_id),
+  user_id         TEXT NOT NULL,
+  redirect_uri    TEXT NOT NULL,
+  code_challenge  TEXT NOT NULL,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
