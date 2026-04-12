@@ -421,6 +421,7 @@ async function handler(req: Request): Promise<Response> {
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless — new server per request
+    enableJsonResponse: true,
   });
 
   const server = new Server(
