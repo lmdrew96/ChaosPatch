@@ -187,6 +187,11 @@ export async function updatePatch(
   return rows[0] as Patch;
 }
 
+export async function getPatchById(patchId: string): Promise<Patch | null> {
+  const rows = await sql`SELECT * FROM patches WHERE id = ${patchId} LIMIT 1`;
+  return (rows[0] as Patch) ?? null;
+}
+
 export async function deletePatch(patchId: string): Promise<void> {
   await sql`DELETE FROM patches WHERE id = ${patchId}`;
 }

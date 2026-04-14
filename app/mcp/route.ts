@@ -4,11 +4,25 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { neon } from "@neondatabase/serverless";
-import { getUserIdFromToken } from "@/lib/queries";
+import {
+  getUserIdFromToken,
+  getProjects,
+  createProject,
+  getPatches,
+  getProjectBySlug,
+  createPatch,
+  updatePatchStatus,
+  addNote,
+  deletePatch,
+  deleteProject,
+  getPatchById,
+  updatePatch,
+  updateProject,
+  reopenPatch,
+  getProjectSummary,
+  searchPatches,
+} from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
-
-const sql = neon(process.env.DATABASE_URL!);
 
 type Args = Record<string, string | undefined>;
 
@@ -194,197 +208,87 @@ async function handleTool(
   userId: string
 ): Promise<string> {
   switch (name) {
+    case "cp_list_projects": {
+      const projects = await getProjects(userId);
+      return JSON.stringify(projects, null, 2);
+    }
+
     case "cp_add_project": {
-      const color = args.color ?? "#6366f1";
-      const [project] = await sql`
-        INSERT INTO projects (user_id, name, slug, color)
-        VALUES (${userId}, ${args.name!}, ${args.slug!}, ${color})
-        RETURNING *
-      `;
+      const project = await createProject(userId, args.name!, args.slug!, args.color);
       return JSON.stringify(project, null, 2);
     }
 
-    case "cp_list_projects": {
-      const rows = await sql`
-        SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open') AS open_count
-        FROM projects p
-        LEFT JOIN patches pa ON pa.project_id = p.id
-        WHERE p.user_id = ${userId}
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-      `;
-      return JSON.stringify(rows, null, 2);
-    }
-
     case "cp_list_patches": {
-      if (args.status) {
-        const rows = await sql`
-          SELECT pa.* FROM patches pa
-          JOIN projects p ON p.id = pa.project_id
-          WHERE p.user_id = ${userId} AND p.slug = ${args.project_slug!}
-            AND pa.status = ${args.status}
-          ORDER BY pa.created_at DESC
-        `;
-        return JSON.stringify(rows, null, 2);
-      }
-      const rows = await sql`
-        SELECT pa.* FROM patches pa
-        JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND p.slug = ${args.project_slug!}
-        ORDER BY pa.created_at DESC
-      `;
-      return JSON.stringify(rows, null, 2);
+      const status = args.status as "open" | "in_progress" | "done" | undefined;
+      const patches = await getPatches(userId, args.project_slug!, status);
+      return JSON.stringify(patches, null, 2);
     }
 
     case "cp_add_patch": {
-      const [project] = await sql`
-        SELECT id FROM projects
-        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
-        LIMIT 1
-      `;
+      const project = await getProjectBySlug(userId, args.project_slug!);
       if (!project) throw new Error(`Project '${args.project_slug}' not found`);
-      const priority = args.priority ?? "medium";
-      const [patch] = await sql`
-        INSERT INTO patches (project_id, title, priority)
-        VALUES (${project.id}, ${args.title!}, ${priority})
-        RETURNING *
-      `;
+      const priority = (args.priority as "low" | "medium" | "high") ?? "medium";
+      const patch = await createPatch(project.id, args.title!, priority);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_start_patch": {
-      const now = new Date().toISOString();
-      const [patch] = await sql`
-        UPDATE patches SET status = 'in_progress', started_at = ${now}
-        WHERE id = ${args.patch_id!}
-        RETURNING *
-      `;
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const patch = await updatePatchStatus(args.patch_id!, "in_progress");
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_complete_patch": {
-      const now = new Date().toISOString();
-      const [patch] = await sql`
-        UPDATE patches SET status = 'done', completed_at = ${now}
-        WHERE id = ${args.patch_id!}
-        RETURNING *
-      `;
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const patch = await updatePatchStatus(args.patch_id!, "done");
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_add_note": {
-      const [patch] = await sql`
-        UPDATE patches
-        SET notes = CASE
-          WHEN notes IS NULL THEN ${args.note!}
-          ELSE notes || E'\n\n' || ${args.note!}
-        END
-        WHERE id = ${args.patch_id!}
-        RETURNING *
-      `;
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const patch = await addNote(args.patch_id!, args.note!);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_delete_patch": {
-      await sql`DELETE FROM patches WHERE id = ${args.patch_id!}`;
+      await deletePatch(args.patch_id!);
       return `Patch ${args.patch_id} deleted.`;
     }
 
     case "cp_delete_project": {
-      const result = await sql`
-        DELETE FROM projects
-        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
-        RETURNING id
-      `;
-      if (result.length === 0)
-        throw new Error(`Project '${args.project_slug}' not found`);
+      await deleteProject(userId, args.project_slug!);
       return `Project '${args.project_slug}' and all its patches deleted.`;
     }
 
     case "cp_update_patch": {
-      const [existing] = await sql`
-        SELECT * FROM patches WHERE id = ${args.patch_id!}
-      `;
+      const existing = await getPatchById(args.patch_id!);
       if (!existing) throw new Error(`Patch '${args.patch_id}' not found`);
       const title = args.title ?? existing.title;
-      const priority = args.priority ?? existing.priority;
-      const [patch] = await sql`
-        UPDATE patches SET title = ${title}, priority = ${priority}
-        WHERE id = ${args.patch_id!}
-        RETURNING *
-      `;
+      const priority = (args.priority as "low" | "medium" | "high") ?? existing.priority;
+      const patch = await updatePatch(args.patch_id!, title, priority);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_update_project": {
-      const [existing] = await sql`
-        SELECT * FROM projects
-        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
-      `;
+      const existing = await getProjectBySlug(userId, args.project_slug!);
       if (!existing) throw new Error(`Project '${args.project_slug}' not found`);
-      const name = args.name ?? existing.name;
+      const projectName = args.name ?? existing.name;
       const color = args.color ?? existing.color;
-      const [project] = await sql`
-        UPDATE projects SET name = ${name}, color = ${color}
-        WHERE user_id = ${userId} AND slug = ${args.project_slug!}
-        RETURNING *
-      `;
+      const project = await updateProject(userId, args.project_slug!, projectName, color);
       return JSON.stringify(project, null, 2);
     }
 
     case "cp_reopen_patch": {
-      const status = args.status ?? "open";
-      if (status === "in_progress") {
-        const [patch] = await sql`
-          UPDATE patches SET status = 'in_progress', completed_at = NULL
-          WHERE id = ${args.patch_id!}
-          RETURNING *
-        `;
-        if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
-        return JSON.stringify(patch, null, 2);
-      }
-      const [patch] = await sql`
-        UPDATE patches SET status = 'open', started_at = NULL, completed_at = NULL
-        WHERE id = ${args.patch_id!}
-        RETURNING *
-      `;
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const status = (args.status as "open" | "in_progress") ?? "open";
+      const patch = await reopenPatch(args.patch_id!, status);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_get_project_summary": {
-      const rows = await sql`
-        SELECT
-          p.name AS project_name,
-          p.slug AS project_slug,
-          p.color AS project_color,
-          COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
-          COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress,
-          COUNT(pa.id) FILTER (WHERE pa.status = 'done')::int AS done,
-          COUNT(pa.id)::int AS total
-        FROM projects p
-        LEFT JOIN patches pa ON pa.project_id = p.id
-        WHERE p.user_id = ${userId}
-        GROUP BY p.id
-        ORDER BY p.name ASC
-      `;
-      return JSON.stringify(rows, null, 2);
+      const summary = await getProjectSummary(userId);
+      return JSON.stringify(summary, null, 2);
     }
 
     case "cp_search_patches": {
-      const pattern = `%${args.query!}%`;
-      const rows = await sql`
-        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
-        FROM patches pa
-        JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId}
-          AND (pa.title ILIKE ${pattern} OR pa.notes ILIKE ${pattern})
-        ORDER BY pa.created_at DESC
-      `;
-      return JSON.stringify(rows, null, 2);
+      const results = await searchPatches(userId, args.query!);
+      return JSON.stringify(results, null, 2);
     }
 
     default:

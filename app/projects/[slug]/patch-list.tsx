@@ -75,6 +75,15 @@ function PatchRow({ patch }: { patch: Patch }) {
     startTransition(() => router.refresh());
   }
 
+  async function reopen() {
+    await fetch(`/api/patches/${patch.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reopen: "open" }),
+    });
+    startTransition(() => router.refresh());
+  }
+
   async function addNote() {
     if (!noteText.trim()) return;
     await fetch(`/api/patches/${patch.id}`, {
@@ -166,6 +175,16 @@ function PatchRow({ patch }: { patch: Patch }) {
                     {patch.notes}
                   </p>
                 )}
+                {(patch.started_at || patch.completed_at) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
+                    {patch.started_at && (
+                      <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
+                    )}
+                    {patch.completed_at && (
+                      <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
+                    )}
+                  </div>
+                )}
                 {showNoteInput ? (
                   <div className="space-y-2">
                     <textarea
@@ -219,13 +238,21 @@ function PatchRow({ patch }: { patch: Patch }) {
             >
               Edit
             </button>
-            {nextStatus && (
+            {nextStatus ? (
               <button
                 onClick={advance}
                 disabled={isPending}
                 className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-40 transition-colors"
               >
                 {STATUS_LABEL[patch.status]}
+              </button>
+            ) : (
+              <button
+                onClick={reopen}
+                disabled={isPending}
+                className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 transition-colors"
+              >
+                Reopen
               </button>
             )}
             {confirmDelete ? (

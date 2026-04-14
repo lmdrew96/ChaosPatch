@@ -33,6 +33,7 @@ export function HomeContent({
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [projectSort, setProjectSort] = useState<ProjectSortField>("open_count");
   const [projectSortDir, setProjectSortDir] = useState<SortDir>("desc");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // ── Filtered + sorted patches ──────────────────────────────────────────
 
@@ -47,6 +48,15 @@ export function HomeContent({
     }
     if (projectFilter !== "all") {
       result = result.filter((p) => p.project_slug === projectFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          (p.notes && p.notes.toLowerCase().includes(q))
+      );
     }
 
     result.sort((a, b) => {
@@ -71,7 +81,7 @@ export function HomeContent({
     });
 
     return result;
-  }, [patches, statusFilter, priorityFilter, projectFilter, sortField, sortDir]);
+  }, [patches, statusFilter, priorityFilter, projectFilter, searchQuery, sortField, sortDir]);
 
   // ── Filtered + sorted projects ─────────────────────────────────────────
 
@@ -158,6 +168,13 @@ export function HomeContent({
 
           {view === "patches" && (
             <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search patches..."
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-44"
+              />
               <select
                 value={sortField}
                 onChange={(e) => setSortField(e.target.value as SortField)}

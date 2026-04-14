@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { addNote, deletePatch, updatePatch, updatePatchStatus } from "@/lib/queries";
+import { addNote, deletePatch, reopenPatch, updatePatch, updatePatchStatus } from "@/lib/queries";
 
 export async function PATCH(
   req: Request,
@@ -10,6 +10,11 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
+
+  if (body.reopen) {
+    const patch = await reopenPatch(id, body.reopen);
+    return Response.json(patch);
+  }
 
   if (body.status) {
     const patch = await updatePatchStatus(id, body.status);
