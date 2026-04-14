@@ -154,6 +154,7 @@ function PatchRow({ patch }: { patch: Patch }) {
             <button
               className="text-left text-sm text-foreground/90 hover:text-foreground w-full truncate"
               onClick={() => setExpanded((v) => !v)}
+              title={patch.title}
             >
               {patch.title}
             </button>

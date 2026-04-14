@@ -2,16 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-
-const PRESET_COLORS = [
-  "#6366f1", // indigo
-  "#8b5cf6", // violet
-  "#f43f5e", // rose
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#0ea5e9", // sky
-  "#71717a", // zinc
-];
+import { PRESET_COLORS } from "@/lib/colors";
 
 function toSlug(name: string) {
   return name
@@ -121,7 +112,7 @@ export function NewProjectButton() {
                 <label className="block text-xs text-muted-foreground mb-2">
                   Color
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}

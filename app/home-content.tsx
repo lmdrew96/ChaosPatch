@@ -354,7 +354,7 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
     <Link href={`/projects/${patch.project_slug}`}>
       <li className="rounded-lg border border-border bg-card px-4 py-3 hover:border-muted-foreground/40 transition-colors cursor-pointer list-none">
         {/* Title */}
-        <span className="block text-sm text-foreground/90 truncate mb-1.5">
+        <span className="block text-sm text-foreground/90 truncate mb-1.5" title={patch.title}>
           {patch.title}
         </span>
         {/* Metadata row */}
