@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import type { Project, PatchWithProject } from "@/lib/queries";
+import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
+import { SummaryStrip } from "@/components/insights/summary-strip";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,9 +22,11 @@ const STATUS_ORDER = { in_progress: 0, open: 1, done: 2 };
 export function HomeContent({
   projects,
   patches,
+  summary,
 }: {
   projects: Project[];
   patches: PatchWithProject[];
+  summary: ProjectSummary[];
 }) {
   const [view, setView] = useState<ViewMode>("projects");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -115,6 +118,9 @@ export function HomeContent({
 
   return (
     <>
+      {/* Summary strip */}
+      {summary.length > 0 && <SummaryStrip summary={summary} />}
+
       {/* View toggle + filters bar */}
       <div className="flex flex-col gap-4 mb-6">
         {/* Top row: toggle + sort */}
