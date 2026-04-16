@@ -3,9 +3,9 @@
 import Link from "next/link";
 import type { ProjectSummary, PatchWithProject, WeekBucket } from "@/lib/queries";
 import { StatCard } from "@/components/insights/stat-card";
-import { StatusDonut } from "@/components/insights/status-donut";
-import { ProjectBars } from "@/components/insights/project-bars";
-import { ActivityTimeline } from "@/components/insights/activity-timeline";
+import { PriorityMatrix } from "@/components/insights/priority-matrix";
+import { LifecycleStrip } from "@/components/insights/lifecycle-strip";
+import { DotStrip } from "@/components/insights/dot-strip";
 
 export function InsightsContent({
   summary,
@@ -26,8 +26,16 @@ export function InsightsContent({
     { open: 0, in_progress: 0, done: 0, total: 0 }
   );
 
-  const completionRate =
-    totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
+  const activeCount = totals.open + totals.in_progress;
+
+  // Priority breakdown for active patches
+  const activePatches = patches.filter((p) => p.status === "open" || p.status === "in_progress");
+  const highCount = activePatches.filter((p) => p.priority === "high").length;
+  const medCount = activePatches.filter((p) => p.priority === "medium").length;
+  const lowCount = activePatches.filter((p) => p.priority === "low").length;
+  const prioritySub = activeCount > 0
+    ? `${highCount} high · ${medCount} med · ${lowCount} low`
+    : "all clear";
 
   // Completed patches sorted by completion date (most recent first)
   const completedWithTimes = patches
@@ -57,8 +65,17 @@ export function InsightsContent({
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Insights</h1>
-          <p className="text-xs text-muted-foreground/60 mt-0.5">
+          <h1
+            className="text-xl font-bold tracking-tight"
+            style={{
+              background: "linear-gradient(135deg, #88739E, #DFA649, #8CBDB9)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Insights
+          </h1>
+          <p className="text-xs text-muted-foreground/50 mt-0.5">
             Patch activity across {summary.length} project{summary.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -73,59 +90,61 @@ export function InsightsContent({
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
-          label="Total Patches"
-          value={totals.total}
-          accent="var(--primary)"
+          label="Active"
+          value={activeCount}
+          sub={prioritySub}
+          accent="#88739E"
+          glow="rgba(136, 115, 158, 0.4)"
           delay={0}
         />
         <StatCard
-          label="Completion Rate"
-          value={`${completionRate}%`}
-          sub={`${totals.done} of ${totals.total} done`}
-          accent="#10b981"
+          label="Completed"
+          value={totals.done}
+          sub={totals.total > 0 ? `${Math.round((totals.done / totals.total) * 100)}% lifetime rate` : undefined}
+          accent="#8CBDB9"
+          glow="rgba(140, 189, 185, 0.4)"
           delay={80}
         />
         <StatCard
           label="Avg. Lifecycle"
           value={avgDays !== null ? `${avgDays}d` : "—"}
           sub={avgDays !== null ? `across ${completedWithTimes.length} patches` : "no data yet"}
+          accent="#DFA649"
+          glow="rgba(223, 166, 73, 0.4)"
           delay={160}
         />
         <StatCard
-          label="Active Projects"
-          value={summary.filter((p) => p.open + p.in_progress > 0).length}
+          label="Projects"
+          value={summary.length}
           sub={busiest ? `busiest: ${busiest.project_name}` : undefined}
+          accent="#244952"
+          glow="rgba(36, 73, 82, 0.4)"
           delay={240}
         />
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status breakdown */}
-        <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
-          <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-6">
-            Status Breakdown
-          </h2>
-          <div className="flex justify-center">
-            <StatusDonut counts={totals} />
-          </div>
-        </div>
-
-        {/* Per-project bars */}
-        <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
-          <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-6">
-            By Project
-          </h2>
-          <ProjectBars projects={summary} />
-        </div>
+      {/* Priority matrix — what needs attention */}
+      <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
+        <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-5">
+          Active Patches
+        </h2>
+        <PriorityMatrix patches={activePatches} />
       </div>
 
-      {/* Activity timeline — full width */}
+      {/* Lifecycle strip — how fast patches close */}
+      <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
+        <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
+          Lifecycle by Project
+        </h2>
+        <LifecycleStrip patches={patches} />
+      </div>
+
+      {/* Dot strip — 3-lane activity timeline */}
       <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Activity — Last 12 Weeks
         </h2>
-        <ActivityTimeline data={timeline} />
+        <DotStrip data={timeline} />
       </div>
 
       {/* Recent completions */}
