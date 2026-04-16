@@ -263,6 +263,75 @@ export async function getProjectSummary(userId: string): Promise<ProjectSummary[
   return rows as ProjectSummary[];
 }
 
+// ── Dashboard Summary Strip ───────────────────────────────────────────────
+
+export type DashboardSummaryData = {
+  inProgress: PatchWithProject[];
+  recentlyCompleted: PatchWithProject[];
+  recentlyAdded: PatchWithProject[];
+  counts: {
+    open: number;
+    inProgress: number;
+  };
+};
+
+export async function getDashboardSummary(
+  userId: string
+): Promise<DashboardSummaryData> {
+  const [inProgress, recentlyCompleted, recentlyAdded, countRows] =
+    await Promise.all([
+      sql`
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId} AND pa.status = 'in_progress'
+        ORDER BY pa.started_at DESC NULLS LAST
+        LIMIT 5
+      `,
+      sql`
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId} AND pa.status = 'done'
+          AND pa.completed_at >= NOW() - INTERVAL '14 days'
+        ORDER BY pa.completed_at DESC
+        LIMIT 5
+      `,
+      sql`
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId} AND pa.status = 'open'
+          AND pa.created_at >= NOW() - INTERVAL '7 days'
+        ORDER BY pa.created_at DESC
+        LIMIT 5
+      `,
+      sql`
+        SELECT
+          COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
+          COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId}
+      `,
+    ]);
+
+  const row = (countRows[0] as { open: number; in_progress: number }) ?? {
+    open: 0,
+    in_progress: 0,
+  };
+
+  return {
+    inProgress: inProgress as PatchWithProject[],
+    recentlyCompleted: recentlyCompleted as PatchWithProject[],
+    recentlyAdded: recentlyAdded as PatchWithProject[],
+    counts: {
+      open: row.open,
+      inProgress: row.in_progress,
+    },
+  };
+}
+
 // ── Activity Timeline ─────────────────────────────────────────────────────
 
 export type WeekBucket = {

@@ -2,7 +2,13 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { NewProjectButton } from '@/app/new-project-button';
 import { HomeContent } from '@/app/home-content';
-import { getAllPatches, getProjects, getProjectSummary } from '@/lib/queries';
+import { DashboardSummary } from '@/components/dashboard/dashboard-summary';
+import {
+  getAllPatches,
+  getDashboardSummary,
+  getProjects,
+  getProjectSummary,
+} from '@/lib/queries';
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -10,10 +16,11 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  const [projects, patches, summary] = await Promise.all([
+  const [projects, patches, summary, dashboardSummary] = await Promise.all([
     getProjects(userId),
     getAllPatches(userId),
     getProjectSummary(userId),
+    getDashboardSummary(userId),
   ]);
 
   return (
@@ -22,6 +29,7 @@ export default async function DashboardPage() {
         <NewProjectButton />
       </div>
       <div className="w-full max-w-5xl">
+        <DashboardSummary data={dashboardSummary} />
         <HomeContent projects={projects} patches={patches} summary={summary} />
       </div>
     </main>
