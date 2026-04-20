@@ -67,7 +67,7 @@ export function NewProjectButton() {
     <>
       <button
         onClick={handleOpen}
-        className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+        className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
       >
         + New project
       </button>
@@ -91,7 +91,7 @@ export function NewProjectButton() {
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="My Project"
-                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <div>
@@ -105,7 +105,7 @@ export function NewProjectButton() {
                     setSlug(e.target.value);
                   }}
                   placeholder="my-project"
-                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <div>
@@ -140,7 +140,7 @@ export function NewProjectButton() {
                 <button
                   type="submit"
                   disabled={loading || !name.trim() || !slug.trim()}
-                  className="rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  className="rounded-md bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
                 >
                   {loading ? "Creating…" : "Create"}
                 </button>

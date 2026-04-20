@@ -92,7 +92,7 @@ export function EditProjectButton({
                   ref={nameRef}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <div>
@@ -125,7 +125,7 @@ export function EditProjectButton({
                 <button
                   type="submit"
                   disabled={loading || !name.trim()}
-                  className="rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  className="rounded-md bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
                 >
                   {loading ? "Saving…" : "Save"}
                 </button>

@@ -111,7 +111,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
               onClick={() => setStatusFilter(opt.value)}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 statusFilter === opt.value
-                  ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+                  ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
               }`}
             >
@@ -141,7 +141,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
               onClick={() => setPriorityFilter(opt.value)}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 priorityFilter === opt.value
-                  ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+                  ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
               }`}
             >
@@ -157,7 +157,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value as SortField)}
-            className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="status">Sort: Status</option>
             <option value="created">Sort: Date</option>

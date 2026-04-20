@@ -121,13 +121,13 @@ function PatchRow({ patch }: { patch: Patch }) {
               if (e.key === "Enter") saveEdit();
               if (e.key === "Escape") setEditing(false);
             }}
-            className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <div className="flex items-center gap-2">
             <select
               value={editPriority}
               onChange={(e) => setEditPriority(e.target.value as Patch["priority"])}
-              className="rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground/70 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground/70 focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="high">High</option>
               <option value="medium">Medium</option>
@@ -136,7 +136,7 @@ function PatchRow({ patch }: { patch: Patch }) {
             <button
               onClick={saveEdit}
               disabled={isPending || !editTitle.trim()}
-              className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded px-2.5 py-1 transition-colors"
+              className="text-xs bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded px-2.5 py-1 transition-colors"
             >
               Save
             </button>
@@ -193,7 +193,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder="Add a note…"
                       rows={2}
-                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && e.metaKey) addNote();
                         if (e.key === "Escape") {
@@ -206,7 +206,7 @@ function PatchRow({ patch }: { patch: Patch }) {
                       <button
                         onClick={addNote}
                         disabled={isPending || !noteText.trim()}
-                        className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded px-2.5 py-1 transition-colors"
+                        className="text-xs bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded px-2.5 py-1 transition-colors"
                       >
                         Save note
                       </button>
@@ -242,7 +242,7 @@ function PatchRow({ patch }: { patch: Patch }) {
               <button
                 onClick={advance}
                 disabled={isPending}
-                className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-40 transition-colors"
+                className="text-xs text-primary hover:text-primary/80 disabled:opacity-40 transition-colors"
               >
                 {STATUS_LABEL[patch.status]}
               </button>

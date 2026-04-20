@@ -156,7 +156,7 @@ export function HomeContent({
               <select
                 value={projectSort}
                 onChange={(e) => setProjectSort(e.target.value as ProjectSortField)}
-                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="open_count">Sort: Open patches</option>
                 <option value="name">Sort: Name</option>
@@ -179,12 +179,12 @@ export function HomeContent({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search patches..."
-                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-44"
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
               />
               <select
                 value={sortField}
                 onChange={(e) => setSortField(e.target.value as SortField)}
-                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="created">Sort: Date</option>
                 <option value="priority">Sort: Priority</option>
@@ -240,7 +240,7 @@ export function HomeContent({
                 <select
                   value={projectFilter}
                   onChange={(e) => setProjectFilter(e.target.value)}
-                  className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="all">All projects</option>
                   {projects.map((p) => (
@@ -309,7 +309,7 @@ function FilterChipGroup({
           onClick={() => onChange(opt.value)}
           className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
             value === opt.value
-              ? "bg-indigo-600/20 text-indigo-500 dark:text-indigo-300 border border-indigo-500/30"
+              ? "bg-primary/15 text-primary border border-primary/30"
               : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
           }`}
         >

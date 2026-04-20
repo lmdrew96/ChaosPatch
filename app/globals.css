@@ -1,46 +1,144 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-destructive: var(--destructive);
-  --radius: 0.5rem;
-}
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
-  --card: #ffffff;
-  --card-foreground: #18181b;
-  --input: #f4f4f5;
-  --border: #e4e4e7;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --destructive: #ef4444;
+  --radius: 0.625rem;
+
+  /* ── ADHDesigns brand tokens ── */
+  --adhd-lavender: #DBD5E2;
+  --adhd-bg:       #F7F5FA;
+  --adhd-dark:     #1E1830;
+  --adhd-purple:   #88739E;
+  --adhd-amber:    #DFA649;
+  --adhd-olive:    #849440;
+  --adhd-sage:     #8CBDB9;
+  --adhd-teal:     #244952;
+  --adhd-green:    #97D181;
+
+  /* ── shadcn semantic mapping — paper mode ── */
+  --background:             var(--adhd-lavender);
+  --foreground:             var(--adhd-dark);
+  --card:                   var(--adhd-bg);
+  --card-foreground:        var(--adhd-dark);
+  --popover:                var(--adhd-bg);
+  --popover-foreground:     var(--adhd-dark);
+  --primary:                var(--adhd-purple);
+  --primary-foreground:     var(--adhd-bg);
+  --secondary:              var(--adhd-bg);
+  --secondary-foreground:   var(--adhd-dark);
+  --muted:                  color-mix(in srgb, var(--adhd-lavender) 60%, white);
+  --muted-foreground:       var(--adhd-purple);
+  --accent:                 var(--adhd-purple);
+  --accent-foreground:      var(--adhd-bg);
+  --destructive:            var(--adhd-amber);
+  --destructive-foreground: var(--adhd-dark);
+  --border:                 color-mix(in srgb, var(--adhd-dark) 10%, transparent);
+  --input:                  color-mix(in srgb, var(--adhd-dark) 8%, transparent);
+  --ring:                   var(--adhd-purple);
+
+  /* Semantic status extensions */
+  --success:                var(--adhd-olive);
+  --success-foreground:     var(--adhd-bg);
+  --warning:                var(--adhd-amber);
+  --warning-foreground:     var(--adhd-dark);
+
+  /* Categorical chart palette */
+  --chart-1: var(--adhd-purple);
+  --chart-2: var(--adhd-amber);
+  --chart-3: var(--adhd-olive);
+  --chart-4: var(--adhd-sage);
+  --chart-5: var(--adhd-teal);
+
+  /* Sidebar — the dark binding */
+  --sidebar:                      var(--adhd-dark);
+  --sidebar-foreground:           var(--adhd-bg);
+  --sidebar-primary:              var(--adhd-amber);
+  --sidebar-primary-foreground:   var(--adhd-dark);
+  --sidebar-accent:               color-mix(in srgb, var(--adhd-bg) 10%, transparent);
+  --sidebar-accent-foreground:    var(--adhd-bg);
+  --sidebar-border:               color-mix(in srgb, var(--adhd-bg) 12%, transparent);
+  --sidebar-ring:                 var(--adhd-amber);
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #18181b;
-  --card-foreground: #fafafa;
-  --input: #09090b;
-  --border: #27272a;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --destructive: #ef4444;
+  /* Night study — paper recedes, binding deepens, ink warms */
+  --background:             var(--adhd-dark);
+  --foreground:             var(--adhd-bg);
+  --card:                   color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
+  --card-foreground:        var(--adhd-bg);
+  --popover:                color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
+  --popover-foreground:     var(--adhd-bg);
+  --primary:                var(--adhd-purple);
+  --primary-foreground:     var(--adhd-bg);
+  --secondary:              color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
+  --secondary-foreground:   var(--adhd-bg);
+  --muted:                  color-mix(in srgb, var(--adhd-dark) 80%, var(--adhd-purple));
+  --muted-foreground:       var(--adhd-lavender);
+  --accent:                 var(--adhd-amber);
+  --accent-foreground:      var(--adhd-dark);
+  --destructive:            var(--adhd-amber);
+  --destructive-foreground: var(--adhd-dark);
+  --border:                 color-mix(in srgb, var(--adhd-bg) 12%, transparent);
+  --input:                  color-mix(in srgb, var(--adhd-bg) 15%, transparent);
+  --ring:                   var(--adhd-amber);
+
+  --success:                var(--adhd-green);
+  --success-foreground:     var(--adhd-dark);
+
+  --sidebar:                      #0F0B1C;
+  --sidebar-foreground:           var(--adhd-bg);
+  --sidebar-primary:              var(--adhd-amber);
+  --sidebar-primary-foreground:   var(--adhd-dark);
+  --sidebar-accent:               color-mix(in srgb, var(--adhd-bg) 8%, transparent);
+  --sidebar-accent-foreground:    var(--adhd-bg);
+  --sidebar-border:               color-mix(in srgb, var(--adhd-bg) 10%, transparent);
+  --sidebar-ring:                 var(--adhd-amber);
+}
+
+@theme inline {
+  /* Tailwind v4 utility class generation */
+  --color-background:                 var(--background);
+  --color-foreground:                 var(--foreground);
+  --color-card:                       var(--card);
+  --color-card-foreground:            var(--card-foreground);
+  --color-popover:                    var(--popover);
+  --color-popover-foreground:         var(--popover-foreground);
+  --color-primary:                    var(--primary);
+  --color-primary-foreground:         var(--primary-foreground);
+  --color-secondary:                  var(--secondary);
+  --color-secondary-foreground:       var(--secondary-foreground);
+  --color-muted:                      var(--muted);
+  --color-muted-foreground:           var(--muted-foreground);
+  --color-accent:                     var(--accent);
+  --color-accent-foreground:          var(--accent-foreground);
+  --color-destructive:                var(--destructive);
+  --color-destructive-foreground:     var(--destructive-foreground);
+  --color-border:                     var(--border);
+  --color-input:                      var(--input);
+  --color-ring:                       var(--ring);
+  --color-success:                    var(--success);
+  --color-success-foreground:         var(--success-foreground);
+  --color-warning:                    var(--warning);
+  --color-warning-foreground:         var(--warning-foreground);
+  --color-chart-1:                    var(--chart-1);
+  --color-chart-2:                    var(--chart-2);
+  --color-chart-3:                    var(--chart-3);
+  --color-chart-4:                    var(--chart-4);
+  --color-chart-5:                    var(--chart-5);
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 * {

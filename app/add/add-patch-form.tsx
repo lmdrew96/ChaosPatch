@@ -70,7 +70,7 @@ export function AddPatchForm({
         <select
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
-          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           {projects.map((p) => (
             <option key={p.id} value={p.slug}>
@@ -89,7 +89,7 @@ export function AddPatchForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="What needs fixing?"
-          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           autoFocus
         />
       </div>
@@ -106,7 +106,7 @@ export function AddPatchForm({
               onClick={() => setPriority(p)}
               className={`flex-1 rounded-md border px-3 py-2 text-sm capitalize transition-colors ${
                 priority === p
-                  ? "border-indigo-600 bg-indigo-950/50 text-indigo-400"
+                  ? "border-primary bg-primary/15 text-primary"
                   : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40"
               }`}
             >
@@ -130,7 +130,7 @@ export function AddPatchForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+          className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {isPending ? "Adding…" : "Add patch"}
         </button>

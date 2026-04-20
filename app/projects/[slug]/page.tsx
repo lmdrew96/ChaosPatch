@@ -47,7 +47,7 @@ export default async function ProjectPage({
           </div>
           <Link
             href={`/add?project=${slug}`}
-            className="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition-colors shrink-0"
+            className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors shrink-0"
           >
             + Add patch
           </Link>
