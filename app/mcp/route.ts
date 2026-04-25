@@ -22,6 +22,7 @@ import {
   reopenPatch,
   getProjectSummary,
   searchPatches,
+  batchUpdatePatches,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 
@@ -230,6 +231,27 @@ const TOOLS = [
       required: ["query"],
     },
   },
+  {
+    name: "cp_batch_update",
+    description:
+      "Bulk-update patch status. Action 'start' sets in_progress + started_at; 'complete' sets done + completed_at; 'reopen' reverts to open and clears timestamps. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] }.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of patch UUIDs to update",
+        },
+        action: {
+          type: "string",
+          enum: ["start", "complete", "reopen"],
+          description: "Action to apply to every patch_id",
+        },
+      },
+      required: ["patch_ids", "action"],
+    },
+  },
 ];
 
 async function handleTool(
@@ -327,6 +349,28 @@ async function handleTool(
     case "cp_search_patches": {
       const results = await searchPatches(userId, args.query!);
       return JSON.stringify(results, null, 2);
+    }
+
+    case "cp_batch_update": {
+      const rawArgs = args as unknown as {
+        patch_ids?: unknown;
+        action?: unknown;
+      };
+      if (!Array.isArray(rawArgs.patch_ids)) {
+        throw new Error("patch_ids must be an array of strings");
+      }
+      const patchIds = rawArgs.patch_ids.filter(
+        (id): id is string => typeof id === "string"
+      );
+      if (patchIds.length !== rawArgs.patch_ids.length) {
+        throw new Error("patch_ids must contain only strings");
+      }
+      const action = rawArgs.action as "start" | "complete" | "reopen";
+      if (action !== "start" && action !== "complete" && action !== "reopen") {
+        throw new Error("action must be 'start', 'complete', or 'reopen'");
+      }
+      const result = await batchUpdatePatches(userId, patchIds, action);
+      return JSON.stringify(result, null, 2);
     }
 
     default:

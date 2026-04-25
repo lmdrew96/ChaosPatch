@@ -237,6 +237,66 @@ export async function reopenPatch(
   return rows[0] as Patch;
 }
 
+// ── Batch Update Patches ──────────────────────────────────────────────────
+
+export type BatchUpdateAction = "start" | "complete" | "reopen";
+
+export type BatchUpdateResult = {
+  updated: Patch[];
+  errors: { patch_id: string; reason: string }[];
+};
+
+export async function batchUpdatePatches(
+  userId: string,
+  patchIds: string[],
+  action: BatchUpdateAction
+): Promise<BatchUpdateResult> {
+  if (patchIds.length === 0) {
+    return { updated: [], errors: [] };
+  }
+
+  let rows: unknown[];
+  if (action === "start") {
+    rows = await sql`
+      UPDATE patches pa
+      SET status = 'in_progress', started_at = NOW()
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "complete") {
+    rows = await sql`
+      UPDATE patches pa
+      SET status = 'done', completed_at = NOW()
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else {
+    rows = await sql`
+      UPDATE patches pa
+      SET status = 'open', started_at = NULL, completed_at = NULL
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  }
+
+  const updated = rows as Patch[];
+  const updatedIds = new Set(updated.map((p) => p.id));
+  const errors = patchIds
+    .filter((id) => !updatedIds.has(id))
+    .map((id) => ({ patch_id: id, reason: "not found or not owned by user" }));
+
+  return { updated, errors };
+}
+
 // ── Project Summary ───────────────────────────────────────────────────────
 
 export type ProjectSummary = {
