@@ -9,6 +9,7 @@ import {
   getProjects,
   createProject,
   getPatches,
+  getAllPatches,
   getProjectBySlug,
   createPatch,
   updatePatchStatus,
@@ -54,7 +55,7 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done).",
+      "Get patches for a project, optionally filtered by status (open | in_progress | done) and/or priority (low | medium | high).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -64,13 +65,38 @@ const TOOLS = [
           enum: ["open", "in_progress", "done"],
           description: "Filter by status (optional)",
         },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Filter by priority (optional)",
+        },
       },
       required: ["project_slug"],
     },
   },
   {
+    name: "cp_list_all_patches",
+    description:
+      "Get patches across ALL projects for the authenticated user, optionally filtered by status and/or priority. Each patch includes project_name, project_slug, and project_color.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        status: {
+          type: "string",
+          enum: ["open", "in_progress", "done"],
+          description: "Filter by status (optional)",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Filter by priority (optional)",
+        },
+      },
+    },
+  },
+  {
     name: "cp_add_patch",
-    description: "Add a new patch to a project.",
+    description: "Add a new patch to a project, optionally with initial notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -80,6 +106,10 @@ const TOOLS = [
           type: "string",
           enum: ["low", "medium", "high"],
           description: "Priority level (default: medium)",
+        },
+        notes: {
+          type: "string",
+          description: "Initial notes to set on the patch (optional)",
         },
       },
       required: ["project_slug", "title"],
@@ -220,7 +250,15 @@ async function handleTool(
 
     case "cp_list_patches": {
       const status = args.status as "open" | "in_progress" | "done" | undefined;
-      const patches = await getPatches(userId, args.project_slug!, status);
+      const priority = args.priority as "low" | "medium" | "high" | undefined;
+      const patches = await getPatches(userId, args.project_slug!, status, priority);
+      return JSON.stringify(patches, null, 2);
+    }
+
+    case "cp_list_all_patches": {
+      const status = args.status as "open" | "in_progress" | "done" | undefined;
+      const priority = args.priority as "low" | "medium" | "high" | undefined;
+      const patches = await getAllPatches(userId, status, priority);
       return JSON.stringify(patches, null, 2);
     }
 
@@ -228,7 +266,7 @@ async function handleTool(
       const project = await getProjectBySlug(userId, args.project_slug!);
       if (!project) throw new Error(`Project '${args.project_slug}' not found`);
       const priority = (args.priority as "low" | "medium" | "high") ?? "medium";
-      const patch = await createPatch(project.id, args.title!, priority);
+      const patch = await createPatch(project.id, args.title!, priority, args.notes);
       return JSON.stringify(patch, null, 2);
     }
 

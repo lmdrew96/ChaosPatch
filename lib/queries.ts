@@ -32,12 +32,20 @@ export type PatchWithProject = Patch & {
 
 // ── All Patches (cross-project) ────────────────────────────────────────────
 
-export async function getAllPatches(userId: string): Promise<PatchWithProject[]> {
+export async function getAllPatches(
+  userId: string,
+  status?: Patch["status"],
+  priority?: Patch["priority"]
+): Promise<PatchWithProject[]> {
+  const statusFilter = status ?? null;
+  const priorityFilter = priority ?? null;
   const rows = await sql`
     SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
+      AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
+      AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
     ORDER BY pa.created_at DESC
   `;
   return rows as PatchWithProject[];
@@ -98,22 +106,17 @@ export async function deleteProject(
 export async function getPatches(
   userId: string,
   projectSlug: string,
-  status?: Patch["status"]
+  status?: Patch["status"],
+  priority?: Patch["priority"]
 ): Promise<Patch[]> {
-  if (status) {
-    const rows = await sql`
-      SELECT pa.* FROM patches pa
-      JOIN projects p ON p.id = pa.project_id
-      WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
-        AND pa.status = ${status}
-      ORDER BY pa.created_at DESC
-    `;
-    return rows as Patch[];
-  }
+  const statusFilter = status ?? null;
+  const priorityFilter = priority ?? null;
   const rows = await sql`
     SELECT pa.* FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+      AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
+      AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
     ORDER BY pa.created_at DESC
   `;
   return rows as Patch[];
@@ -122,11 +125,13 @@ export async function getPatches(
 export async function createPatch(
   projectId: string,
   title: string,
-  priority: Patch["priority"] = "medium"
+  priority: Patch["priority"] = "medium",
+  notes?: string
 ): Promise<Patch> {
+  const initialNotes = notes ?? null;
   const rows = await sql`
-    INSERT INTO patches (project_id, title, priority)
-    VALUES (${projectId}, ${title}, ${priority})
+    INSERT INTO patches (project_id, title, priority, notes)
+    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes})
     RETURNING *
   `;
   return rows[0] as Patch;
