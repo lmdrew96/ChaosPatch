@@ -397,40 +397,6 @@ export async function getDashboardSummary(
   };
 }
 
-// ── Activity Timeline ─────────────────────────────────────────────────────
-
-export type WeekBucket = {
-  week: string; // ISO date of week start (Monday)
-  created: number;
-  started: number;
-  completed: number;
-};
-
-export async function getActivityTimeline(userId: string): Promise<WeekBucket[]> {
-  const rows = await sql`
-    WITH weeks AS (
-      SELECT date_trunc('week', d)::date AS week
-      FROM generate_series(
-        CURRENT_DATE - INTERVAL '12 weeks',
-        CURRENT_DATE,
-        '1 week'
-      ) d
-    )
-    SELECT
-      w.week::text AS week,
-      COALESCE(SUM(CASE WHEN pa.created_at >= w.week AND pa.created_at < w.week + 7 THEN 1 ELSE 0 END), 0)::int AS created,
-      COALESCE(SUM(CASE WHEN pa.started_at >= w.week AND pa.started_at < w.week + 7 THEN 1 ELSE 0 END), 0)::int AS started,
-      COALESCE(SUM(CASE WHEN pa.completed_at >= w.week AND pa.completed_at < w.week + 7 THEN 1 ELSE 0 END), 0)::int AS completed
-    FROM weeks w
-    LEFT JOIN patches pa ON pa.project_id IN (
-      SELECT id FROM projects WHERE user_id = ${userId}
-    )
-    GROUP BY w.week
-    ORDER BY w.week ASC
-  `;
-  return rows as WeekBucket[];
-}
-
 // ── Search Patches ────────────────────────────────────────────────────────
 
 export async function searchPatches(
