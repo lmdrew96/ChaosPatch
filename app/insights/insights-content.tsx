@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ProjectSummary, PatchWithProject } from "@/lib/queries";
 import { StatCard } from "@/components/insights/stat-card";
-import { ActiveBeeswarm } from "@/components/insights/active-beeswarm";
+import { ActiveBars } from "@/components/insights/active-bars";
 import { LifecycleBars } from "@/components/insights/lifecycle-bars";
 import { CompletionHeatmap } from "@/components/insights/completion-heatmap";
 
@@ -142,7 +142,7 @@ export function InsightsContent({
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-5">
           Active Patches
         </h2>
-        <ActiveBeeswarm patches={patches} />
+        <ActiveBars patches={patches} />
       </div>
 
       {/* Lifecycle by project — horizontal stacked bars */}

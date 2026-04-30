@@ -2,52 +2,39 @@
 
 import type { PatchWithProject } from "@/lib/queries";
 
-type Bucket = "sameDay" | "week" | "month" | "long";
+type Priority = "high" | "medium" | "low";
 
-const BUCKET_ORDER: Bucket[] = ["sameDay", "week", "month", "long"];
-const BUCKET_LABELS: Record<Bucket, string> = {
-  sameDay: "<1d",
-  week: "1–7d",
-  month: "1–4w",
-  long: "1mo+",
+const PRIORITY_ORDER: Priority[] = ["high", "medium", "low"];
+const PRIORITY_LABELS: Record<Priority, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
 };
-const BUCKET_COLORS: Record<Bucket, string> = {
-  sameDay: "#849440", // olive — quick ship
-  week: "#8CBDB9",    // sage teal — normal cadence
-  month: "#DFA649",   // amber — slow burn
-  long: "#88739E",    // mauve — deep cuts
-};
-
-const bucketFor = (days: number): Bucket => {
-  if (days < 1) return "sameDay";
-  if (days <= 7) return "week";
-  if (days <= 28) return "month";
-  return "long";
+const PRIORITY_COLORS: Record<Priority, string> = {
+  high: "#f43f5e",   // rose
+  medium: "#DFA649", // amber
+  low: "#64748b",    // slate
 };
 
 type ProjectRow = {
   name: string;
   color: string;
   total: number;
-  buckets: Record<Bucket, number>;
+  buckets: Record<Priority, number>;
 };
 
-export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
-  // Aggregate completed patches per project, by lifecycle bucket
+export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
+  // Aggregate active patches per project, by priority
   const byProject = new Map<string, ProjectRow>();
   for (const p of patches) {
-    if (p.status !== "done" || !p.completed_at || !p.created_at) continue;
-    const days =
-      (new Date(p.completed_at).getTime() - new Date(p.created_at).getTime()) /
-      (1000 * 60 * 60 * 24);
-    const bucket = bucketFor(Math.max(0, days));
+    if (p.status !== "open" && p.status !== "in_progress") continue;
     const row = byProject.get(p.project_name) ?? {
       name: p.project_name,
       color: p.project_color,
       total: 0,
-      buckets: { sameDay: 0, week: 0, month: 0, long: 0 },
+      buckets: { high: 0, medium: 0, low: 0 },
     };
-    row.buckets[bucket]++;
+    row.buckets[p.priority]++;
     row.total++;
     byProject.set(p.project_name, row);
   }
@@ -57,7 +44,7 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
   if (rows.length === 0) {
     return (
       <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground/50">
-        No completed patches yet
+        All clear — no active patches
       </div>
     );
   }
@@ -82,26 +69,21 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
           const barY = y - barH / 2;
           const barW = (row.total / maxTotal) * innerW;
 
-          // Compute segment x-offsets cumulatively
+          // Cumulative segment offsets
           let cursor = 0;
-          const segments = BUCKET_ORDER.map((bucket) => {
-            const count = row.buckets[bucket];
+          const segments = PRIORITY_ORDER.map((priority) => {
+            const count = row.buckets[priority];
             if (count === 0) return null;
             const segW = (count / row.total) * barW;
             const segX = PAD.left + cursor;
             cursor += segW;
-            return { bucket, count, segX, segW };
+            return { priority, count, segX, segW };
           }).filter((s): s is NonNullable<typeof s> => s !== null);
 
           return (
             <g key={row.name}>
               {/* Project label */}
-              <circle
-                cx={PAD.left - 116}
-                cy={y}
-                r={3}
-                fill={row.color}
-              />
+              <circle cx={PAD.left - 116} cy={y} r={3} fill={row.color} />
               <text
                 x={PAD.left - 108}
                 y={y}
@@ -113,7 +95,7 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
                 {row.name.length > 16 ? row.name.slice(0, 15) + "…" : row.name}
               </text>
 
-              {/* Track outline (so empty space registers visually) */}
+              {/* Track outline */}
               <rect
                 x={PAD.left}
                 y={barY}
@@ -126,14 +108,11 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
                 rx={2}
               />
 
-              {/* Bar segments */}
+              {/* Priority segments */}
               {segments.map((seg, si) => {
                 const isFirst = si === 0;
                 const isLast = si === segments.length - 1;
-                // Clamp corner radius — a tiny segment (e.g. 2px wide) would
-                // otherwise produce a malformed path with negative H steps.
                 const r = Math.min(2, seg.segW / 2);
-                // Round only outermost corners so the bar reads as one unit
                 const path = `
                   M ${seg.segX + (isFirst ? r : 0)} ${barY}
                   H ${seg.segX + seg.segW - (isLast ? r : 0)}
@@ -148,24 +127,24 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
                 `;
                 return (
                   <g
-                    key={seg.bucket}
+                    key={seg.priority}
                     className="animate-fade-in"
                     style={{ animationDelay: `${ri * 80 + si * 40 + 150}ms` }}
                   >
                     <path
                       d={path}
-                      fill={BUCKET_COLORS[seg.bucket]}
+                      fill={PRIORITY_COLORS[seg.priority]}
                       opacity={0.85}
                     />
                     <title>
-                      {row.name} · {BUCKET_LABELS[seg.bucket]}: {seg.count}{" "}
+                      {row.name} · {PRIORITY_LABELS[seg.priority]}: {seg.count}{" "}
                       patch{seg.count === 1 ? "" : "es"}
                     </title>
                   </g>
                 );
               })}
 
-              {/* Total count at bar end */}
+              {/* Total count */}
               <text
                 x={PAD.left + barW + 6}
                 y={y}
@@ -190,19 +169,19 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
           fontFamily="var(--font-geist-mono, monospace)"
           letterSpacing="0.1em"
         >
-          COMPLETED PATCHES (BAR LENGTH = VOLUME, SEGMENTS = TIME-TO-SHIP)
+          ACTIVE PATCHES (BAR LENGTH = LOAD, SEGMENTS = PRIORITY MIX)
         </text>
       </svg>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-1 justify-center text-[10px] text-muted-foreground/60 font-mono">
-        {BUCKET_ORDER.map((b) => (
-          <div key={b} className="flex items-center gap-1.5">
+        {PRIORITY_ORDER.map((p) => (
+          <div key={p} className="flex items-center gap-1.5">
             <span
               className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: BUCKET_COLORS[b], opacity: 0.85 }}
+              style={{ backgroundColor: PRIORITY_COLORS[p], opacity: 0.85 }}
             />
-            <span>{BUCKET_LABELS[b]}</span>
+            <span>{PRIORITY_LABELS[p]}</span>
           </div>
         ))}
       </div>
