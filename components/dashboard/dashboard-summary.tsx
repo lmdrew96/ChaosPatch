@@ -18,7 +18,7 @@ export function DashboardSummary({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 animate-fade-in">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
       <Card className="md:col-span-2">
         <CardHeader
           icon="⚡"

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       <div className="z-10 flex w-full max-w-5xl justify-end">
         <NewProjectButton />
       </div>
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-5xl space-y-8">
         <DashboardSummary data={dashboardSummary} />
         <HomeContent projects={projects} patches={patches} summary={summary} />
       </div>
