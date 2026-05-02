@@ -260,7 +260,7 @@ export function HomeContent({
         filteredProjects.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
             {filteredProjects.map((p) => (
               <ProjectCard key={p.id} project={p} />
             ))}
@@ -331,22 +331,24 @@ function ProjectCard({ project }: { project: Project }) {
   const openCount = Number(project.open_count ?? 0);
   return (
     <Link href={`/projects/${project.slug}`}>
-      <div className="group rounded-lg border border-border bg-card p-5 hover:border-muted-foreground/40 transition-colors cursor-pointer">
-        <div className="flex items-start justify-between mb-3">
+      <div className="group rounded-md border border-border bg-card px-3 py-2.5 hover:border-muted-foreground/40 transition-colors cursor-pointer">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
           <div
-            className="w-3 h-3 rounded-full mt-1 shrink-0"
+            className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: project.color }}
           />
           {openCount > 0 && (
-            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              {openCount} open
+            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full tabular-nums">
+              {openCount}
             </span>
           )}
         </div>
-        <p className="font-medium text-foreground group-hover:text-foreground truncate">
+        <p className="text-sm font-medium text-foreground truncate leading-tight">
           {project.name}
         </p>
-        <p className="mt-1 text-xs font-mono text-muted-foreground/70">{project.slug}</p>
+        <p className="mt-0.5 text-[10px] font-mono text-muted-foreground/60 truncate">
+          {project.slug}
+        </p>
       </div>
     </Link>
   );
