@@ -17,6 +17,7 @@ export function AddPatchForm({
   const [isPending, startTransition] = useTransition();
   const [slug, setSlug] = useState(defaultSlug ?? projects[0]?.slug ?? "");
   const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [error, setError] = useState("");
 
@@ -37,7 +38,12 @@ export function AddPatchForm({
     const res = await fetch("/api/patches", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project_slug: slug, title: title.trim(), priority }),
+      body: JSON.stringify({
+        project_slug: slug,
+        title: title.trim(),
+        priority,
+        notes: notes.trim() || undefined,
+      }),
     });
 
     if (!res.ok) {
@@ -91,6 +97,19 @@ export function AddPatchForm({
           placeholder="What needs fixing?"
           className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           autoFocus
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Notes <span className="text-muted-foreground/50 normal-case tracking-normal">(optional)</span>
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Context, repro steps, scope…"
+          rows={3}
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-y min-h-[72px]"
         />
       </div>
 
