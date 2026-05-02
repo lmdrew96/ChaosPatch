@@ -330,9 +330,9 @@ function FilterChipGroup({
 function ProjectCard({ project }: { project: Project }) {
   const openCount = Number(project.open_count ?? 0);
   return (
-    <Link href={`/projects/${project.slug}`}>
-      <div className="group rounded-md border border-border bg-card px-3 py-2.5 hover:border-muted-foreground/40 transition-colors cursor-pointer">
-        <div className="flex items-center justify-between gap-2 mb-1.5">
+    <Link href={`/projects/${project.slug}`} className="block h-full">
+      <div className="group h-full flex flex-col rounded-md border border-border bg-card px-3 py-2.5 hover:border-muted-foreground/40 transition-colors cursor-pointer">
+        <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[18px]">
           <div
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: project.color }}
