@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PRESET_COLORS } from "@/lib/colors";
 import { NEW_PROJECT_EVENT } from "@/components/keyboard-shortcuts";
+import { ColorPicker } from "@/components/ui/color-picker";
 
 function toSlug(name: string) {
   return name
@@ -122,21 +123,7 @@ export function NewProjectButton() {
                 <label className="block text-xs text-muted-foreground mb-2">
                   Color
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className="w-6 h-6 rounded-full transition-transform hover:scale-110 focus:outline-none"
-                      style={{
-                        backgroundColor: c,
-                        boxShadow:
-                          color === c ? `0 0 0 2px var(--card), 0 0 0 4px ${c}` : undefined,
-                      }}
-                    />
-                  ))}
-                </div>
+                <ColorPicker value={color} onChange={setColor} />
               </div>
               {error && <p className="text-xs text-rose-400">{error}</p>}
               <div className="flex justify-end gap-2 pt-1">
