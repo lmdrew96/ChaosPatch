@@ -17,51 +17,65 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
   const completionRate =
     totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
 
-  // Mini bar widths
-  const barTotal = totals.total || 1;
-  const donePct = (totals.done / barTotal) * 100;
-  const ipPct = (totals.in_progress / barTotal) * 100;
-  const openPct = (totals.open / barTotal) * 100;
+  // Donut math — radius 16, circumference ~100.5
+  const R = 16;
+  const C = 2 * Math.PI * R;
+  const safeTotal = totals.total || 1;
+  const doneLen = (totals.done / safeTotal) * C;
+  const ipLen = (totals.in_progress / safeTotal) * C;
+  const openLen = (totals.open / safeTotal) * C;
 
   return (
     <div className="rounded-lg border border-border bg-card/60 backdrop-blur p-4 animate-fade-in">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          {/* Mini donut */}
-          <svg width="32" height="32" className="-rotate-90">
+          {/* Donut — done · in_progress · open */}
+          <svg width="44" height="44" viewBox="0 0 44 44" className="-rotate-90 shrink-0">
             <circle
-              cx="16"
-              cy="16"
-              r="12"
+              cx="22"
+              cy="22"
+              r={R}
               fill="none"
               stroke="var(--border)"
-              strokeWidth="4"
+              strokeWidth="6"
               opacity={0.3}
             />
             {totals.total > 0 && (
               <>
                 {totals.done > 0 && (
                   <circle
-                    cx="16"
-                    cy="16"
-                    r="12"
+                    cx="22"
+                    cy="22"
+                    r={R}
                     fill="none"
                     stroke="#10b981"
-                    strokeWidth="4"
-                    strokeDasharray={`${(totals.done / barTotal) * 75.4} 75.4`}
+                    strokeWidth="6"
+                    strokeDasharray={`${doneLen} ${C}`}
                     strokeDashoffset="0"
                   />
                 )}
                 {totals.in_progress > 0 && (
                   <circle
-                    cx="16"
-                    cy="16"
-                    r="12"
+                    cx="22"
+                    cy="22"
+                    r={R}
                     fill="none"
                     stroke="#f59e0b"
-                    strokeWidth="4"
-                    strokeDasharray={`${(totals.in_progress / barTotal) * 75.4} 75.4`}
-                    strokeDashoffset={`${-(totals.done / barTotal) * 75.4}`}
+                    strokeWidth="6"
+                    strokeDasharray={`${ipLen} ${C}`}
+                    strokeDashoffset={`${-doneLen}`}
+                  />
+                )}
+                {totals.open > 0 && (
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r={R}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="6"
+                    strokeDasharray={`${openLen} ${C}`}
+                    strokeDashoffset={`${-(doneLen + ipLen)}`}
                   />
                 )}
               </>
@@ -76,18 +90,9 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
                 patches
               </span>
             </div>
-            {/* Status mini bar */}
-            <div className="flex h-1 w-32 rounded-full overflow-hidden mt-1 bg-muted/40">
-              {donePct > 0 && (
-                <div style={{ width: `${donePct}%`, backgroundColor: "#10b981" }} />
-              )}
-              {ipPct > 0 && (
-                <div style={{ width: `${ipPct}%`, backgroundColor: "#f59e0b" }} />
-              )}
-              {openPct > 0 && (
-                <div style={{ width: `${openPct}%`, backgroundColor: "#3b82f6" }} />
-              )}
-            </div>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40">
+              {completionRate}% complete
+            </span>
           </div>
         </div>
 
