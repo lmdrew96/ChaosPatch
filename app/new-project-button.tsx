@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PRESET_COLORS } from "@/lib/colors";
+import { NEW_PROJECT_EVENT } from "@/components/keyboard-shortcuts";
 
 function toSlug(name: string) {
   return name
@@ -32,6 +33,14 @@ export function NewProjectButton() {
     setOpen(true);
     setTimeout(() => nameRef.current?.focus(), 50);
   }
+
+  useEffect(() => {
+    function onNewProject() {
+      handleOpen();
+    }
+    window.addEventListener(NEW_PROJECT_EVENT, onNewProject);
+    return () => window.removeEventListener(NEW_PROJECT_EVENT, onNewProject);
+  }, []);
 
   function handleNameChange(val: string) {
     setName(val);
@@ -67,6 +76,7 @@ export function NewProjectButton() {
     <>
       <button
         onClick={handleOpen}
+        title="New project (⌘P)"
         className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
       >
         + New project
