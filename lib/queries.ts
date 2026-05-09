@@ -138,67 +138,95 @@ export async function createPatch(
 }
 
 export async function updatePatchStatus(
+  userId: string,
   patchId: string,
   status: Patch["status"]
-): Promise<Patch> {
+): Promise<Patch | null> {
   const now = new Date().toISOString();
   if (status === "in_progress") {
     const rows = await sql`
-      UPDATE patches SET status = ${status}, started_at = ${now}
-      WHERE id = ${patchId}
-      RETURNING *
+      UPDATE patches pa SET status = ${status}, started_at = ${now}
+      FROM projects p
+      WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+      RETURNING pa.*
     `;
-    return rows[0] as Patch;
+    return (rows[0] as Patch) ?? null;
   }
   if (status === "done") {
     const rows = await sql`
-      UPDATE patches SET status = ${status}, completed_at = ${now}
-      WHERE id = ${patchId}
-      RETURNING *
+      UPDATE patches pa SET status = ${status}, completed_at = ${now}
+      FROM projects p
+      WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+      RETURNING pa.*
     `;
-    return rows[0] as Patch;
+    return (rows[0] as Patch) ?? null;
   }
   const rows = await sql`
-    UPDATE patches SET status = ${status}
-    WHERE id = ${patchId}
-    RETURNING *
+    UPDATE patches pa SET status = ${status}
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
   `;
-  return rows[0] as Patch;
-}
-
-export async function addNote(patchId: string, note: string): Promise<Patch> {
-  const rows = await sql`
-    UPDATE patches
-    SET notes = CASE
-      WHEN notes IS NULL THEN ${note}
-      ELSE notes || E'\n\n' || ${note}
-    END
-    WHERE id = ${patchId}
-    RETURNING *
-  `;
-  return rows[0] as Patch;
-}
-
-export async function updatePatch(
-  patchId: string,
-  title: string,
-  priority: Patch["priority"]
-): Promise<Patch> {
-  const rows = await sql`
-    UPDATE patches SET title = ${title}, priority = ${priority}
-    WHERE id = ${patchId}
-    RETURNING *
-  `;
-  return rows[0] as Patch;
-}
-
-export async function getPatchById(patchId: string): Promise<Patch | null> {
-  const rows = await sql`SELECT * FROM patches WHERE id = ${patchId} LIMIT 1`;
   return (rows[0] as Patch) ?? null;
 }
 
-export async function deletePatch(patchId: string): Promise<void> {
-  await sql`DELETE FROM patches WHERE id = ${patchId}`;
+export async function addNote(
+  userId: string,
+  patchId: string,
+  note: string
+): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa
+    SET notes = CASE
+      WHEN pa.notes IS NULL THEN ${note}
+      ELSE pa.notes || E'\n\n' || ${note}
+    END
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+export async function updatePatch(
+  userId: string,
+  patchId: string,
+  title: string,
+  priority: Patch["priority"]
+): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa SET title = ${title}, priority = ${priority}
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+export async function getPatchById(
+  userId: string,
+  patchId: string
+): Promise<Patch | null> {
+  const rows = await sql`
+    SELECT pa.* FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND pa.id = ${patchId}
+    LIMIT 1
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+export async function deletePatch(
+  userId: string,
+  patchId: string
+): Promise<boolean> {
+  const rows = await sql`
+    DELETE FROM patches pa
+    USING projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.id
+  `;
+  return rows.length > 0;
 }
 
 export async function updateProject(
@@ -218,23 +246,26 @@ export async function updateProject(
 // ── Reopen Patch ──────────────────────────────────────────────────────────
 
 export async function reopenPatch(
+  userId: string,
   patchId: string,
   status: "open" | "in_progress" = "open"
-): Promise<Patch> {
+): Promise<Patch | null> {
   if (status === "in_progress") {
     const rows = await sql`
-      UPDATE patches SET status = 'in_progress', completed_at = NULL
-      WHERE id = ${patchId}
-      RETURNING *
+      UPDATE patches pa SET status = 'in_progress', completed_at = NULL
+      FROM projects p
+      WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+      RETURNING pa.*
     `;
-    return rows[0] as Patch;
+    return (rows[0] as Patch) ?? null;
   }
   const rows = await sql`
-    UPDATE patches SET status = 'open', started_at = NULL, completed_at = NULL
-    WHERE id = ${patchId}
-    RETURNING *
+    UPDATE patches pa SET status = 'open', started_at = NULL, completed_at = NULL
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
   `;
-  return rows[0] as Patch;
+  return (rows[0] as Patch) ?? null;
 }
 
 // ── Batch Update Patches ──────────────────────────────────────────────────

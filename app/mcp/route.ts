@@ -293,22 +293,26 @@ async function handleTool(
     }
 
     case "cp_start_patch": {
-      const patch = await updatePatchStatus(args.patch_id!, "in_progress");
+      const patch = await updatePatchStatus(userId, args.patch_id!, "in_progress");
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_complete_patch": {
-      const patch = await updatePatchStatus(args.patch_id!, "done");
+      const patch = await updatePatchStatus(userId, args.patch_id!, "done");
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_add_note": {
-      const patch = await addNote(args.patch_id!, args.note!);
+      const patch = await addNote(userId, args.patch_id!, args.note!);
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_delete_patch": {
-      await deletePatch(args.patch_id!);
+      const ok = await deletePatch(userId, args.patch_id!);
+      if (!ok) throw new Error(`Patch '${args.patch_id}' not found`);
       return `Patch ${args.patch_id} deleted.`;
     }
 
@@ -318,11 +322,12 @@ async function handleTool(
     }
 
     case "cp_update_patch": {
-      const existing = await getPatchById(args.patch_id!);
+      const existing = await getPatchById(userId, args.patch_id!);
       if (!existing) throw new Error(`Patch '${args.patch_id}' not found`);
       const title = args.title ?? existing.title;
       const priority = (args.priority as "low" | "medium" | "high") ?? existing.priority;
-      const patch = await updatePatch(args.patch_id!, title, priority);
+      const patch = await updatePatch(userId, args.patch_id!, title, priority);
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
@@ -337,7 +342,8 @@ async function handleTool(
 
     case "cp_reopen_patch": {
       const status = (args.status as "open" | "in_progress") ?? "open";
-      const patch = await reopenPatch(args.patch_id!, status);
+      const patch = await reopenPatch(userId, args.patch_id!, status);
+      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
