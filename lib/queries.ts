@@ -19,6 +19,7 @@ export type Patch = {
   status: "open" | "in_progress" | "done";
   priority: "low" | "medium" | "high";
   notes: string | null;
+  tags: string[];
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -35,10 +36,12 @@ export type PatchWithProject = Patch & {
 export async function getAllPatches(
   userId: string,
   status?: Patch["status"],
-  priority?: Patch["priority"]
+  priority?: Patch["priority"],
+  tags?: string[]
 ): Promise<PatchWithProject[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
+  const tagsFilter = tags && tags.length > 0 ? tags : null;
   const rows = await sql`
     SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
     FROM patches pa
@@ -46,6 +49,7 @@ export async function getAllPatches(
     WHERE p.user_id = ${userId}
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
+      AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
     ORDER BY pa.created_at DESC
   `;
   return rows as PatchWithProject[];
@@ -107,16 +111,19 @@ export async function getPatches(
   userId: string,
   projectSlug: string,
   status?: Patch["status"],
-  priority?: Patch["priority"]
+  priority?: Patch["priority"],
+  tags?: string[]
 ): Promise<Patch[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
+  const tagsFilter = tags && tags.length > 0 ? tags : null;
   const rows = await sql`
     SELECT pa.* FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
+      AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
     ORDER BY pa.created_at DESC
   `;
   return rows as Patch[];
@@ -126,12 +133,14 @@ export async function createPatch(
   projectId: string,
   title: string,
   priority: Patch["priority"] = "medium",
-  notes?: string
+  notes?: string,
+  tags?: string[]
 ): Promise<Patch> {
   const initialNotes = notes ?? null;
+  const initialTags = tags ?? [];
   const rows = await sql`
-    INSERT INTO patches (project_id, title, priority, notes)
-    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes})
+    INSERT INTO patches (project_id, title, priority, notes, tags)
+    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialTags}::text[])
     RETURNING *
   `;
   return rows[0] as Patch;
@@ -192,10 +201,15 @@ export async function updatePatch(
   userId: string,
   patchId: string,
   title: string,
-  priority: Patch["priority"]
+  priority: Patch["priority"],
+  tags?: string[]
 ): Promise<Patch | null> {
+  const tagsParam = tags ?? null;
   const rows = await sql`
-    UPDATE patches pa SET title = ${title}, priority = ${priority}
+    UPDATE patches pa
+    SET title = ${title},
+        priority = ${priority},
+        tags = COALESCE(${tagsParam}::text[], pa.tags)
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*
@@ -440,7 +454,11 @@ export async function searchPatches(
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
-      AND (pa.title ILIKE ${pattern} OR pa.notes ILIKE ${pattern})
+      AND (
+        pa.title ILIKE ${pattern}
+        OR pa.notes ILIKE ${pattern}
+        OR EXISTS (SELECT 1 FROM unnest(pa.tags) t WHERE t ILIKE ${pattern})
+      )
     ORDER BY pa.created_at DESC
   `;
   return rows as PatchWithProject[];

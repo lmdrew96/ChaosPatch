@@ -16,5 +16,9 @@ void (async () => {
       created_at TIMESTAMPTZ DEFAULT now()
     )
   `;
-  console.log("Done: mcp_tokens table ready.");
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'
+  `;
+  console.log("Done: mcp_tokens table ready, patches.tags column ensured.");
 })();

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS patches (
   status       TEXT DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'done')),
   priority     TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
   notes        TEXT,
+  tags         TEXT[] NOT NULL DEFAULT '{}',
   created_at   TIMESTAMPTZ DEFAULT now(),
   started_at   TIMESTAMPTZ,
   completed_at TIMESTAMPTZ

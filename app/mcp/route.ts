@@ -58,7 +58,7 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done) and/or priority (low | medium | high).",
+      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -73,6 +73,12 @@ const TOOLS = [
           enum: ["low", "medium", "high"],
           description: "Filter by priority (optional)",
         },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Filter by tags — returns patches having at least one matching tag (optional)",
+        },
       },
       required: ["project_slug"],
     },
@@ -80,7 +86,7 @@ const TOOLS = [
   {
     name: "cp_list_all_patches",
     description:
-      "Get patches across ALL projects for the authenticated user, optionally filtered by status and/or priority. Each patch includes project_name, project_slug, and project_color.",
+      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -94,12 +100,19 @@ const TOOLS = [
           enum: ["low", "medium", "high"],
           description: "Filter by priority (optional)",
         },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Filter by tags — returns patches having at least one matching tag (optional)",
+        },
       },
     },
   },
   {
     name: "cp_add_patch",
-    description: "Add a new patch to a project, optionally with initial notes.",
+    description:
+      "Add a new patch to a project, optionally with initial notes and tags.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -113,6 +126,12 @@ const TOOLS = [
         notes: {
           type: "string",
           description: "Initial notes to set on the patch (optional)",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Free-form tags (e.g. 'bug', 'ui', 'db'). Default: [] (optional)",
         },
       },
       required: ["project_slug", "title"],
@@ -168,7 +187,8 @@ const TOOLS = [
   },
   {
     name: "cp_update_patch",
-    description: "Update a patch's title and/or priority.",
+    description:
+      "Update a patch's title, priority, and/or tags. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -178,6 +198,12 @@ const TOOLS = [
           type: "string",
           enum: ["low", "medium", "high"],
           description: "New priority (optional)",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "New tags array — REPLACES existing tags. Pass [] to clear (optional)",
         },
       },
       required: ["patch_id"],
@@ -275,13 +301,19 @@ async function handleTool(
 
     case "cp_list_patches": {
       const a = args as ParsedArgs<"cp_list_patches">;
-      const patches = await getPatches(userId, a.project_slug, a.status, a.priority);
+      const patches = await getPatches(
+        userId,
+        a.project_slug,
+        a.status,
+        a.priority,
+        a.tags
+      );
       return JSON.stringify(patches, null, 2);
     }
 
     case "cp_list_all_patches": {
       const a = args as ParsedArgs<"cp_list_all_patches">;
-      const patches = await getAllPatches(userId, a.status, a.priority);
+      const patches = await getAllPatches(userId, a.status, a.priority, a.tags);
       return JSON.stringify(patches, null, 2);
     }
 
@@ -289,7 +321,13 @@ async function handleTool(
       const a = args as ParsedArgs<"cp_add_patch">;
       const project = await getProjectBySlug(userId, a.project_slug);
       if (!project) throw new Error(`Project '${a.project_slug}' not found`);
-      const patch = await createPatch(project.id, a.title, a.priority ?? "medium", a.notes);
+      const patch = await createPatch(
+        project.id,
+        a.title,
+        a.priority ?? "medium",
+        a.notes,
+        a.tags
+      );
       return JSON.stringify(patch, null, 2);
     }
 
@@ -333,7 +371,7 @@ async function handleTool(
       if (!existing) throw new Error(`Patch '${a.patch_id}' not found`);
       const title = a.title ?? existing.title;
       const priority = a.priority ?? existing.priority;
-      const patch = await updatePatch(userId, a.patch_id, title, priority);
+      const patch = await updatePatch(userId, a.patch_id, title, priority, a.tags);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
