@@ -60,7 +60,7 @@ export function AddPatchForm({
       <p className="text-muted-foreground/70 text-sm text-center py-12">
         No projects yet. Create a project first from Claude Code using{" "}
         <code className="font-mono bg-card px-1.5 py-0.5 rounded text-muted-foreground">
-          cp_add_patch
+          cp_add_project
         </code>
         .
       </p>
