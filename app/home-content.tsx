@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
 import { SummaryStrip } from "@/components/insights/summary-strip";
+import { PRIORITY_STYLES } from "@/lib/priority-styles";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -355,12 +356,6 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 // ── Patch Row (flat view) ──────────────────────────────────────────────────
-
-const PRIORITY_STYLES: Record<string, string> = {
-  high: "text-red-400 bg-red-950/40 border-red-900",
-  medium: "text-yellow-500 dark:text-yellow-400 bg-yellow-950/40 border-yellow-900",
-  low: "text-muted-foreground bg-muted/60 border-border",
-};
 
 const STATUS_STYLES: Record<string, string> = {
   open: "text-blue-500 dark:text-blue-400",

@@ -3,12 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-
-const PRIORITY_STYLES: Record<Patch["priority"], string> = {
-  high: "text-red-400 bg-red-950/40 border-red-900",
-  medium: "text-yellow-500 dark:text-yellow-400 bg-yellow-950/40 border-yellow-900",
-  low: "text-muted-foreground bg-muted/60 border-border",
-};
+import { PRIORITY_STYLES } from "@/lib/priority-styles";
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
   open: "in_progress",
