@@ -25,8 +25,10 @@ import {
   batchUpdatePatches,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
+import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
+import type { z } from "zod";
 
-type Args = Record<string, string | undefined>;
+type ParsedArgs<T extends McpToolName> = z.infer<(typeof MCP_SCHEMAS)[T]>;
 
 const TOOLS = [
   {
@@ -255,8 +257,8 @@ const TOOLS = [
 ];
 
 async function handleTool(
-  name: string,
-  args: Args,
+  name: McpToolName,
+  args: ParsedArgs<McpToolName>,
   userId: string
 ): Promise<string> {
   switch (name) {
@@ -266,84 +268,90 @@ async function handleTool(
     }
 
     case "cp_add_project": {
-      const project = await createProject(userId, args.name!, args.slug!, args.color);
+      const a = args as ParsedArgs<"cp_add_project">;
+      const project = await createProject(userId, a.name, a.slug, a.color);
       return JSON.stringify(project, null, 2);
     }
 
     case "cp_list_patches": {
-      const status = args.status as "open" | "in_progress" | "done" | undefined;
-      const priority = args.priority as "low" | "medium" | "high" | undefined;
-      const patches = await getPatches(userId, args.project_slug!, status, priority);
+      const a = args as ParsedArgs<"cp_list_patches">;
+      const patches = await getPatches(userId, a.project_slug, a.status, a.priority);
       return JSON.stringify(patches, null, 2);
     }
 
     case "cp_list_all_patches": {
-      const status = args.status as "open" | "in_progress" | "done" | undefined;
-      const priority = args.priority as "low" | "medium" | "high" | undefined;
-      const patches = await getAllPatches(userId, status, priority);
+      const a = args as ParsedArgs<"cp_list_all_patches">;
+      const patches = await getAllPatches(userId, a.status, a.priority);
       return JSON.stringify(patches, null, 2);
     }
 
     case "cp_add_patch": {
-      const project = await getProjectBySlug(userId, args.project_slug!);
-      if (!project) throw new Error(`Project '${args.project_slug}' not found`);
-      const priority = (args.priority as "low" | "medium" | "high") ?? "medium";
-      const patch = await createPatch(project.id, args.title!, priority, args.notes);
+      const a = args as ParsedArgs<"cp_add_patch">;
+      const project = await getProjectBySlug(userId, a.project_slug);
+      if (!project) throw new Error(`Project '${a.project_slug}' not found`);
+      const patch = await createPatch(project.id, a.title, a.priority ?? "medium", a.notes);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_start_patch": {
-      const patch = await updatePatchStatus(userId, args.patch_id!, "in_progress");
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const a = args as ParsedArgs<"cp_start_patch">;
+      const patch = await updatePatchStatus(userId, a.patch_id, "in_progress");
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_complete_patch": {
-      const patch = await updatePatchStatus(userId, args.patch_id!, "done");
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const a = args as ParsedArgs<"cp_complete_patch">;
+      const patch = await updatePatchStatus(userId, a.patch_id, "done");
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_add_note": {
-      const patch = await addNote(userId, args.patch_id!, args.note!);
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const a = args as ParsedArgs<"cp_add_note">;
+      const patch = await addNote(userId, a.patch_id, a.note);
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_delete_patch": {
-      const ok = await deletePatch(userId, args.patch_id!);
-      if (!ok) throw new Error(`Patch '${args.patch_id}' not found`);
-      return `Patch ${args.patch_id} deleted.`;
+      const a = args as ParsedArgs<"cp_delete_patch">;
+      const ok = await deletePatch(userId, a.patch_id);
+      if (!ok) throw new Error(`Patch '${a.patch_id}' not found`);
+      return `Patch ${a.patch_id} deleted.`;
     }
 
     case "cp_delete_project": {
-      await deleteProject(userId, args.project_slug!);
-      return `Project '${args.project_slug}' and all its patches deleted.`;
+      const a = args as ParsedArgs<"cp_delete_project">;
+      await deleteProject(userId, a.project_slug);
+      return `Project '${a.project_slug}' and all its patches deleted.`;
     }
 
     case "cp_update_patch": {
-      const existing = await getPatchById(userId, args.patch_id!);
-      if (!existing) throw new Error(`Patch '${args.patch_id}' not found`);
-      const title = args.title ?? existing.title;
-      const priority = (args.priority as "low" | "medium" | "high") ?? existing.priority;
-      const patch = await updatePatch(userId, args.patch_id!, title, priority);
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const a = args as ParsedArgs<"cp_update_patch">;
+      const existing = await getPatchById(userId, a.patch_id);
+      if (!existing) throw new Error(`Patch '${a.patch_id}' not found`);
+      const title = a.title ?? existing.title;
+      const priority = a.priority ?? existing.priority;
+      const patch = await updatePatch(userId, a.patch_id, title, priority);
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
     case "cp_update_project": {
-      const existing = await getProjectBySlug(userId, args.project_slug!);
-      if (!existing) throw new Error(`Project '${args.project_slug}' not found`);
-      const projectName = args.name ?? existing.name;
-      const color = args.color ?? existing.color;
-      const project = await updateProject(userId, args.project_slug!, projectName, color);
+      const a = args as ParsedArgs<"cp_update_project">;
+      const existing = await getProjectBySlug(userId, a.project_slug);
+      if (!existing) throw new Error(`Project '${a.project_slug}' not found`);
+      const projectName = a.name ?? existing.name;
+      const color = a.color ?? existing.color;
+      const project = await updateProject(userId, a.project_slug, projectName, color);
       return JSON.stringify(project, null, 2);
     }
 
     case "cp_reopen_patch": {
-      const status = (args.status as "open" | "in_progress") ?? "open";
-      const patch = await reopenPatch(userId, args.patch_id!, status);
-      if (!patch) throw new Error(`Patch '${args.patch_id}' not found`);
+      const a = args as ParsedArgs<"cp_reopen_patch">;
+      const patch = await reopenPatch(userId, a.patch_id, a.status ?? "open");
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }
 
@@ -353,34 +361,16 @@ async function handleTool(
     }
 
     case "cp_search_patches": {
-      const results = await searchPatches(userId, args.query!);
+      const a = args as ParsedArgs<"cp_search_patches">;
+      const results = await searchPatches(userId, a.query);
       return JSON.stringify(results, null, 2);
     }
 
     case "cp_batch_update": {
-      const rawArgs = args as unknown as {
-        patch_ids?: unknown;
-        action?: unknown;
-      };
-      if (!Array.isArray(rawArgs.patch_ids)) {
-        throw new Error("patch_ids must be an array of strings");
-      }
-      const patchIds = rawArgs.patch_ids.filter(
-        (id): id is string => typeof id === "string"
-      );
-      if (patchIds.length !== rawArgs.patch_ids.length) {
-        throw new Error("patch_ids must contain only strings");
-      }
-      const action = rawArgs.action as "start" | "complete" | "reopen";
-      if (action !== "start" && action !== "complete" && action !== "reopen") {
-        throw new Error("action must be 'start', 'complete', or 'reopen'");
-      }
-      const result = await batchUpdatePatches(userId, patchIds, action);
+      const a = args as ParsedArgs<"cp_batch_update">;
+      const result = await batchUpdatePatches(userId, a.patch_ids, a.action);
       return JSON.stringify(result, null, 2);
     }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
   }
 }
 
@@ -428,7 +418,18 @@ async function handler(req: Request): Promise<Response> {
   server.setRequestHandler(CallToolRequestSchema, async (mcpReq) => {
     const { name, arguments: args = {} } = mcpReq.params;
     try {
-      const result = await handleTool(name, args as Args, userId);
+      if (!isMcpToolName(name)) throw new Error(`Unknown tool: ${name}`);
+      const parsed = MCP_SCHEMAS[name].safeParse(args);
+      if (!parsed.success) {
+        const issues = parsed.error.issues
+          .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("; ");
+        return {
+          content: [{ type: "text", text: `Invalid arguments for ${name}: ${issues}` }],
+          isError: true,
+        };
+      }
+      const result = await handleTool(name, parsed.data as ParsedArgs<McpToolName>, userId);
       return { content: [{ type: "text", text: result }] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
