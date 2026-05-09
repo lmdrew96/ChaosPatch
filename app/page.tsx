@@ -26,7 +26,7 @@ export default function LandingPage() {
         <div className="text-center max-w-3xl space-y-8">
           <div className="space-y-4">
             <h1
-              className="text-6xl md:text-7xl font-bold bg-clip-text text-transparent animate-fade-in"
+              className="font-[family-name:var(--font-display)] text-7xl md:text-8xl font-normal tracking-tight bg-clip-text text-transparent animate-fade-in"
               style={{
                 backgroundImage:
                   'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
@@ -44,7 +44,9 @@ export default function LandingPage() {
           </div>
 
           <p className="text-xl md:text-2xl text-foreground/80 leading-relaxed animate-fade-in animation-delay-200">
-            A lightweight patch tracker for developers — log bug fixes and refactors across your projects.
+            A lightweight patch tracker for developers — log bug fixes and{" "}
+            <span className="font-[family-name:var(--font-display)] italic">refactors</span>{" "}
+            across your projects.
             <span className="block text-lg mt-2 text-muted-foreground">
               Manage patches from your browser or directly from Claude Code.
             </span>
@@ -71,7 +73,7 @@ export default function LandingPage() {
       {/* Features */}
       <div className="px-4 py-16 max-w-6xl mx-auto">
         <h2
-          className="text-4xl font-bold text-center mb-16 bg-clip-text text-transparent"
+          className="font-[family-name:var(--font-display)] text-5xl md:text-6xl font-normal italic tracking-tight text-center mb-16 bg-clip-text text-transparent"
           style={{
             backgroundImage:
               'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
@@ -91,7 +93,7 @@ export default function LandingPage() {
               className="p-6 rounded-2xl border border-border bg-card/70 backdrop-blur hover:bg-card transition-all duration-300 hover:shadow-xl hover:scale-105"
             >
               <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-bold text-card-foreground mb-2">{feature.title}</h3>
+              <h3 className="font-[family-name:var(--font-display)] text-2xl font-normal text-card-foreground mb-2">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.desc}</p>
             </div>
           ))}
