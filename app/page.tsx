@@ -26,7 +26,7 @@ export default function LandingPage() {
         <div className="text-center max-w-3xl space-y-8">
           <div className="space-y-4">
             <h1
-              className="font-[family-name:var(--font-display)] text-7xl md:text-8xl font-normal tracking-tight bg-clip-text text-transparent animate-fade-in"
+              className="font-[family-name:var(--font-display)] text-7xl md:text-8xl font-normal tracking-tight bg-clip-text text-transparent animate-fade-in leading-[1.15] pb-2"
               style={{
                 backgroundImage:
                   'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
@@ -43,11 +43,10 @@ export default function LandingPage() {
             />
           </div>
 
-          <p className="text-xl md:text-2xl text-foreground/80 leading-relaxed animate-fade-in animation-delay-200">
+          <p className="font-[family-name:var(--font-display)] text-2xl md:text-3xl text-foreground/85 leading-relaxed animate-fade-in animation-delay-200">
             A lightweight patch tracker for developers — log bug fixes and{" "}
-            <span className="font-[family-name:var(--font-display)] italic">refactors</span>{" "}
-            across your projects.
-            <span className="block text-lg mt-2 text-muted-foreground">
+            <em>refactors</em> across your projects.
+            <span className="block font-sans text-base md:text-lg mt-3 text-muted-foreground not-italic">
               Manage patches from your browser or directly from Claude Code.
             </span>
           </p>
@@ -73,7 +72,7 @@ export default function LandingPage() {
       {/* Features */}
       <div className="px-4 py-16 max-w-6xl mx-auto">
         <h2
-          className="font-[family-name:var(--font-display)] text-5xl md:text-6xl font-normal italic tracking-tight text-center mb-16 bg-clip-text text-transparent"
+          className="font-[family-name:var(--font-display)] text-5xl md:text-6xl font-normal italic tracking-tight text-center mb-16 bg-clip-text text-transparent leading-[1.25] pb-2"
           style={{
             backgroundImage:
               'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
