@@ -50,7 +50,7 @@ The MCP server is the primary integration point — Claude Code and Claude Deskt
 - `cp_reopen_patch` — Revert done/in_progress to open
 - `cp_get_project_summary` — Open/in_progress/done counts per project
 
-**MCP route:** `app/mcp/route.ts` — this is the SSE endpoint
+**MCP route:** `app/mcp/route.ts` — Streamable HTTP transport with bearer-token auth
 
 When adding new MCP tools:
 - Follow the `cp_` prefix convention
@@ -84,6 +84,6 @@ pnpm test:mcp         # Test MCP server locally
 | Problem | Solution |
 |---------|----------|
 | DB connection fails | Check `DATABASE_URL` in `.env.local` — must be Neon connection string |
-| MCP tools not responding | Check `app/mcp/route.ts` — SSE transport, verify Clerk auth token is passed |
+| MCP tools not responding | Check `app/mcp/route.ts` — Streamable HTTP transport, verify bearer token in `Authorization` header |
 | New project not appearing | Ensure `cp_add_project` was called with a unique slug |
 | Patches showing for wrong user | All queries must filter by Clerk `userId` — never return cross-user data |

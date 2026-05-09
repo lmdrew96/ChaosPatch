@@ -68,21 +68,31 @@ npm run dev
 
 ### 5. Connect the MCP server to Claude Code
 
-Add to your Claude Code MCP config:
+ChaosPatch ships an OAuth-discoverable HTTP MCP endpoint at `https://chaospatch.adhdesigns.dev/mcp` (Streamable HTTP transport, bearer-token auth).
 
-```json
-{
-  "mcpServers": {
-    "chaospatch": {
-      "command": "node",
-      "args": ["path/to/chaospatch/mcp/index.js"],
-      "env": {
-        "DATABASE_URL": "your_neon_connection_string"
-      }
-    }
-  }
-}
-```
+1. Sign in to chaospatch.adhdesigns.dev and visit `/settings` to mint a personal MCP token.
+2. Add the remote server to Claude Code:
+
+   ```bash
+   claude mcp add --transport http chaospatch https://chaospatch.adhdesigns.dev/mcp \
+     --header "Authorization: Bearer YOUR_TOKEN"
+   ```
+
+   Or in `~/.claude.json`:
+
+   ```json
+   {
+     "mcpServers": {
+       "chaospatch": {
+         "type": "http",
+         "url": "https://chaospatch.adhdesigns.dev/mcp",
+         "headers": { "Authorization": "Bearer YOUR_TOKEN" }
+       }
+     }
+   }
+   ```
+
+For local development against your own deployment, swap the URL for `http://localhost:3000/mcp`.
 
 ---
 
@@ -92,12 +102,22 @@ Once connected, Claude Code can use these tools in any session:
 
 | Tool | What it does |
 |---|---|
-| `cp_list_projects` | See all your dev projects |
-| `cp_list_patches` | Get patches for a project (filter by status) |
-| `cp_add_patch` | Add a new patch to a project |
+| `cp_list_projects` | List all your projects |
+| `cp_add_project` | Create a new project |
+| `cp_update_project` | Rename or recolor a project |
+| `cp_delete_project` | Delete a project and all its patches |
+| `cp_list_patches` | Get patches for a project (filter by status/priority) |
+| `cp_list_all_patches` | Get patches across every project |
+| `cp_add_patch` | Add a new patch with optional initial notes |
+| `cp_update_patch` | Update a patch's title and/or priority |
 | `cp_start_patch` | Mark a patch as in progress |
 | `cp_complete_patch` | Mark a patch as done |
-| `cp_add_note` | Add a note to an existing patch |
+| `cp_reopen_patch` | Revert a done/in-progress patch back to open |
+| `cp_delete_patch` | Delete a patch |
+| `cp_add_note` | Append a note to an existing patch |
+| `cp_search_patches` | Search titles + notes across projects |
+| `cp_get_project_summary` | Per-project open / in-progress / done counts |
+| `cp_batch_update` | Bulk start/complete/reopen multiple patches |
 
 ---
 
@@ -118,22 +138,25 @@ chaospatch/
 ├── app/
 │   ├── page.tsx
 │   ├── projects/[slug]/page.tsx
-│   └── add/page.tsx
+│   ├── add/page.tsx
+│   ├── api/patches/[id]/route.ts
+│   └── mcp/route.ts
 ├── lib/
 │   ├── db.ts
+│   ├── queries.ts
+│   ├── mcp-schemas.ts
+│   ├── oauth.ts
 │   └── schema.sql
-├── mcp/
-│   └── index.ts
-├── middleware.ts
-└── manifest.json
+├── proxy.ts
+└── public/manifest.json
 ```
 
 ---
 
 ## Roadmap
 
-- [ ] MVP: projects + patches + MCP tools
-- [ ] PWA manifest + install prompt
+- [x] MVP: projects + patches + MCP tools
+- [x] PWA manifest + install prompt
 - [ ] GitHub issue sync
 - [ ] Shared projects (team mode)
 
