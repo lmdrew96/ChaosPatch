@@ -376,8 +376,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 function PatchRow({ patch }: { patch: PatchWithProject }) {
   return (
-    <Link href={`/projects/${patch.project_slug}`}>
-      <li className="rounded-lg border border-border bg-card px-4 py-3 hover:border-muted-foreground/40 transition-colors cursor-pointer list-none">
+    <li className="list-none">
+      <Link
+        href={`/projects/${patch.project_slug}`}
+        className="block rounded-lg border border-border bg-card px-4 py-3 hover:border-muted-foreground/40 transition-colors cursor-pointer"
+      >
         {/* Title */}
         <span className="block text-sm text-foreground/90 truncate mb-1.5" title={patch.title}>
           {patch.title}
@@ -404,8 +407,8 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
             {STATUS_LABELS[patch.status]}
           </span>
         </div>
-      </li>
-    </Link>
+      </Link>
+    </li>
   );
 }
 
