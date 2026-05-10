@@ -18,8 +18,14 @@ export function AddPatchForm({
   const [slug, setSlug] = useState(defaultSlug ?? projects[0]?.slug ?? "");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [error, setError] = useState("");
+
+  const parsedTags = tagsInput
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
 
   const cancelHref = slug ? `/projects/${slug}` : "/dashboard";
 
@@ -43,6 +49,7 @@ export function AddPatchForm({
         title: title.trim(),
         priority,
         notes: notes.trim() || undefined,
+        tags: parsedTags.length > 0 ? parsedTags : undefined,
       }),
     });
 
@@ -111,6 +118,31 @@ export function AddPatchForm({
           rows={3}
           className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-y min-h-[72px]"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Tags <span className="text-muted-foreground/50 normal-case tracking-normal">(optional, comma-separated)</span>
+        </label>
+        <input
+          type="text"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          placeholder="bug, ui, db"
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        {parsedTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {parsedTags.map((t) => (
+              <span
+                key={t}
+                className="text-[10px] font-medium uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">

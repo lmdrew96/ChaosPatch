@@ -30,7 +30,12 @@ export async function PATCH(
   }
 
   if (body.title !== undefined && body.priority !== undefined) {
-    const patch = await updatePatch(userId, id, body.title, body.priority);
+    const cleanTags = Array.isArray(body.tags)
+      ? body.tags
+          .map((t: unknown) => (typeof t === "string" ? t.trim() : ""))
+          .filter((t: string) => t.length > 0)
+      : undefined;
+    const patch = await updatePatch(userId, id, body.title, body.priority, cleanTags);
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
   }

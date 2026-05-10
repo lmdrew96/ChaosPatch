@@ -37,6 +37,7 @@ function PatchRow({ patch }: { patch: Patch }) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(patch.title);
   const [editPriority, setEditPriority] = useState(patch.priority);
+  const [editTagsInput, setEditTagsInput] = useState(patch.tags.join(", "));
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const editTitleRef = useRef<HTMLInputElement>(null);
 
@@ -45,16 +46,25 @@ function PatchRow({ patch }: { patch: Patch }) {
   function startEditing() {
     setEditTitle(patch.title);
     setEditPriority(patch.priority);
+    setEditTagsInput(patch.tags.join(", "));
     setEditing(true);
     setTimeout(() => editTitleRef.current?.focus(), 50);
   }
 
   async function saveEdit() {
     if (!editTitle.trim()) return;
+    const parsedTags = editTagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
     await fetch(`/api/patches/${patch.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle.trim(), priority: editPriority }),
+      body: JSON.stringify({
+        title: editTitle.trim(),
+        priority: editPriority,
+        tags: parsedTags,
+      }),
     });
     setEditing(false);
     startTransition(() => router.refresh());
@@ -118,6 +128,12 @@ function PatchRow({ patch }: { patch: Patch }) {
             }}
             className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          <input
+            value={editTagsInput}
+            onChange={(e) => setEditTagsInput(e.target.value)}
+            placeholder="tags (comma-separated)"
+            className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
           <div className="flex items-center gap-2">
             <select
               value={editPriority}
@@ -162,6 +178,18 @@ function PatchRow({ patch }: { patch: Patch }) {
             >
               {patch.title}
             </button>
+            {patch.tags.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {patch.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="text-[9px] font-medium uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 rounded-full px-1.5 py-0.5"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {expanded && (
               <div className="mt-2 space-y-2">

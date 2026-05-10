@@ -43,6 +43,7 @@ const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 
 export function ProjectPatchView({ patches }: { patches: Patch[] }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("status");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -52,6 +53,18 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
     return counts;
   }, [patches]);
 
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    patches.forEach((p) => p.tags.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [patches]);
+
+  function toggleTag(tag: string) {
+    setTagFilters((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
   const filteredPatches = useMemo(() => {
     let result = [...patches];
 
@@ -60,6 +73,11 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
     }
     if (priorityFilter !== "all") {
       result = result.filter((p) => p.priority === priorityFilter);
+    }
+    if (tagFilters.length > 0) {
+      result = result.filter((p) =>
+        p.tags.some((t) => tagFilters.includes(t))
+      );
     }
 
     result.sort((a, b) => {
@@ -79,7 +97,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
     });
 
     return result;
-  }, [patches, statusFilter, priorityFilter, sortField, sortDir]);
+  }, [patches, statusFilter, priorityFilter, tagFilters, sortField, sortDir]);
 
   if (patches.length === 0) {
     return (
@@ -172,6 +190,39 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
           </button>
         </div>
       </div>
+
+      {/* Tag filter row */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
+            Tags
+          </span>
+          {allTags.map((tag) => {
+            const active = tagFilters.includes(tag);
+            return (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+                  active
+                    ? "bg-primary/15 text-primary border border-primary/30"
+                    : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
+          {tagFilters.length > 0 && (
+            <button
+              onClick={() => setTagFilters([])}
+              className="text-[10px] text-muted-foreground/60 hover:text-foreground/70 ml-1 transition-colors"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Patch list */}
       {filteredPatches.length === 0 ? (
