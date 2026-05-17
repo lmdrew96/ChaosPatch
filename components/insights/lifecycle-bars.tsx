@@ -1,6 +1,7 @@
 "use client";
 
 import type { PatchWithProject } from "@/lib/queries";
+import { useContainerWidth } from "@/hooks/use-container-width";
 
 type Bucket = "sameDay" | "week" | "month" | "long";
 
@@ -33,6 +34,7 @@ type ProjectRow = {
 };
 
 export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
+  const { ref, width } = useContainerWidth();
   // Aggregate completed patches per project, by lifecycle bucket
   const byProject = new Map<string, ProjectRow>();
   for (const p of patches) {
@@ -56,29 +58,40 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground/50">
+      <div
+        ref={ref}
+        className="flex items-center justify-center h-[180px] text-xs text-muted-foreground/50"
+      >
         No completed patches yet
       </div>
     );
   }
 
-  const W = 600;
-  const rowH = 28;
-  const PAD = { top: 14, right: 36, bottom: 38, left: 130 };
+  const W = Math.max(width, 1);
+  const isMobile = width < 480;
+  const rowH = isMobile ? 32 : 28;
+  const labelLen = isMobile ? 11 : 16;
+  const fontSize = isMobile ? 11 : 10;
+  const PAD = {
+    top: 14,
+    right: isMobile ? 28 : 36,
+    bottom: 38,
+    left: isMobile ? 100 : 130,
+  };
   const H = PAD.top + rows.length * rowH + PAD.bottom;
   const innerW = W - PAD.left - PAD.right;
   const maxTotal = Math.max(...rows.map((r) => r.total));
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div ref={ref} className="w-full overflow-x-hidden">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full h-auto min-w-[400px]"
+        className="w-full h-auto"
         preserveAspectRatio="xMidYMid meet"
       >
         {rows.map((row, ri) => {
           const y = PAD.top + ri * rowH + rowH / 2;
-          const barH = 14;
+          const barH = isMobile ? 16 : 14;
           const barY = y - barH / 2;
           const barW = (row.total / maxTotal) * innerW;
 
@@ -93,24 +106,27 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
             return { bucket, count, segX, segW };
           }).filter((s): s is NonNullable<typeof s> => s !== null);
 
+          const dotX = PAD.left - (isMobile ? 86 : 116);
+          const textX = PAD.left - (isMobile ? 78 : 108);
+
           return (
             <g key={row.name}>
               {/* Project label */}
               <circle
-                cx={PAD.left - 116}
+                cx={dotX}
                 cy={y}
                 r={3}
                 fill={row.color}
               />
               <text
-                x={PAD.left - 108}
+                x={textX}
                 y={y}
                 dominantBaseline="central"
                 className="fill-foreground/70"
-                fontSize={10}
+                fontSize={fontSize}
                 fontFamily="var(--font-geist-sans, sans-serif)"
               >
-                {row.name.length > 16 ? row.name.slice(0, 15) + "…" : row.name}
+                {row.name.length > labelLen ? row.name.slice(0, labelLen - 1) + "…" : row.name}
               </text>
 
               {/* Track outline (so empty space registers visually) */}
@@ -171,7 +187,7 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
                 y={y}
                 dominantBaseline="central"
                 className="fill-muted-foreground/50"
-                fontSize={9}
+                fontSize={isMobile ? 10 : 9}
                 fontFamily="var(--font-geist-mono, monospace)"
               >
                 {row.total}
@@ -186,11 +202,11 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
           y={H - 18}
           textAnchor="middle"
           className="fill-muted-foreground/30"
-          fontSize={8}
+          fontSize={isMobile ? 7 : 8}
           fontFamily="var(--font-geist-mono, monospace)"
-          letterSpacing="0.1em"
+          letterSpacing="0.08em"
         >
-          COMPLETED PATCHES (BAR LENGTH = VOLUME, SEGMENTS = TIME-TO-SHIP)
+          {isMobile ? "VOLUME · SEGMENTS = TIME-TO-SHIP" : "COMPLETED PATCHES (BAR LENGTH = VOLUME, SEGMENTS = TIME-TO-SHIP)"}
         </text>
       </svg>
 

@@ -1,11 +1,13 @@
 "use client";
 
 import type { PatchWithProject } from "@/lib/queries";
+import { useContainerWidth } from "@/hooks/use-container-width";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HEAT_COLOR = "#88739E"; // mauve purple
 
 export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) {
+  const { ref, width } = useContainerWidth();
   // Build 7 (day-of-week, Mon=0) × 24 (hour) grid in browser local timezone
   const grid: number[][] = Array.from({ length: 7 }, () =>
     Array(24).fill(0)
@@ -23,7 +25,10 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
 
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground/50">
+      <div
+        ref={ref}
+        className="flex items-center justify-center h-[200px] text-xs text-muted-foreground/50"
+      >
         Completion rhythm will appear here as you ship patches
       </div>
     );
@@ -42,13 +47,17 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
     }
   }
 
-  const W = 600;
-  const PAD = { top: 26, right: 14, bottom: 36, left: 38 };
+  const isMobile = width < 480;
+  const W = Math.max(width, 1);
+  const PAD = { top: 26, right: isMobile ? 8 : 14, bottom: isMobile ? 44 : 36, left: isMobile ? 30 : 38 };
   const innerW = W - PAD.left - PAD.right;
   const cellW = innerW / 24;
-  const cellH = 22;
+  const cellH = isMobile ? 26 : 22;
   const innerH = cellH * 7;
   const H = PAD.top + innerH + PAD.bottom;
+  // Show labels every 6h on mobile, every 3h on desktop
+  const hourLabelStep = isMobile ? 6 : 3;
+  const hourLabels = Array.from({ length: 24 / hourLabelStep }, (_, i) => i * hourLabelStep);
 
   const intensity = (count: number): number => {
     if (count === 0) return 0;
@@ -63,21 +72,21 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
   };
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div ref={ref} className="w-full overflow-x-hidden">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full h-auto min-w-[400px]"
+        className="w-full h-auto"
         preserveAspectRatio="xMidYMid meet"
       >
-        {/* Hour column labels (every 3h) */}
-        {[0, 3, 6, 9, 12, 15, 18, 21].map((h) => (
+        {/* Hour column labels */}
+        {hourLabels.map((h) => (
           <text
             key={h}
             x={PAD.left + h * cellW + cellW / 2}
             y={PAD.top - 8}
             textAnchor="middle"
             className="fill-muted-foreground/40"
-            fontSize={8}
+            fontSize={isMobile ? 9 : 8}
             fontFamily="var(--font-geist-mono, monospace)"
           >
             {formatHour(h)}
@@ -88,12 +97,12 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
         {DAY_LABELS.map((label, dow) => (
           <text
             key={label}
-            x={PAD.left - 8}
+            x={PAD.left - 5}
             y={PAD.top + dow * cellH + cellH / 2}
             textAnchor="end"
             dominantBaseline="central"
             className="fill-muted-foreground/50"
-            fontSize={9}
+            fontSize={isMobile ? 10 : 9}
             fontFamily="var(--font-geist-mono, monospace)"
           >
             {label}
@@ -149,12 +158,12 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
           })
         )}
 
-        {/* Footer: peak callout + legend */}
+        {/* Footer: peak callout */}
         <text
           x={PAD.left}
-          y={H - 18}
+          y={H - (isMobile ? 28 : 18)}
           className="fill-muted-foreground/45"
-          fontSize={9}
+          fontSize={isMobile ? 10 : 9}
           fontFamily="var(--font-geist-mono, monospace)"
         >
           peak: {DAY_LABELS[peakDow]} {formatHour(peakHour)}
@@ -163,13 +172,13 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
         </text>
 
         {/* Color scale legend */}
-        <g transform={`translate(${W - PAD.right - 100}, ${H - 26})`}>
+        <g transform={`translate(${W - PAD.right - (isMobile ? 86 : 100)}, ${H - (isMobile ? 42 : 26)})`}>
           <text
             x={-4}
             y={6}
             textAnchor="end"
             className="fill-muted-foreground/40"
-            fontSize={8}
+            fontSize={isMobile ? 9 : 8}
             fontFamily="var(--font-geist-mono, monospace)"
           >
             0
@@ -177,20 +186,20 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
           {[0.2, 0.4, 0.6, 0.8, 1.0].map((op, i) => (
             <rect
               key={i}
-              x={i * 16}
+              x={i * (isMobile ? 14 : 16)}
               y={0}
-              width={14}
-              height={10}
+              width={isMobile ? 12 : 14}
+              height={isMobile ? 9 : 10}
               fill={HEAT_COLOR}
               fillOpacity={op}
               rx={1}
             />
           ))}
           <text
-            x={5 * 16 + 4}
+            x={5 * (isMobile ? 14 : 16) + 4}
             y={6}
             className="fill-muted-foreground/40"
-            fontSize={8}
+            fontSize={isMobile ? 9 : 8}
             fontFamily="var(--font-geist-mono, monospace)"
           >
             {max}
@@ -200,12 +209,12 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
         {/* X-axis label */}
         <text
           x={PAD.left + innerW / 2}
-          y={H - 4}
+          y={H - (isMobile ? 12 : 4)}
           textAnchor="middle"
           className="fill-muted-foreground/30"
-          fontSize={8}
+          fontSize={isMobile ? 8 : 8}
           fontFamily="var(--font-geist-mono, monospace)"
-          letterSpacing="0.1em"
+          letterSpacing="0.08em"
         >
           HOUR (LOCAL TIME)
         </text>
