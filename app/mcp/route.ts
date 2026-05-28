@@ -17,6 +17,8 @@ import {
   deletePatch,
   deleteProject,
   getPatchById,
+  addPatchTags,
+  removePatchTags,
   updatePatch,
   updateProject,
   reopenPatch,
@@ -289,6 +291,40 @@ const TOOLS = [
     },
   },
   {
+    name: "cp_add_tags",
+    description:
+      "Append tags to a patch atomically. Tags already on the patch are skipped (no duplicates); existing tag order is preserved.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags to add (at least one)",
+        },
+      },
+      required: ["patch_id", "tags"],
+    },
+  },
+  {
+    name: "cp_remove_tags",
+    description:
+      "Remove specific tags from a patch atomically. Tags not present on the patch are no-ops; remaining tag order is preserved.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags to remove (at least one)",
+        },
+      },
+      required: ["patch_id", "tags"],
+    },
+  },
+  {
     name: "cp_update_project",
     description: "Update a project's name and/or color.",
     inputSchema: {
@@ -543,6 +579,20 @@ async function handleTool(
         a.tags,
         a.due_date
       );
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_add_tags": {
+      const a = args as ParsedArgs<"cp_add_tags">;
+      const patch = await addPatchTags(userId, a.patch_id, a.tags);
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_remove_tags": {
+      const a = args as ParsedArgs<"cp_remove_tags">;
+      const patch = await removePatchTags(userId, a.patch_id, a.tags);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }

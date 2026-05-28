@@ -307,6 +307,47 @@ export async function updatePatch(
   return (rows[0] as Patch) ?? null;
 }
 
+export async function addPatchTags(
+  userId: string,
+  patchId: string,
+  newTags: string[]
+): Promise<Patch | null> {
+  if (newTags.length === 0) return getPatchById(userId, patchId);
+  // Append only tags not already present, preserving existing order.
+  const rows = await sql`
+    UPDATE patches pa
+    SET tags = pa.tags || COALESCE((
+      SELECT array_agg(t)
+      FROM unnest(${newTags}::text[]) t
+      WHERE NOT (t = ANY(pa.tags))
+    ), '{}'::text[])
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+export async function removePatchTags(
+  userId: string,
+  patchId: string,
+  tagsToRemove: string[]
+): Promise<Patch | null> {
+  if (tagsToRemove.length === 0) return getPatchById(userId, patchId);
+  const rows = await sql`
+    UPDATE patches pa
+    SET tags = COALESCE((
+      SELECT array_agg(t)
+      FROM unnest(pa.tags) t
+      WHERE NOT (t = ANY(${tagsToRemove}::text[]))
+    ), '{}'::text[])
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
 export async function getPatchById(
   userId: string,
   patchId: string

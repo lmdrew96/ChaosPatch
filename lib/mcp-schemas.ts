@@ -76,6 +76,14 @@ export const MCP_SCHEMAS = {
     tags: tags.optional(),
     due_date: isoDate.nullable().optional(),
   }),
+  cp_add_tags: z.object({
+    patch_id: z.string().min(1),
+    tags: z.array(z.string().min(1)).min(1),
+  }),
+  cp_remove_tags: z.object({
+    patch_id: z.string().min(1),
+    tags: z.array(z.string().min(1)).min(1),
+  }),
   cp_update_project: z.object({
     project_slug: z.string().min(1),
     name: z.string().optional(),
