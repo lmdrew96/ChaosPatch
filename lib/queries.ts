@@ -632,15 +632,21 @@ export async function getVelocity(
 export async function searchPatches(
   userId: string,
   query: string,
-  includeArchived = false
+  includeArchived = false,
+  projectSlug?: string,
+  status?: Patch["status"]
 ): Promise<PatchWithProject[]> {
   const pattern = `%${query}%`;
+  const slugFilter = projectSlug ?? null;
+  const statusFilter = status ?? null;
   const rows = await sql`
     SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
       AND (${includeArchived}::boolean OR NOT pa.archived)
+      AND (${slugFilter}::text IS NULL OR p.slug = ${slugFilter}::text)
+      AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (
         pa.title ILIKE ${pattern}
         OR pa.notes ILIKE ${pattern}

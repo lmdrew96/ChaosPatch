@@ -329,11 +329,20 @@ const TOOLS = [
   {
     name: "cp_search_patches",
     description:
-      "Search patches across all projects by title, notes, or tags (case-insensitive). Archived patches excluded by default.",
+      "Search patches by title, notes, or tags (case-insensitive). Defaults to all projects, all statuses, non-archived. Optionally scope by project_slug and/or status, and opt in to archived results.",
     inputSchema: {
       type: "object" as const,
       properties: {
         query: { type: "string", description: "Search text" },
+        project_slug: {
+          type: "string",
+          description: "If set, restrict the search to this project (optional)",
+        },
+        status: {
+          type: "string",
+          enum: ["open", "in_progress", "done"],
+          description: "If set, only return patches in this status (optional)",
+        },
         include_archived: {
           type: "boolean",
           description:
@@ -561,7 +570,13 @@ async function handleTool(
 
     case "cp_search_patches": {
       const a = args as ParsedArgs<"cp_search_patches">;
-      const results = await searchPatches(userId, a.query, a.include_archived);
+      const results = await searchPatches(
+        userId,
+        a.query,
+        a.include_archived,
+        a.project_slug,
+        a.status
+      );
       return JSON.stringify(results, null, 2);
     }
 

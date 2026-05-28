@@ -89,6 +89,8 @@ export const MCP_SCHEMAS = {
   cp_search_patches: z.object({
     query: z.string().min(1),
     include_archived: z.boolean().optional(),
+    project_slug: z.string().min(1).optional(),
+    status: status.optional(),
   }),
   cp_archive_completed: z.object({
     project_slug: z.string().min(1).optional(),
