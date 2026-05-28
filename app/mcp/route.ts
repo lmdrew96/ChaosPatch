@@ -186,10 +186,18 @@ const TOOLS = [
   },
   {
     name: "cp_complete_patch",
-    description: "Set a patch status to done and log completed_at.",
+    description:
+      "Set a patch status to done and log completed_at. Optionally append a completion note in the same call (appended to existing notes with a blank-line separator).",
     inputSchema: {
       type: "object" as const,
-      properties: { patch_id: { type: "string", description: "Patch UUID" } },
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        note: {
+          type: "string",
+          description:
+            "Optional completion note appended to the patch's notes field",
+        },
+      },
       required: ["patch_id"],
     },
   },
@@ -396,7 +404,7 @@ async function handleTool(
 
     case "cp_complete_patch": {
       const a = args as ParsedArgs<"cp_complete_patch">;
-      const patch = await updatePatchStatus(userId, a.patch_id, "done");
+      const patch = await updatePatchStatus(userId, a.patch_id, "done", a.note);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }

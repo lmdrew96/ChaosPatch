@@ -202,7 +202,8 @@ export async function createPatch(
 export async function updatePatchStatus(
   userId: string,
   patchId: string,
-  status: Patch["status"]
+  status: Patch["status"],
+  note?: string
 ): Promise<Patch | null> {
   const now = new Date().toISOString();
   if (status === "in_progress") {
@@ -215,8 +216,16 @@ export async function updatePatchStatus(
     return (rows[0] as Patch) ?? null;
   }
   if (status === "done") {
+    const noteParam = note ?? null;
     const rows = await sql`
-      UPDATE patches pa SET status = ${status}, completed_at = ${now}
+      UPDATE patches pa
+      SET status = ${status},
+          completed_at = ${now},
+          notes = CASE
+            WHEN ${noteParam}::text IS NULL THEN pa.notes
+            WHEN pa.notes IS NULL THEN ${noteParam}::text
+            ELSE pa.notes || E'\n\n' || ${noteParam}::text
+          END
       FROM projects p
       WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
       RETURNING pa.*

@@ -46,6 +46,7 @@ export const MCP_SCHEMAS = {
   }),
   cp_complete_patch: z.object({
     patch_id: z.string().min(1),
+    note: z.string().min(1).optional(),
   }),
   cp_add_note: z.object({
     patch_id: z.string().min(1),
