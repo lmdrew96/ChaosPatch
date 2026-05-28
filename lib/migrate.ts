@@ -1,10 +1,8 @@
 /**
  * One-time migration: creates the mcp_tokens table.
- * Run with: npx tsx lib/migrate.ts
+ * Run with: pnpm db:migrate
  */
 import { neon } from "@neondatabase/serverless";
-
-// tsx auto-loads .env.local — no manual dotenv import needed
 
 const sql = neon(process.env.DATABASE_URL!);
 
