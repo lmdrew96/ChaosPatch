@@ -31,17 +31,43 @@ export type PatchWithProject = Patch & {
   project_color: string;
 };
 
+export type PatchSortBy = "priority" | "created_at";
+
 // ── All Patches (cross-project) ────────────────────────────────────────────
 
 export async function getAllPatches(
   userId: string,
   status?: Patch["status"],
   priority?: Patch["priority"],
-  tags?: string[]
+  tags?: string[],
+  sortBy?: PatchSortBy,
+  limit?: number,
+  offset?: number
 ): Promise<PatchWithProject[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
   const tagsFilter = tags && tags.length > 0 ? tags : null;
+  const limitValue = limit ?? null;
+  const offsetValue = offset ?? 0;
+
+  if (sortBy === "priority") {
+    const rows = await sql`
+      SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+      FROM patches pa
+      JOIN projects p ON p.id = pa.project_id
+      WHERE p.user_id = ${userId}
+        AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
+        AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
+        AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+      ORDER BY
+        CASE pa.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
+        pa.created_at DESC
+      LIMIT ${limitValue}
+      OFFSET ${offsetValue}
+    `;
+    return rows as PatchWithProject[];
+  }
+
   const rows = await sql`
     SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
     FROM patches pa
@@ -51,6 +77,8 @@ export async function getAllPatches(
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
     ORDER BY pa.created_at DESC
+    LIMIT ${limitValue}
+    OFFSET ${offsetValue}
   `;
   return rows as PatchWithProject[];
 }
@@ -112,11 +140,34 @@ export async function getPatches(
   projectSlug: string,
   status?: Patch["status"],
   priority?: Patch["priority"],
-  tags?: string[]
+  tags?: string[],
+  sortBy?: PatchSortBy,
+  limit?: number,
+  offset?: number
 ): Promise<Patch[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
   const tagsFilter = tags && tags.length > 0 ? tags : null;
+  const limitValue = limit ?? null;
+  const offsetValue = offset ?? 0;
+
+  if (sortBy === "priority") {
+    const rows = await sql`
+      SELECT pa.* FROM patches pa
+      JOIN projects p ON p.id = pa.project_id
+      WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+        AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
+        AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
+        AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+      ORDER BY
+        CASE pa.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
+        pa.created_at DESC
+      LIMIT ${limitValue}
+      OFFSET ${offsetValue}
+    `;
+    return rows as Patch[];
+  }
+
   const rows = await sql`
     SELECT pa.* FROM patches pa
     JOIN projects p ON p.id = pa.project_id
@@ -125,6 +176,8 @@ export async function getPatches(
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
     ORDER BY pa.created_at DESC
+    LIMIT ${limitValue}
+    OFFSET ${offsetValue}
   `;
   return rows as Patch[];
 }

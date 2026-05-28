@@ -58,7 +58,7 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag).",
+      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at) and pagination via limit (max 500) and offset.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -79,6 +79,20 @@ const TOOLS = [
           description:
             "Filter by tags — returns patches having at least one matching tag (optional)",
         },
+        sort_by: {
+          type: "string",
+          enum: ["priority", "created_at"],
+          description:
+            "Sort order: 'priority' (high → low, then created_at DESC) or 'created_at' (newest first — default)",
+        },
+        limit: {
+          type: "integer",
+          description: "Max results to return (1–500, optional)",
+        },
+        offset: {
+          type: "integer",
+          description: "Rows to skip for pagination (default 0)",
+        },
       },
       required: ["project_slug"],
     },
@@ -86,7 +100,7 @@ const TOOLS = [
   {
     name: "cp_list_all_patches",
     description:
-      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color.",
+      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at) and pagination via limit (max 500) and offset.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -105,6 +119,20 @@ const TOOLS = [
           items: { type: "string" },
           description:
             "Filter by tags — returns patches having at least one matching tag (optional)",
+        },
+        sort_by: {
+          type: "string",
+          enum: ["priority", "created_at"],
+          description:
+            "Sort order: 'priority' (high → low, then created_at DESC) or 'created_at' (newest first — default)",
+        },
+        limit: {
+          type: "integer",
+          description: "Max results to return (1–500, optional)",
+        },
+        offset: {
+          type: "integer",
+          description: "Rows to skip for pagination (default 0)",
         },
       },
     },
@@ -306,14 +334,25 @@ async function handleTool(
         a.project_slug,
         a.status,
         a.priority,
-        a.tags
+        a.tags,
+        a.sort_by,
+        a.limit,
+        a.offset
       );
       return JSON.stringify(patches, null, 2);
     }
 
     case "cp_list_all_patches": {
       const a = args as ParsedArgs<"cp_list_all_patches">;
-      const patches = await getAllPatches(userId, a.status, a.priority, a.tags);
+      const patches = await getAllPatches(
+        userId,
+        a.status,
+        a.priority,
+        a.tags,
+        a.sort_by,
+        a.limit,
+        a.offset
+      );
       return JSON.stringify(patches, null, 2);
     }
 

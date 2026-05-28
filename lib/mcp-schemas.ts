@@ -3,6 +3,9 @@ import { z } from "zod";
 const priority = z.enum(["low", "medium", "high"]);
 const status = z.enum(["open", "in_progress", "done"]);
 const tags = z.array(z.string());
+const sortBy = z.enum(["priority", "created_at"]);
+const limit = z.number().int().positive().max(500);
+const offset = z.number().int().nonnegative();
 
 export const MCP_SCHEMAS = {
   cp_list_projects: z.object({}),
@@ -16,11 +19,17 @@ export const MCP_SCHEMAS = {
     status: status.optional(),
     priority: priority.optional(),
     tags: tags.optional(),
+    sort_by: sortBy.optional(),
+    limit: limit.optional(),
+    offset: offset.optional(),
   }),
   cp_list_all_patches: z.object({
     status: status.optional(),
     priority: priority.optional(),
     tags: tags.optional(),
+    sort_by: sortBy.optional(),
+    limit: limit.optional(),
+    offset: offset.optional(),
   }),
   cp_add_patch: z.object({
     project_slug: z.string().min(1),
