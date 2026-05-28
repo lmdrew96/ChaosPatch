@@ -23,6 +23,7 @@ import {
   getProjectSummary,
   searchPatches,
   batchUpdatePatches,
+  getVelocity,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
@@ -306,6 +307,22 @@ const TOOLS = [
     },
   },
   {
+    name: "cp_get_velocity",
+    description:
+      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        completed_since: {
+          type: "string",
+          description:
+            "ISO 8601 date or datetime — inclusive lower bound for completed_at (e.g. '2026-05-01' or '2026-05-01T00:00:00Z')",
+        },
+      },
+      required: ["completed_since"],
+    },
+  },
+  {
     name: "cp_batch_update",
     description:
       "Bulk-update patch status. Action 'start' sets in_progress + started_at; 'complete' sets done + completed_at; 'reopen' reverts to open and clears timestamps. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] }.",
@@ -466,6 +483,12 @@ async function handleTool(
       const a = args as ParsedArgs<"cp_search_patches">;
       const results = await searchPatches(userId, a.query);
       return JSON.stringify(results, null, 2);
+    }
+
+    case "cp_get_velocity": {
+      const a = args as ParsedArgs<"cp_get_velocity">;
+      const result = await getVelocity(userId, a.completed_since);
+      return JSON.stringify(result, null, 2);
     }
 
     case "cp_batch_update": {

@@ -504,6 +504,35 @@ export async function getDashboardSummary(
   };
 }
 
+// ── Velocity ──────────────────────────────────────────────────────────────
+
+export type VelocityResult = {
+  completed_since: string;
+  count: number;
+  patches: PatchWithProject[];
+};
+
+export async function getVelocity(
+  userId: string,
+  completedSince: string
+): Promise<VelocityResult> {
+  const rows = await sql`
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId}
+      AND pa.status = 'done'
+      AND pa.completed_at >= ${completedSince}
+    ORDER BY pa.completed_at DESC
+  `;
+  const patches = rows as PatchWithProject[];
+  return {
+    completed_since: completedSince,
+    count: patches.length,
+    patches,
+  };
+}
+
 // ── Search Patches ────────────────────────────────────────────────────────
 
 export async function searchPatches(

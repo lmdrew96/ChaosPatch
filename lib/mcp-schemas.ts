@@ -77,6 +77,14 @@ export const MCP_SCHEMAS = {
   cp_search_patches: z.object({
     query: z.string().min(1),
   }),
+  cp_get_velocity: z.object({
+    completed_since: z
+      .string()
+      .min(1)
+      .refine((v) => !Number.isNaN(Date.parse(v)), {
+        message: "must be a parseable date/time (ISO 8601 recommended)",
+      }),
+  }),
   cp_batch_update: z.object({
     patch_ids: z.array(z.string().min(1)).min(1),
     action: z.enum(["start", "complete", "reopen"]),
