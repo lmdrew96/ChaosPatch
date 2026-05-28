@@ -4,7 +4,13 @@ import { useState, useMemo } from "react";
 import type { Patch } from "@/lib/queries";
 import { PatchList } from "./patch-list";
 
-function CompletedAccordion({ patches }: { patches: Patch[] }) {
+function CollapsibleSection({
+  label,
+  patches,
+}: {
+  label: string;
+  patches: Patch[];
+}) {
   const [open, setOpen] = useState(false);
   if (patches.length === 0) return null;
   return (
@@ -14,7 +20,7 @@ function CompletedAccordion({ patches }: { patches: Patch[] }) {
         className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground/70 hover:bg-muted/40 transition-colors"
       >
         <span>
-          Completed
+          {label}
           <span className="ml-1.5 font-mono text-[10px] opacity-60">
             {patches.length}
           </span>
@@ -40,7 +46,13 @@ type SortDir = "asc" | "desc";
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 };
 
-export function ProjectPatchView({ patches }: { patches: Patch[] }) {
+export function ProjectPatchView({
+  patches,
+  archivedPatches,
+}: {
+  patches: Patch[];
+  archivedPatches: Patch[];
+}) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [tagFilters, setTagFilters] = useState<string[]>([]);
@@ -99,7 +111,7 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
     return result;
   }, [patches, statusFilter, priorityFilter, tagFilters, sortField, sortDir]);
 
-  if (patches.length === 0) {
+  if (patches.length === 0 && archivedPatches.length === 0) {
     return (
       <p className="text-center text-muted-foreground/50 text-sm py-16">
         No patches yet. Add one with the button above.
@@ -225,16 +237,23 @@ export function ProjectPatchView({ patches }: { patches: Patch[] }) {
       )}
 
       {/* Patch list */}
-      {filteredPatches.length === 0 ? (
+      {filteredPatches.length === 0 && archivedPatches.length === 0 ? (
         <p className="text-center text-muted-foreground/50 text-sm py-8">
           No patches match your filters.
         </p>
       ) : statusFilter === "done" ? (
-        <PatchList patches={filteredPatches} />
+        <>
+          <PatchList patches={filteredPatches} />
+          <CollapsibleSection label="Archived" patches={archivedPatches} />
+        </>
       ) : (
         <>
           <PatchList patches={filteredPatches.filter((p) => p.status !== "done")} />
-          <CompletedAccordion patches={filteredPatches.filter((p) => p.status === "done")} />
+          <CollapsibleSection
+            label="Completed"
+            patches={filteredPatches.filter((p) => p.status === "done")}
+          />
+          <CollapsibleSection label="Archived" patches={archivedPatches} />
         </>
       )}
     </div>

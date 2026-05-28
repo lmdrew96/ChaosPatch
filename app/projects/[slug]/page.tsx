@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { getPatches, getProjectBySlug } from "@/lib/queries";
+import { getArchivedPatches, getPatches, getProjectBySlug } from "@/lib/queries";
 import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
@@ -18,7 +18,10 @@ export default async function ProjectPage({
   const project = await getProjectBySlug(userId, slug);
   if (!project) notFound();
 
-  const patches = await getPatches(userId, slug);
+  const [patches, archivedPatches] = await Promise.all([
+    getPatches(userId, slug),
+    getArchivedPatches(userId, slug),
+  ]);
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-16">
@@ -55,7 +58,7 @@ export default async function ProjectPage({
       </header>
 
       <main className="px-6 py-8 max-w-3xl mx-auto space-y-8">
-        <ProjectPatchView patches={patches} />
+        <ProjectPatchView patches={patches} archivedPatches={archivedPatches} />
 
         {/* Danger zone */}
         <div className="border-t border-border pt-8 mt-12">

@@ -24,5 +24,11 @@ void (async () => {
     ALTER TABLE patches
     ADD COLUMN IF NOT EXISTS due_date DATE
   `;
-  console.log("Done: mcp_tokens table ready, patches.tags + due_date columns ensured.");
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+  console.log(
+    "Done: mcp_tokens table ready, patches.tags + due_date + archived columns ensured."
+  );
 })();

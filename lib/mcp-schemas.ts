@@ -29,6 +29,7 @@ export const MCP_SCHEMAS = {
     limit: limit.optional(),
     offset: offset.optional(),
     due_before: isoDate.optional(),
+    include_archived: z.boolean().optional(),
   }),
   cp_list_all_patches: z.object({
     status: status.optional(),
@@ -38,6 +39,7 @@ export const MCP_SCHEMAS = {
     limit: limit.optional(),
     offset: offset.optional(),
     due_before: isoDate.optional(),
+    include_archived: z.boolean().optional(),
   }),
   cp_add_patch: z.object({
     project_slug: z.string().min(1),
@@ -86,6 +88,13 @@ export const MCP_SCHEMAS = {
   cp_get_project_summary: z.object({}),
   cp_search_patches: z.object({
     query: z.string().min(1),
+    include_archived: z.boolean().optional(),
+  }),
+  cp_archive_completed: z.object({
+    project_slug: z.string().min(1).optional(),
+  }),
+  cp_unarchive_patch: z.object({
+    patch_id: z.string().min(1),
   }),
   cp_get_velocity: z.object({
     completed_since: z
@@ -94,6 +103,7 @@ export const MCP_SCHEMAS = {
       .refine((v) => !Number.isNaN(Date.parse(v)), {
         message: "must be a parseable date/time (ISO 8601 recommended)",
       }),
+    include_archived: z.boolean().optional(),
   }),
   cp_batch_update: z.object({
     patch_ids: z.array(z.string().min(1)).min(1),

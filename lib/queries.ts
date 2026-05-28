@@ -21,6 +21,7 @@ export type Patch = {
   notes: string | null;
   tags: string[];
   due_date: string | null;
+  archived: boolean;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -44,7 +45,8 @@ export async function getAllPatches(
   sortBy?: PatchSortBy,
   limit?: number,
   offset?: number,
-  dueBefore?: string
+  dueBefore?: string,
+  includeArchived = false
 ): Promise<PatchWithProject[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
@@ -59,6 +61,7 @@ export async function getAllPatches(
       FROM patches pa
       JOIN projects p ON p.id = pa.project_id
       WHERE p.user_id = ${userId}
+        AND (${includeArchived}::boolean OR NOT pa.archived)
         AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
         AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
         AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -77,6 +80,7 @@ export async function getAllPatches(
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
+      AND (${includeArchived}::boolean OR NOT pa.archived)
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -92,7 +96,7 @@ export async function getAllPatches(
 
 export async function getProjects(userId: string): Promise<Project[]> {
   const rows = await sql`
-    SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open') AS open_count
+    SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived) AS open_count
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
     WHERE p.user_id = ${userId}
@@ -149,7 +153,8 @@ export async function getPatches(
   sortBy?: PatchSortBy,
   limit?: number,
   offset?: number,
-  dueBefore?: string
+  dueBefore?: string,
+  includeArchived = false
 ): Promise<Patch[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
@@ -163,6 +168,7 @@ export async function getPatches(
       SELECT pa.* FROM patches pa
       JOIN projects p ON p.id = pa.project_id
       WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+        AND (${includeArchived}::boolean OR NOT pa.archived)
         AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
         AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
         AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -180,6 +186,7 @@ export async function getPatches(
     SELECT pa.* FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+      AND (${includeArchived}::boolean OR NOT pa.archived)
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -341,9 +348,11 @@ export async function reopenPatch(
   patchId: string,
   status: "open" | "in_progress" = "open"
 ): Promise<Patch | null> {
+  // Reopening also unarchives — an archived patch shouldn't reappear as open
+  // but still be hidden by the archive filter.
   if (status === "in_progress") {
     const rows = await sql`
-      UPDATE patches pa SET status = 'in_progress', completed_at = NULL
+      UPDATE patches pa SET status = 'in_progress', completed_at = NULL, archived = FALSE
       FROM projects p
       WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
       RETURNING pa.*
@@ -351,7 +360,7 @@ export async function reopenPatch(
     return (rows[0] as Patch) ?? null;
   }
   const rows = await sql`
-    UPDATE patches pa SET status = 'open', started_at = NULL, completed_at = NULL
+    UPDATE patches pa SET status = 'open', started_at = NULL, completed_at = NULL, archived = FALSE
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*
@@ -401,7 +410,7 @@ export async function batchUpdatePatches(
   } else {
     rows = await sql`
       UPDATE patches pa
-      SET status = 'open', started_at = NULL, completed_at = NULL
+      SET status = 'open', started_at = NULL, completed_at = NULL, archived = FALSE
       FROM projects p
       WHERE pa.project_id = p.id
         AND p.user_id = ${userId}
@@ -431,23 +440,29 @@ export type ProjectSummary = {
   total: number;
 };
 
-export async function getProjectSummary(userId: string): Promise<ProjectSummary[]> {
+export type ProjectSummaryWithArchive = ProjectSummary & { archived: number };
+
+export async function getProjectSummary(
+  userId: string
+): Promise<ProjectSummaryWithArchive[]> {
+  // open / in_progress / done / total exclude archived; archived is its own column.
   const rows = await sql`
     SELECT
       p.name AS project_name,
       p.slug AS project_slug,
       p.color AS project_color,
-      COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
-      COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress,
-      COUNT(pa.id) FILTER (WHERE pa.status = 'done')::int AS done,
-      COUNT(pa.id)::int AS total
+      COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'done' AND NOT pa.archived)::int AS done,
+      COUNT(pa.id) FILTER (WHERE pa.archived)::int AS archived,
+      COUNT(pa.id) FILTER (WHERE NOT pa.archived)::int AS total
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
     WHERE p.user_id = ${userId}
     GROUP BY p.id
     ORDER BY p.name ASC
   `;
-  return rows as ProjectSummary[];
+  return rows as ProjectSummaryWithArchive[];
 }
 
 // ── Dashboard Summary Strip ───────────────────────────────────────────────
@@ -471,7 +486,7 @@ export async function getDashboardSummary(
         SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'in_progress'
+        WHERE p.user_id = ${userId} AND pa.status = 'in_progress' AND NOT pa.archived
         ORDER BY pa.started_at DESC NULLS LAST
         LIMIT 5
       `,
@@ -479,7 +494,7 @@ export async function getDashboardSummary(
         SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'done'
+        WHERE p.user_id = ${userId} AND pa.status = 'done' AND NOT pa.archived
           AND pa.completed_at >= NOW() - INTERVAL '14 days'
         ORDER BY pa.completed_at DESC
         LIMIT 5
@@ -488,15 +503,15 @@ export async function getDashboardSummary(
         SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'open'
+        WHERE p.user_id = ${userId} AND pa.status = 'open' AND NOT pa.archived
           AND pa.created_at >= NOW() - INTERVAL '7 days'
         ORDER BY pa.created_at DESC
         LIMIT 5
       `,
       sql`
         SELECT
-          COUNT(pa.id) FILTER (WHERE pa.status = 'open')::int AS open,
-          COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress')::int AS in_progress
+          COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open,
+          COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
         WHERE p.user_id = ${userId}
@@ -519,6 +534,68 @@ export async function getDashboardSummary(
   };
 }
 
+// ── Archive ───────────────────────────────────────────────────────────────
+
+export type ArchiveResult = {
+  archived_count: number;
+  archived_patch_ids: string[];
+};
+
+export async function archiveCompletedPatches(
+  userId: string,
+  projectSlug?: string
+): Promise<ArchiveResult> {
+  const slugFilter = projectSlug ?? null;
+  const rows = await sql`
+    UPDATE patches pa
+    SET archived = TRUE
+    FROM projects p
+    WHERE pa.project_id = p.id
+      AND p.user_id = ${userId}
+      AND pa.status = 'done'
+      AND NOT pa.archived
+      AND (${slugFilter}::text IS NULL OR p.slug = ${slugFilter}::text)
+    RETURNING pa.id
+  `;
+  const ids = (rows as { id: string }[]).map((r) => r.id);
+  return { archived_count: ids.length, archived_patch_ids: ids };
+}
+
+export async function setPatchArchived(
+  userId: string,
+  patchId: string,
+  archived: boolean
+): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa SET archived = ${archived}
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+export async function unarchivePatch(
+  userId: string,
+  patchId: string
+): Promise<Patch | null> {
+  return setPatchArchived(userId, patchId, false);
+}
+
+export async function getArchivedPatches(
+  userId: string,
+  projectSlug: string
+): Promise<Patch[]> {
+  const rows = await sql`
+    SELECT pa.* FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+      AND pa.archived = TRUE
+    ORDER BY pa.completed_at DESC NULLS LAST, pa.created_at DESC
+  `;
+  return rows as Patch[];
+}
+
 // ── Velocity ──────────────────────────────────────────────────────────────
 
 export type VelocityResult = {
@@ -529,7 +606,8 @@ export type VelocityResult = {
 
 export async function getVelocity(
   userId: string,
-  completedSince: string
+  completedSince: string,
+  includeArchived = false
 ): Promise<VelocityResult> {
   const rows = await sql`
     SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
@@ -537,6 +615,7 @@ export async function getVelocity(
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
       AND pa.status = 'done'
+      AND (${includeArchived}::boolean OR NOT pa.archived)
       AND pa.completed_at >= ${completedSince}
     ORDER BY pa.completed_at DESC
   `;
@@ -552,7 +631,8 @@ export async function getVelocity(
 
 export async function searchPatches(
   userId: string,
-  query: string
+  query: string,
+  includeArchived = false
 ): Promise<PatchWithProject[]> {
   const pattern = `%${query}%`;
   const rows = await sql`
@@ -560,6 +640,7 @@ export async function searchPatches(
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
+      AND (${includeArchived}::boolean OR NOT pa.archived)
       AND (
         pa.title ILIKE ${pattern}
         OR pa.notes ILIKE ${pattern}

@@ -144,6 +144,15 @@ function PatchRow({ patch }: { patch: Patch }) {
     startTransition(() => router.refresh());
   }
 
+  async function toggleArchive() {
+    await fetch(`/api/patches/${patch.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archive: !patch.archived }),
+    });
+    startTransition(() => router.refresh());
+  }
+
   function handleNoteToggle() {
     setShowNoteInput((v) => !v);
     if (!showNoteInput) {
@@ -306,7 +315,15 @@ function PatchRow({ patch }: { patch: Patch }) {
             >
               Edit
             </button>
-            {nextStatus ? (
+            {patch.archived ? (
+              <button
+                onClick={toggleArchive}
+                disabled={isPending}
+                className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 transition-colors"
+              >
+                Unarchive
+              </button>
+            ) : nextStatus ? (
               <button
                 onClick={advance}
                 disabled={isPending}
@@ -315,13 +332,22 @@ function PatchRow({ patch }: { patch: Patch }) {
                 {STATUS_LABEL[patch.status]}
               </button>
             ) : (
-              <button
-                onClick={reopen}
-                disabled={isPending}
-                className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 transition-colors"
-              >
-                Reopen
-              </button>
+              <>
+                <button
+                  onClick={reopen}
+                  disabled={isPending}
+                  className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 transition-colors"
+                >
+                  Reopen
+                </button>
+                <button
+                  onClick={toggleArchive}
+                  disabled={isPending}
+                  className="text-xs text-muted-foreground/50 hover:text-foreground/70 disabled:opacity-40 transition-colors"
+                >
+                  Archive
+                </button>
+              </>
             )}
             {confirmDelete ? (
               <span className="flex items-center gap-1.5">

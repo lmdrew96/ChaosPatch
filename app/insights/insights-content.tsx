@@ -112,7 +112,7 @@ export function InsightsContent({
           value={totals.done}
           sub={
             totals.total > 0
-              ? `${Math.round((totals.done / totals.total) * 100)}% lifetime rate`
+              ? `${Math.round((totals.done / totals.total) * 100)}% completion rate`
               : undefined
           }
           accent="#8CBDB9"

@@ -24,6 +24,8 @@ import {
   searchPatches,
   batchUpdatePatches,
   getVelocity,
+  archiveCompletedPatches,
+  unarchivePatch,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
@@ -99,6 +101,11 @@ const TOOLS = [
           description:
             "Inclusive upper bound on due_date (YYYY-MM-DD). Returns patches with due_date <= this date.",
         },
+        include_archived: {
+          type: "boolean",
+          description:
+            "If true, include archived patches in results. Default false.",
+        },
       },
       required: ["project_slug"],
     },
@@ -144,6 +151,11 @@ const TOOLS = [
           type: "string",
           description:
             "Inclusive upper bound on due_date (YYYY-MM-DD). Returns patches with due_date <= this date.",
+        },
+        include_archived: {
+          type: "boolean",
+          description:
+            "If true, include archived patches in results. Default false.",
         },
       },
     },
@@ -307,7 +319,8 @@ const TOOLS = [
   },
   {
     name: "cp_get_project_summary",
-    description: "Get open/in_progress/done counts for each project.",
+    description:
+      "Get open/in_progress/done/archived/total counts for each project. open, in_progress, done, and total all exclude archived patches; archived is a separate count.",
     inputSchema: {
       type: "object" as const,
       properties: {},
@@ -316,19 +329,50 @@ const TOOLS = [
   {
     name: "cp_search_patches",
     description:
-      "Search patches across all projects by title or notes (case-insensitive).",
+      "Search patches across all projects by title, notes, or tags (case-insensitive). Archived patches excluded by default.",
     inputSchema: {
       type: "object" as const,
       properties: {
         query: { type: "string", description: "Search text" },
+        include_archived: {
+          type: "boolean",
+          description:
+            "If true, include archived patches in results. Default false.",
+        },
       },
       required: ["query"],
     },
   },
   {
+    name: "cp_archive_completed",
+    description:
+      "Archive all completed (status='done') patches owned by the authenticated user, optionally scoped to a single project. Archived patches are excluded from default list views but not deleted. Returns { archived_count, archived_patch_ids }.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        project_slug: {
+          type: "string",
+          description:
+            "If provided, only archive done patches in this project. If omitted, archives all done patches across all projects.",
+        },
+      },
+    },
+  },
+  {
+    name: "cp_unarchive_patch",
+    description: "Unarchive a single patch (sets archived = false).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+      },
+      required: ["patch_id"],
+    },
+  },
+  {
     name: "cp_get_velocity",
     description:
-      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color.",
+      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color. Archived patches excluded by default.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -336,6 +380,11 @@ const TOOLS = [
           type: "string",
           description:
             "ISO 8601 date or datetime — inclusive lower bound for completed_at (e.g. '2026-05-01' or '2026-05-01T00:00:00Z')",
+        },
+        include_archived: {
+          type: "boolean",
+          description:
+            "If true, include archived patches in results. Default false.",
         },
       },
       required: ["completed_since"],
@@ -392,7 +441,8 @@ async function handleTool(
         a.sort_by,
         a.limit,
         a.offset,
-        a.due_before
+        a.due_before,
+        a.include_archived
       );
       return JSON.stringify(patches, null, 2);
     }
@@ -407,7 +457,8 @@ async function handleTool(
         a.sort_by,
         a.limit,
         a.offset,
-        a.due_before
+        a.due_before,
+        a.include_archived
       );
       return JSON.stringify(patches, null, 2);
     }
@@ -510,14 +561,31 @@ async function handleTool(
 
     case "cp_search_patches": {
       const a = args as ParsedArgs<"cp_search_patches">;
-      const results = await searchPatches(userId, a.query);
+      const results = await searchPatches(userId, a.query, a.include_archived);
       return JSON.stringify(results, null, 2);
     }
 
     case "cp_get_velocity": {
       const a = args as ParsedArgs<"cp_get_velocity">;
-      const result = await getVelocity(userId, a.completed_since);
+      const result = await getVelocity(
+        userId,
+        a.completed_since,
+        a.include_archived
+      );
       return JSON.stringify(result, null, 2);
+    }
+
+    case "cp_archive_completed": {
+      const a = args as ParsedArgs<"cp_archive_completed">;
+      const result = await archiveCompletedPatches(userId, a.project_slug);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "cp_unarchive_patch": {
+      const a = args as ParsedArgs<"cp_unarchive_patch">;
+      const patch = await unarchivePatch(userId, a.patch_id);
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
     }
 
     case "cp_batch_update": {
