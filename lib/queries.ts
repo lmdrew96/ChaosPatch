@@ -10,6 +10,8 @@ export type Project = {
   color: string;
   created_at: string;
   open_count?: number;
+  in_progress_count?: number;
+  done_count?: number;
 };
 
 export type Patch = {
@@ -95,8 +97,12 @@ export async function getAllPatches(
 // ── Projects ───────────────────────────────────────────────────────────────
 
 export async function getProjects(userId: string): Promise<Project[]> {
+  // Counts exclude archived patches to match getProjectSummary semantics.
   const rows = await sql`
-    SELECT p.*, COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived) AS open_count
+    SELECT p.*,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open_count,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress_count,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'done' AND NOT pa.archived)::int AS done_count
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
     WHERE p.user_id = ${userId}

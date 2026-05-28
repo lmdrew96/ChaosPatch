@@ -36,7 +36,8 @@ type ParsedArgs<T extends McpToolName> = z.infer<(typeof MCP_SCHEMAS)[T]>;
 const TOOLS = [
   {
     name: "cp_list_projects",
-    description: "Get all ChaosPatch projects for the authenticated user.",
+    description:
+      "Get all ChaosPatch projects for the authenticated user. Each project includes open_count, in_progress_count, and done_count (all exclude archived patches), so a dashboard view can be built from one call.",
     inputSchema: { type: "object" as const, properties: {} },
   },
   {
