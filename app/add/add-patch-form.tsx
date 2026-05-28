@@ -20,6 +20,7 @@ export function AddPatchForm({
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState("");
 
   const parsedTags = tagsInput
@@ -50,6 +51,7 @@ export function AddPatchForm({
         priority,
         notes: notes.trim() || undefined,
         tags: parsedTags.length > 0 ? parsedTags : undefined,
+        due_date: dueDate || undefined,
       }),
     });
 
@@ -143,6 +145,18 @@ export function AddPatchForm({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Due date <span className="text-muted-foreground/50 normal-case tracking-normal">(optional)</span>
+        </label>
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
       </div>
 
       <div className="space-y-1.5">

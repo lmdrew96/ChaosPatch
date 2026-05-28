@@ -27,6 +27,40 @@ export function PatchList({ patches }: { patches: Patch[] }) {
   );
 }
 
+function DueDateChip({ dueDate }: { dueDate: string }) {
+  // Compare in local time at day granularity so "today" matches the user's day.
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // dueDate from Postgres DATE comes through as "YYYY-MM-DD" or ISO.
+  // Parse as local-day to avoid off-by-one on timezones west of UTC.
+  const [y, m, d] = dueDate.slice(0, 10).split("-").map(Number);
+  const due = new Date(y, (m ?? 1) - 1, d ?? 1);
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+
+  let label: string;
+  if (diffDays === 0) label = "Due today";
+  else if (diffDays === 1) label = "Due tomorrow";
+  else if (diffDays === -1) label = "1d overdue";
+  else if (diffDays < 0) label = `${-diffDays}d overdue`;
+  else label = `Due in ${diffDays}d`;
+
+  const tone =
+    diffDays < 0
+      ? "bg-red-500/10 text-red-400 border-red-500/30"
+      : diffDays <= 3
+      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+      : "bg-muted/40 text-muted-foreground border-border";
+
+  return (
+    <span
+      className={`text-[9px] font-medium uppercase tracking-wider border rounded-full px-1.5 py-0.5 ${tone}`}
+      title={`Due ${dueDate.slice(0, 10)}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function PatchRow({ patch }: { patch: Patch }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -38,6 +72,7 @@ function PatchRow({ patch }: { patch: Patch }) {
   const [editTitle, setEditTitle] = useState(patch.title);
   const [editPriority, setEditPriority] = useState(patch.priority);
   const [editTagsInput, setEditTagsInput] = useState(patch.tags.join(", "));
+  const [editDueDate, setEditDueDate] = useState(patch.due_date ?? "");
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const editTitleRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +82,7 @@ function PatchRow({ patch }: { patch: Patch }) {
     setEditTitle(patch.title);
     setEditPriority(patch.priority);
     setEditTagsInput(patch.tags.join(", "));
+    setEditDueDate(patch.due_date ?? "");
     setEditing(true);
     setTimeout(() => editTitleRef.current?.focus(), 50);
   }
@@ -64,6 +100,8 @@ function PatchRow({ patch }: { patch: Patch }) {
         title: editTitle.trim(),
         priority: editPriority,
         tags: parsedTags,
+        // Empty string clears due_date; a YYYY-MM-DD string sets it.
+        due_date: editDueDate === "" ? null : editDueDate,
       }),
     });
     setEditing(false);
@@ -134,6 +172,12 @@ function PatchRow({ patch }: { patch: Patch }) {
             placeholder="tags (comma-separated)"
             className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          <input
+            type="date"
+            value={editDueDate}
+            onChange={(e) => setEditDueDate(e.target.value)}
+            className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
           <div className="flex items-center gap-2">
             <select
               value={editPriority}
@@ -178,8 +222,9 @@ function PatchRow({ patch }: { patch: Patch }) {
             >
               {patch.title}
             </button>
-            {patch.tags.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
+            {(patch.tags.length > 0 || patch.due_date) && (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {patch.due_date && <DueDateChip dueDate={patch.due_date} />}
                 {patch.tags.map((t) => (
                   <span
                     key={t}

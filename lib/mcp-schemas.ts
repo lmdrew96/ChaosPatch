@@ -6,6 +6,12 @@ const tags = z.array(z.string());
 const sortBy = z.enum(["priority", "created_at"]);
 const limit = z.number().int().positive().max(500);
 const offset = z.number().int().nonnegative();
+const isoDate = z
+  .string()
+  .min(1)
+  .refine((v) => /^\d{4}-\d{2}-\d{2}/.test(v) && !Number.isNaN(Date.parse(v)), {
+    message: "must be an ISO date (YYYY-MM-DD)",
+  });
 
 export const MCP_SCHEMAS = {
   cp_list_projects: z.object({}),
@@ -22,6 +28,7 @@ export const MCP_SCHEMAS = {
     sort_by: sortBy.optional(),
     limit: limit.optional(),
     offset: offset.optional(),
+    due_before: isoDate.optional(),
   }),
   cp_list_all_patches: z.object({
     status: status.optional(),
@@ -30,6 +37,7 @@ export const MCP_SCHEMAS = {
     sort_by: sortBy.optional(),
     limit: limit.optional(),
     offset: offset.optional(),
+    due_before: isoDate.optional(),
   }),
   cp_add_patch: z.object({
     project_slug: z.string().min(1),
@@ -37,6 +45,7 @@ export const MCP_SCHEMAS = {
     priority: priority.optional(),
     notes: z.string().optional(),
     tags: tags.optional(),
+    due_date: isoDate.optional(),
   }),
   cp_get_patch: z.object({
     patch_id: z.string().min(1),
@@ -63,6 +72,7 @@ export const MCP_SCHEMAS = {
     title: z.string().optional(),
     priority: priority.optional(),
     tags: tags.optional(),
+    due_date: isoDate.nullable().optional(),
   }),
   cp_update_project: z.object({
     project_slug: z.string().min(1),

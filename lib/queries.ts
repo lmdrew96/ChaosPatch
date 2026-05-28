@@ -20,6 +20,7 @@ export type Patch = {
   priority: "low" | "medium" | "high";
   notes: string | null;
   tags: string[];
+  due_date: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -42,13 +43,15 @@ export async function getAllPatches(
   tags?: string[],
   sortBy?: PatchSortBy,
   limit?: number,
-  offset?: number
+  offset?: number,
+  dueBefore?: string
 ): Promise<PatchWithProject[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
   const tagsFilter = tags && tags.length > 0 ? tags : null;
   const limitValue = limit ?? null;
   const offsetValue = offset ?? 0;
+  const dueBeforeFilter = dueBefore ?? null;
 
   if (sortBy === "priority") {
     const rows = await sql`
@@ -59,6 +62,7 @@ export async function getAllPatches(
         AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
         AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
         AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+        AND (${dueBeforeFilter}::date IS NULL OR pa.due_date <= ${dueBeforeFilter}::date)
       ORDER BY
         CASE pa.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
         pa.created_at DESC
@@ -76,6 +80,7 @@ export async function getAllPatches(
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+      AND (${dueBeforeFilter}::date IS NULL OR pa.due_date <= ${dueBeforeFilter}::date)
     ORDER BY pa.created_at DESC
     LIMIT ${limitValue}
     OFFSET ${offsetValue}
@@ -143,13 +148,15 @@ export async function getPatches(
   tags?: string[],
   sortBy?: PatchSortBy,
   limit?: number,
-  offset?: number
+  offset?: number,
+  dueBefore?: string
 ): Promise<Patch[]> {
   const statusFilter = status ?? null;
   const priorityFilter = priority ?? null;
   const tagsFilter = tags && tags.length > 0 ? tags : null;
   const limitValue = limit ?? null;
   const offsetValue = offset ?? 0;
+  const dueBeforeFilter = dueBefore ?? null;
 
   if (sortBy === "priority") {
     const rows = await sql`
@@ -159,6 +166,7 @@ export async function getPatches(
         AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
         AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
         AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+        AND (${dueBeforeFilter}::date IS NULL OR pa.due_date <= ${dueBeforeFilter}::date)
       ORDER BY
         CASE pa.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
         pa.created_at DESC
@@ -175,6 +183,7 @@ export async function getPatches(
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
+      AND (${dueBeforeFilter}::date IS NULL OR pa.due_date <= ${dueBeforeFilter}::date)
     ORDER BY pa.created_at DESC
     LIMIT ${limitValue}
     OFFSET ${offsetValue}
@@ -187,13 +196,15 @@ export async function createPatch(
   title: string,
   priority: Patch["priority"] = "medium",
   notes?: string,
-  tags?: string[]
+  tags?: string[],
+  dueDate?: string | null
 ): Promise<Patch> {
   const initialNotes = notes ?? null;
   const initialTags = tags ?? [];
+  const initialDueDate = dueDate ?? null;
   const rows = await sql`
-    INSERT INTO patches (project_id, title, priority, notes, tags)
-    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialTags}::text[])
+    INSERT INTO patches (project_id, title, priority, notes, tags, due_date)
+    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialTags}::text[], ${initialDueDate}::date)
     RETURNING *
   `;
   return rows[0] as Patch;
@@ -264,14 +275,18 @@ export async function updatePatch(
   patchId: string,
   title: string,
   priority: Patch["priority"],
-  tags?: string[]
+  tags?: string[],
+  dueDate?: string | null
 ): Promise<Patch | null> {
   const tagsParam = tags ?? null;
+  const dueDateProvided = dueDate !== undefined;
+  const dueDateValue = dueDate ?? null;
   const rows = await sql`
     UPDATE patches pa
     SET title = ${title},
         priority = ${priority},
-        tags = COALESCE(${tagsParam}::text[], pa.tags)
+        tags = COALESCE(${tagsParam}::text[], pa.tags),
+        due_date = CASE WHEN ${dueDateProvided}::boolean THEN ${dueDateValue}::date ELSE pa.due_date END
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*

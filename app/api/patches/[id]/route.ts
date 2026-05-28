@@ -35,7 +35,30 @@ export async function PATCH(
           .map((t: unknown) => (typeof t === "string" ? t.trim() : ""))
           .filter((t: string) => t.length > 0)
       : undefined;
-    const patch = await updatePatch(userId, id, body.title, body.priority, cleanTags);
+    // due_date: omit key entirely → undefined (leave unchanged);
+    //          null or "" → null (clear);
+    //          "YYYY-MM-DD" → set
+    let dueDateArg: string | null | undefined;
+    if (!("due_date" in body)) {
+      dueDateArg = undefined;
+    } else if (body.due_date === null || body.due_date === "") {
+      dueDateArg = null;
+    } else if (
+      typeof body.due_date === "string" &&
+      /^\d{4}-\d{2}-\d{2}/.test(body.due_date)
+    ) {
+      dueDateArg = body.due_date;
+    } else {
+      dueDateArg = undefined;
+    }
+    const patch = await updatePatch(
+      userId,
+      id,
+      body.title,
+      body.priority,
+      cleanTags,
+      dueDateArg
+    );
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
   }

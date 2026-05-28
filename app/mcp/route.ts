@@ -59,7 +59,7 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at) and pagination via limit (max 500) and offset.",
+      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive — patches due on or before this date).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -94,6 +94,11 @@ const TOOLS = [
           type: "integer",
           description: "Rows to skip for pagination (default 0)",
         },
+        due_before: {
+          type: "string",
+          description:
+            "Inclusive upper bound on due_date (YYYY-MM-DD). Returns patches with due_date <= this date.",
+        },
       },
       required: ["project_slug"],
     },
@@ -101,7 +106,7 @@ const TOOLS = [
   {
     name: "cp_list_all_patches",
     description:
-      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at) and pagination via limit (max 500) and offset.",
+      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -135,13 +140,18 @@ const TOOLS = [
           type: "integer",
           description: "Rows to skip for pagination (default 0)",
         },
+        due_before: {
+          type: "string",
+          description:
+            "Inclusive upper bound on due_date (YYYY-MM-DD). Returns patches with due_date <= this date.",
+        },
       },
     },
   },
   {
     name: "cp_add_patch",
     description:
-      "Add a new patch to a project, optionally with initial notes and tags.",
+      "Add a new patch to a project, optionally with initial notes, tags, and a due date.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -161,6 +171,10 @@ const TOOLS = [
           items: { type: "string" },
           description:
             "Free-form tags (e.g. 'bug', 'ui', 'db'). Default: [] (optional)",
+        },
+        due_date: {
+          type: "string",
+          description: "Due date in YYYY-MM-DD format (optional)",
         },
       },
       required: ["project_slug", "title"],
@@ -235,7 +249,7 @@ const TOOLS = [
   {
     name: "cp_update_patch",
     description:
-      "Update a patch's title, priority, and/or tags. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged.",
+      "Update a patch's title, priority, tags, and/or due_date. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged. due_date: omit to leave unchanged, pass YYYY-MM-DD to set, pass null to clear.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -251,6 +265,11 @@ const TOOLS = [
           items: { type: "string" },
           description:
             "New tags array — REPLACES existing tags. Pass [] to clear (optional)",
+        },
+        due_date: {
+          type: ["string", "null"],
+          description:
+            "Due date (YYYY-MM-DD) — pass null to clear, omit to leave unchanged",
         },
       },
       required: ["patch_id"],
@@ -372,7 +391,8 @@ async function handleTool(
         a.tags,
         a.sort_by,
         a.limit,
-        a.offset
+        a.offset,
+        a.due_before
       );
       return JSON.stringify(patches, null, 2);
     }
@@ -386,7 +406,8 @@ async function handleTool(
         a.tags,
         a.sort_by,
         a.limit,
-        a.offset
+        a.offset,
+        a.due_before
       );
       return JSON.stringify(patches, null, 2);
     }
@@ -400,7 +421,8 @@ async function handleTool(
         a.title,
         a.priority ?? "medium",
         a.notes,
-        a.tags
+        a.tags,
+        a.due_date
       );
       return JSON.stringify(patch, null, 2);
     }
@@ -452,7 +474,14 @@ async function handleTool(
       if (!existing) throw new Error(`Patch '${a.patch_id}' not found`);
       const title = a.title ?? existing.title;
       const priority = a.priority ?? existing.priority;
-      const patch = await updatePatch(userId, a.patch_id, title, priority, a.tags);
+      const patch = await updatePatch(
+        userId,
+        a.patch_id,
+        title,
+        priority,
+        a.tags,
+        a.due_date
+      );
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }

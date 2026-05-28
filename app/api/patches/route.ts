@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { project_slug, title, priority, notes, tags } = await req.json();
+  const { project_slug, title, priority, notes, tags, due_date } = await req.json();
   if (!project_slug || !title) {
     return Response.json({ error: "project_slug and title are required" }, { status: 400 });
   }
@@ -37,12 +37,17 @@ export async function POST(req: Request) {
         .map((t) => (typeof t === "string" ? t.trim() : ""))
         .filter((t) => t.length > 0)
     : undefined;
+  const cleanDueDate =
+    typeof due_date === "string" && /^\d{4}-\d{2}-\d{2}/.test(due_date)
+      ? due_date
+      : undefined;
   const patch = await createPatch(
     project.id,
     title,
     priority,
     trimmedNotes ? trimmedNotes : undefined,
-    cleanTags
+    cleanTags,
+    cleanDueDate
   );
   return Response.json(patch, { status: 201 });
 }

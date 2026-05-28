@@ -20,5 +20,9 @@ void (async () => {
     ALTER TABLE patches
     ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'
   `;
-  console.log("Done: mcp_tokens table ready, patches.tags column ensured.");
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS due_date DATE
+  `;
+  console.log("Done: mcp_tokens table ready, patches.tags + due_date columns ensured.");
 })();
