@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { Patch } from "@/lib/queries";
+import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PatchList } from "./patch-list";
 
 function CollapsibleSection({
@@ -204,37 +205,12 @@ export function ProjectPatchView({
       </div>
 
       {/* Tag filter row */}
-      {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
-            Tags
-          </span>
-          {allTags.map((tag) => {
-            const active = tagFilters.includes(tag);
-            return (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-                  active
-                    ? "bg-primary/15 text-primary border border-primary/30"
-                    : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
-                }`}
-              >
-                {tag}
-              </button>
-            );
-          })}
-          {tagFilters.length > 0 && (
-            <button
-              onClick={() => setTagFilters([])}
-              className="text-[10px] text-muted-foreground/60 hover:text-foreground/70 ml-1 transition-colors"
-            >
-              clear
-            </button>
-          )}
-        </div>
-      )}
+      <TagFilterBar
+        tags={allTags}
+        active={tagFilters}
+        onToggle={toggleTag}
+        onClear={() => setTagFilters([])}
+      />
 
       {/* Patch list */}
       {filteredPatches.length === 0 && archivedPatches.length === 0 ? (
