@@ -1,6 +1,6 @@
 {
   "name": "chaospatch",
-  "version": "0.28.1",
+  "version": "0.28.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -25,6 +25,7 @@
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^2.2.2",
     "zod": "^4.3.6"
   },

@@ -32,6 +32,7 @@ import {
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 import { presignBlobGetUrl } from "@/lib/blob";
+import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
 
@@ -704,6 +705,7 @@ async function getPatchImagesContent(
 
   const MAX_IMAGES = 8;
   const MAX_BYTES = 5 * 1024 * 1024; // Anthropic per-image cap
+  const DOWNSCALE_OVER = 1_500_000; // shrink anything bigger than this
   const imageBlocks: McpContentBlock[] = [];
   const summaryLines: string[] = [];
 
@@ -716,19 +718,43 @@ async function getPatchImagesContent(
         summaryLines.push(`- ${a.pathname} (fetch failed: HTTP ${res.status})`);
         continue;
       }
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.byteLength > MAX_BYTES) {
+      let outBuf: Buffer = Buffer.from(await res.arrayBuffer());
+      let mimeType = a.content_type ?? "image/png";
+
+      // Retina screenshots routinely exceed Anthropic's 5MB/image limit, so
+      // downscale large images to ≤1568px (their recommended max) and re-encode
+      // as JPEG. Keeps them ingestible and cheap; small images pass through.
+      if (outBuf.byteLength > DOWNSCALE_OVER) {
+        try {
+          outBuf = await sharp(outBuf)
+            .rotate()
+            .resize({
+              width: 1568,
+              height: 1568,
+              fit: "inside",
+              withoutEnlargement: true,
+            })
+            .jpeg({ quality: 82 })
+            .toBuffer();
+          mimeType = "image/jpeg";
+        } catch {
+          // Fall back to the original; the size guard below still applies.
+        }
+      }
+
+      if (outBuf.byteLength > MAX_BYTES) {
         summaryLines.push(
-          `- ${a.pathname} (${(buf.byteLength / 1048576).toFixed(
+          `- ${a.pathname} (${(outBuf.byteLength / 1048576).toFixed(
             1
-          )}MB — too large to inline)`
+          )}MB — too large to inline even after downscale)`
         );
         continue;
       }
+
       imageBlocks.push({
         type: "image",
-        data: buf.toString("base64"),
-        mimeType: a.content_type ?? "image/png",
+        data: outBuf.toString("base64"),
+        mimeType,
       });
       summaryLines.push(`- ${a.pathname}`);
     } catch (err) {
