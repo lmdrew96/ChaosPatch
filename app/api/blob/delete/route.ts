@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { del } from "@vercel/blob";
+import { BLOB_TOKEN } from "@/lib/blob";
 
 /**
  * Delete a blob by url. Used to clean up a *pending* add-form image the user
@@ -15,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "url is required" }, { status: 400 });
   }
   try {
-    await del(url);
+    await del(url, { token: BLOB_TOKEN });
   } catch {
     // ignore — blob may already be gone
   }

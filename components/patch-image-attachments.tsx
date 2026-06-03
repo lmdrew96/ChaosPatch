@@ -12,6 +12,28 @@ export type PendingImage = {
   size: number | null;
 };
 
+/**
+ * Sanitize a filename into a signing-safe blob pathname. Raw filenames can
+ * contain spaces, parentheses, and exotic whitespace (macOS screenshots use a
+ * narrow no-break space, U+202F) that the Blob SDK normalizes inconsistently
+ * between issuing and presigning a token — which breaks signed-URL reads. A
+ * clean key sidesteps all of that; the random suffix keeps uploads unique.
+ */
+function safeUploadName(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  const ext = (dot >= 0 ? filename.slice(dot + 1) : "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 8);
+  const base =
+    (dot >= 0 ? filename.slice(0, dot) : filename)
+      .normalize("NFKD")
+      .replace(/[^\w]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "image";
+  return ext ? `${base}.${ext}` : base;
+}
+
 type Props =
   | {
       // Add-patch form: the patch doesn't exist yet, so images live in parent
@@ -73,7 +95,7 @@ export function PatchImageAttachments(props: Props) {
       if (!file.type.startsWith("image/")) continue;
       setUploading((n) => n + 1);
       try {
-        const blob = await upload(file.name, file, {
+        const blob = await upload(safeUploadName(file.name), file, {
           access: "private",
           handleUploadUrl: "/api/blob/upload",
           clientPayload,

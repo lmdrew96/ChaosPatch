@@ -9,6 +9,7 @@ import {
   updatePatch,
   updatePatchStatus,
 } from "@/lib/queries";
+import { BLOB_TOKEN } from "@/lib/blob";
 
 export async function PATCH(
   req: Request,
@@ -95,7 +96,7 @@ export async function DELETE(
   if (!ok) return Response.json({ error: "Not found" }, { status: 404 });
   for (const a of attachments) {
     try {
-      await del(a.url);
+      await del(a.url, { token: BLOB_TOKEN });
     } catch {
       // ignore — blob may already be gone
     }
