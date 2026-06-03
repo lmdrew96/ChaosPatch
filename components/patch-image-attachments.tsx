@@ -33,19 +33,32 @@ export function PatchImageAttachments(props: Props) {
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState("");
 
-  const items: { key: string; url: string; name: string; id?: string }[] =
+  const items: {
+    key: string;
+    url: string;
+    pathname: string;
+    name: string;
+    id?: string;
+  }[] =
     props.mode === "pending"
       ? props.images.map((img) => ({
           key: img.url,
           url: img.url,
+          pathname: img.pathname,
           name: img.pathname,
         }))
       : props.attachments.map((a) => ({
           key: a.id,
           url: a.url,
+          pathname: a.pathname,
           name: a.pathname,
           id: a.id,
         }));
+
+  // Private blobs aren't publicly readable — load them through the auth-gated
+  // signing proxy instead of their raw url.
+  const viewUrl = (pathname: string) =>
+    `/api/blob/view?pathname=${encodeURIComponent(pathname)}`;
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -61,7 +74,7 @@ export function PatchImageAttachments(props: Props) {
       setUploading((n) => n + 1);
       try {
         const blob = await upload(file.name, file, {
-          access: "public",
+          access: "private",
           handleUploadUrl: "/api/blob/upload",
           clientPayload,
         });
@@ -123,10 +136,14 @@ export function PatchImageAttachments(props: Props) {
         <div className="flex flex-wrap gap-2">
           {items.map((item) => (
             <div key={item.key} className="relative">
-              <a href={item.url} target="_blank" rel="noopener noreferrer">
+              <a
+                href={viewUrl(item.pathname)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={item.url}
+                  src={viewUrl(item.pathname)}
                   alt={item.name}
                   className="h-16 w-16 rounded-md border border-border object-cover"
                 />

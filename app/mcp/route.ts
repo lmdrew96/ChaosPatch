@@ -31,6 +31,7 @@ import {
   unarchivePatch,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
+import { presignBlobGetUrl } from "@/lib/blob";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
 
@@ -703,51 +704,51 @@ async function getPatchImagesContent(
 
   const MAX_IMAGES = 8;
   const MAX_BYTES = 5 * 1024 * 1024; // Anthropic per-image cap
-  const content: McpContentBlock[] = [];
+  const imageBlocks: McpContentBlock[] = [];
+  const summaryLines: string[] = [];
 
-  const list = attachments
-    .map((a, i) => `${i + 1}. ${a.pathname} — ${a.url}`)
-    .join("\n");
-  content.push({
-    type: "text",
-    text: `${attachments.length} image attachment(s) on patch "${patch.title}":\n${list}`,
-  });
-
+  // Blobs are private — presign a short-lived GET URL before fetching each one.
   for (const a of attachments.slice(0, MAX_IMAGES)) {
     try {
-      const res = await fetch(a.url);
+      const signedUrl = await presignBlobGetUrl(a.pathname);
+      const res = await fetch(signedUrl);
       if (!res.ok) {
-        content.push({
-          type: "text",
-          text: `(could not fetch ${a.pathname}: HTTP ${res.status})`,
-        });
+        summaryLines.push(`- ${a.pathname} (fetch failed: HTTP ${res.status})`);
         continue;
       }
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength > MAX_BYTES) {
-        content.push({
-          type: "text",
-          text: `(${a.pathname} is ${(buf.byteLength / 1048576).toFixed(
+        summaryLines.push(
+          `- ${a.pathname} (${(buf.byteLength / 1048576).toFixed(
             1
-          )}MB — too large to inline; open ${a.url})`,
-        });
+          )}MB — too large to inline)`
+        );
         continue;
       }
-      content.push({
+      imageBlocks.push({
         type: "image",
         data: buf.toString("base64"),
         mimeType: a.content_type ?? "image/png",
       });
+      summaryLines.push(`- ${a.pathname}`);
     } catch (err) {
-      content.push({
-        type: "text",
-        text: `(error fetching ${a.pathname}: ${
+      summaryLines.push(
+        `- ${a.pathname} (error: ${
           err instanceof Error ? err.message : String(err)
-        })`,
-      });
+        })`
+      );
     }
   }
 
+  const content: McpContentBlock[] = [
+    {
+      type: "text",
+      text: `${attachments.length} image attachment(s) on patch "${patch.title}":\n${summaryLines.join(
+        "\n"
+      )}`,
+    },
+    ...imageBlocks,
+  ];
   if (attachments.length > MAX_IMAGES) {
     content.push({
       type: "text",
