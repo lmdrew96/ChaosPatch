@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getProjects } from "@/lib/queries";
+import { getProjects, getDistinctTags } from "@/lib/queries";
 import { AddPatchForm } from "./add-patch-form";
 
 export default async function AddPage({
@@ -12,7 +12,10 @@ export default async function AddPage({
   if (!userId) redirect("/sign-in");
 
   const { project: defaultSlug } = await searchParams;
-  const projects = await getProjects(userId);
+  const [projects, existingTags] = await Promise.all([
+    getProjects(userId),
+    getDistinctTags(userId),
+  ]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -22,7 +25,11 @@ export default async function AddPage({
         </h1>
       </header>
       <main className="px-6 py-10 max-w-md mx-auto">
-        <AddPatchForm projects={projects} defaultSlug={defaultSlug} />
+        <AddPatchForm
+          projects={projects}
+          defaultSlug={defaultSlug}
+          existingTags={existingTags}
+        />
       </main>
     </div>
   );

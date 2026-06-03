@@ -704,6 +704,25 @@ export async function searchPatches(
   return rows as PatchWithProject[];
 }
 
+// ── Distinct Tags ─────────────────────────────────────────────────────────
+
+/**
+ * Every distinct tag the user has used across all their patches (archived
+ * included — they're still part of the user's vocabulary). Powers the
+ * "select from existing tags" picker on the add-patch form.
+ */
+export async function getDistinctTags(userId: string): Promise<string[]> {
+  const rows = await sql`
+    SELECT DISTINCT t AS tag
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    CROSS JOIN LATERAL unnest(pa.tags) AS t
+    WHERE p.user_id = ${userId}
+    ORDER BY tag ASC
+  `;
+  return (rows as { tag: string }[]).map((r) => r.tag);
+}
+
 // ── MCP Tokens ─────────────────────────────────────────────────────────────
 
 export async function getOrCreateMcpToken(userId: string): Promise<string> {
