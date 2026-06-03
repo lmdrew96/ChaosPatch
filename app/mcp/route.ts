@@ -17,6 +17,7 @@ import {
   deletePatch,
   deleteProject,
   getPatchById,
+  getPatchAttachments,
   addPatchTags,
   removePatchTags,
   updatePatch,
@@ -198,7 +199,17 @@ const TOOLS = [
   {
     name: "cp_get_patch",
     description:
-      "Fetch a single patch by ID. Returns the patch object or an error if not found / not owned by the authenticated user.",
+      "Fetch a single patch by ID. Returns the patch object (including an `attachments` array of any images) or an error if not found / not owned by the authenticated user.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { patch_id: { type: "string", description: "Patch UUID" } },
+      required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_get_patch_images",
+    description:
+      "Fetch a patch's image attachments as viewable images for visual context (e.g. screenshots the user attached to a bug). Returns the images inline plus a text list of their URLs. Use this when a patch has attachments and you need to see them.",
     inputSchema: {
       type: "object" as const,
       properties: { patch_id: { type: "string", description: "Patch UUID" } },
@@ -528,8 +539,14 @@ async function handleTool(
       const a = args as ParsedArgs<"cp_get_patch">;
       const patch = await getPatchById(userId, a.patch_id);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
-      return JSON.stringify(patch, null, 2);
+      const attachments = await getPatchAttachments(userId, a.patch_id);
+      return JSON.stringify({ ...patch, attachments }, null, 2);
     }
+
+    case "cp_get_patch_images":
+      // Returns image content blocks, not text — handled directly in the
+      // CallTool request handler. This case keeps the switch exhaustive.
+      throw new Error("cp_get_patch_images is handled separately");
 
     case "cp_start_patch": {
       const a = args as ParsedArgs<"cp_start_patch">;
@@ -662,6 +679,84 @@ async function handleTool(
   }
 }
 
+type McpContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
+/**
+ * Build MCP content for cp_get_patch_images: a text block listing the image
+ * URLs (robust context even if a client can't render images), followed by the
+ * images themselves as base64 image content blocks so Claude can see them.
+ */
+async function getPatchImagesContent(
+  userId: string,
+  patchId: string
+): Promise<McpContentBlock[]> {
+  const patch = await getPatchById(userId, patchId);
+  if (!patch) throw new Error(`Patch '${patchId}' not found`);
+  const attachments = await getPatchAttachments(userId, patchId);
+  if (attachments.length === 0) {
+    return [
+      { type: "text", text: `Patch "${patch.title}" has no image attachments.` },
+    ];
+  }
+
+  const MAX_IMAGES = 8;
+  const MAX_BYTES = 5 * 1024 * 1024; // Anthropic per-image cap
+  const content: McpContentBlock[] = [];
+
+  const list = attachments
+    .map((a, i) => `${i + 1}. ${a.pathname} — ${a.url}`)
+    .join("\n");
+  content.push({
+    type: "text",
+    text: `${attachments.length} image attachment(s) on patch "${patch.title}":\n${list}`,
+  });
+
+  for (const a of attachments.slice(0, MAX_IMAGES)) {
+    try {
+      const res = await fetch(a.url);
+      if (!res.ok) {
+        content.push({
+          type: "text",
+          text: `(could not fetch ${a.pathname}: HTTP ${res.status})`,
+        });
+        continue;
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength > MAX_BYTES) {
+        content.push({
+          type: "text",
+          text: `(${a.pathname} is ${(buf.byteLength / 1048576).toFixed(
+            1
+          )}MB — too large to inline; open ${a.url})`,
+        });
+        continue;
+      }
+      content.push({
+        type: "image",
+        data: buf.toString("base64"),
+        mimeType: a.content_type ?? "image/png",
+      });
+    } catch (err) {
+      content.push({
+        type: "text",
+        text: `(error fetching ${a.pathname}: ${
+          err instanceof Error ? err.message : String(err)
+        })`,
+      });
+    }
+  }
+
+  if (attachments.length > MAX_IMAGES) {
+    content.push({
+      type: "text",
+      text: `(showing the first ${MAX_IMAGES} of ${attachments.length} images)`,
+    });
+  }
+  return content;
+}
+
 async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get("Authorization");
   const token = authHeader?.startsWith("Bearer ")
@@ -716,6 +811,11 @@ async function handler(req: Request): Promise<Response> {
           content: [{ type: "text", text: `Invalid arguments for ${name}: ${issues}` }],
           isError: true,
         };
+      }
+      if (name === "cp_get_patch_images") {
+        const a = parsed.data as ParsedArgs<"cp_get_patch_images">;
+        const content = await getPatchImagesContent(userId, a.patch_id);
+        return { content };
       }
       const result = await handleTool(name, parsed.data as ParsedArgs<McpToolName>, userId);
       return { content: [{ type: "text", text: result }] };
