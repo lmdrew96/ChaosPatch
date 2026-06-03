@@ -49,6 +49,8 @@ The MCP server is the primary integration point — Claude Code and Claude Deskt
 - `cp_update_patch` — Update title/priority
 - `cp_reopen_patch` — Revert done/in_progress to open
 - `cp_get_project_summary` — Open/in_progress/done counts per project
+- `cp_get_patch` — Fetch a single patch (includes its `attachments`)
+- `cp_get_patch_images` — Return a patch's attached images as viewable image content (for visual context) + their URLs
 
 **MCP route:** `app/mcp/route.ts` — Streamable HTTP transport with bearer-token auth
 
