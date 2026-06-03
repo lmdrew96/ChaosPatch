@@ -1,6 +1,6 @@
 {
   "name": "chaospatch",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +17,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-slot": "^1.1.0",
+    "@vercel/blob": "^2.4.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "geist": "^1.7.0",

@@ -3,9 +3,12 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import {
   getArchivedPatches,
+  getAttachmentsForPatchIds,
   getDistinctTags,
   getPatches,
   getProjectBySlug,
+  type Patch,
+  type PatchAttachment,
 } from "@/lib/queries";
 import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
@@ -28,6 +31,21 @@ export default async function ProjectPage({
     getArchivedPatches(userId, slug),
     getDistinctTags(userId),
   ]);
+
+  // Attach images to each patch in one query (no N+1).
+  const allPatchIds = [...patches, ...archivedPatches].map((p) => p.id);
+  const attachments = await getAttachmentsForPatchIds(userId, allPatchIds);
+  const byPatch = new Map<string, PatchAttachment[]>();
+  for (const a of attachments) {
+    const list = byPatch.get(a.patch_id) ?? [];
+    list.push(a);
+    byPatch.set(a.patch_id, list);
+  }
+  const withImages = (list: Patch[]): Patch[] =>
+    list.map((p) => ({ ...p, attachments: byPatch.get(p.id) ?? [] }));
+
+  const patchesWithImages = withImages(patches);
+  const archivedWithImages = withImages(archivedPatches);
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-16">
@@ -65,8 +83,8 @@ export default async function ProjectPage({
 
       <main className="px-6 py-8 max-w-3xl mx-auto space-y-8">
         <ProjectPatchView
-          patches={patches}
-          archivedPatches={archivedPatches}
+          patches={patchesWithImages}
+          archivedPatches={archivedWithImages}
           existingTags={existingTags}
         />
 

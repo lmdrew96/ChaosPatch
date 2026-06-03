@@ -21,6 +21,19 @@ CREATE TABLE IF NOT EXISTS patches (
   completed_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS patch_attachments (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patch_id     UUID NOT NULL REFERENCES patches(id) ON DELETE CASCADE,
+  url          TEXT NOT NULL,
+  pathname     TEXT NOT NULL,
+  content_type TEXT,
+  size         INTEGER,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS patch_attachments_patch_id_idx
+  ON patch_attachments(patch_id);
+
 CREATE TABLE IF NOT EXISTS mcp_tokens (
   token      TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL UNIQUE,

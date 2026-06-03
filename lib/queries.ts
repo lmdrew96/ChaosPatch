@@ -27,6 +27,18 @@ export type Patch = {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  // Populated server-side for list/detail views — not a column on `patches`.
+  attachments?: PatchAttachment[];
+};
+
+export type PatchAttachment = {
+  id: string;
+  patch_id: string;
+  url: string;
+  pathname: string;
+  content_type: string | null;
+  size: number | null;
+  created_at: string;
 };
 
 export type PatchWithProject = Patch & {
@@ -721,6 +733,92 @@ export async function getDistinctTags(userId: string): Promise<string[]> {
     ORDER BY tag ASC
   `;
   return (rows as { tag: string }[]).map((r) => r.tag);
+}
+
+// ── Patch Attachments ─────────────────────────────────────────────────────
+
+/**
+ * Insert an attachment row, guarded by patch ownership: the INSERT…SELECT only
+ * produces a row if the target patch belongs to the authenticated user. Returns
+ * null if the patch isn't found / not owned.
+ */
+export async function addPatchAttachment(
+  userId: string,
+  patchId: string,
+  attachment: {
+    url: string;
+    pathname: string;
+    contentType?: string | null;
+    size?: number | null;
+  }
+): Promise<PatchAttachment | null> {
+  const { url, pathname } = attachment;
+  const contentType = attachment.contentType ?? null;
+  const size = attachment.size ?? null;
+  const rows = await sql`
+    INSERT INTO patch_attachments (patch_id, url, pathname, content_type, size)
+    SELECT pa.id, ${url}, ${pathname}, ${contentType}, ${size}
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE pa.id = ${patchId} AND p.user_id = ${userId}
+    RETURNING *
+  `;
+  return (rows[0] as PatchAttachment) ?? null;
+}
+
+export async function getPatchAttachments(
+  userId: string,
+  patchId: string
+): Promise<PatchAttachment[]> {
+  const rows = await sql`
+    SELECT a.*
+    FROM patch_attachments a
+    JOIN patches pa ON pa.id = a.patch_id
+    JOIN projects p ON p.id = pa.project_id
+    WHERE a.patch_id = ${patchId} AND p.user_id = ${userId}
+    ORDER BY a.created_at ASC
+  `;
+  return rows as PatchAttachment[];
+}
+
+/**
+ * Fetch attachments for many patches in one query (avoids N+1 in list views).
+ * Ownership is enforced via the projects join.
+ */
+export async function getAttachmentsForPatchIds(
+  userId: string,
+  patchIds: string[]
+): Promise<PatchAttachment[]> {
+  if (patchIds.length === 0) return [];
+  const rows = await sql`
+    SELECT a.*
+    FROM patch_attachments a
+    JOIN patches pa ON pa.id = a.patch_id
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND a.patch_id = ANY(${patchIds}::uuid[])
+    ORDER BY a.created_at ASC
+  `;
+  return rows as PatchAttachment[];
+}
+
+/**
+ * Delete an attachment row (ownership-checked) and return its blob url so the
+ * caller can remove the underlying blob. Returns null if not found / not owned.
+ */
+export async function deletePatchAttachment(
+  userId: string,
+  attachmentId: string
+): Promise<{ url: string } | null> {
+  const rows = await sql`
+    DELETE FROM patch_attachments a
+    USING patches pa, projects p
+    WHERE a.id = ${attachmentId}
+      AND pa.id = a.patch_id
+      AND p.id = pa.project_id
+      AND p.user_id = ${userId}
+    RETURNING a.url
+  `;
+  return (rows[0] as { url: string }) ?? null;
 }
 
 // ── MCP Tokens ─────────────────────────────────────────────────────────────

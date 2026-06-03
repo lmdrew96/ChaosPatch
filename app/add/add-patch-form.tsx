@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/queries";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
+import {
+  PatchImageAttachments,
+  type PendingImage,
+} from "@/components/patch-image-attachments";
 
 const PRIORITIES = ["low", "medium", "high"] as const;
 
@@ -22,6 +26,7 @@ export function AddPatchForm({
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState("");
@@ -55,6 +60,7 @@ export function AddPatchForm({
         notes: notes.trim() || undefined,
         tags: parsedTags.length > 0 ? parsedTags : undefined,
         due_date: dueDate || undefined,
+        attachments: pendingImages.length > 0 ? pendingImages : undefined,
       }),
     });
 
@@ -122,6 +128,17 @@ export function AddPatchForm({
           placeholder="Context, repro steps, scope…"
           rows={3}
           className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-y min-h-[72px]"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Images <span className="text-muted-foreground/50 normal-case tracking-normal">(optional)</span>
+        </label>
+        <PatchImageAttachments
+          mode="pending"
+          images={pendingImages}
+          onChange={setPendingImages}
         />
       </div>
 

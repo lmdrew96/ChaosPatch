@@ -4,6 +4,7 @@ import { useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
+import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
@@ -239,9 +240,16 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
             >
               {patch.title}
             </button>
-            {(patch.tags.length > 0 || patch.due_date) && (
+            {(patch.tags.length > 0 ||
+              patch.due_date ||
+              (patch.attachments?.length ?? 0) > 0) && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {patch.due_date && <DueDateChip dueDate={patch.due_date} />}
+                {(patch.attachments?.length ?? 0) > 0 && (
+                  <span className="text-[9px] font-medium uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border rounded-full px-1.5 py-0.5">
+                    📎 {patch.attachments!.length}
+                  </span>
+                )}
                 {patch.tags.map((t) => (
                   <span
                     key={t}
@@ -260,6 +268,11 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
                     {patch.notes}
                   </p>
                 )}
+                <PatchImageAttachments
+                  mode="saved"
+                  patchId={patch.id}
+                  attachments={patch.attachments ?? []}
+                />
                 {(patch.started_at || patch.completed_at) && (
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
                     {patch.started_at && (

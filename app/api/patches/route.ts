@@ -1,5 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
-import { createPatch, getPatches, getProjectBySlug } from "@/lib/queries";
+import {
+  addPatchAttachment,
+  createPatch,
+  getPatches,
+  getProjectBySlug,
+} from "@/lib/queries";
 
 export async function GET(req: Request) {
   const { userId } = await auth();
@@ -21,7 +26,8 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { project_slug, title, priority, notes, tags, due_date } = await req.json();
+  const { project_slug, title, priority, notes, tags, due_date, attachments } =
+    await req.json();
   if (!project_slug || !title) {
     return Response.json({ error: "project_slug and title are required" }, { status: 400 });
   }
@@ -49,5 +55,25 @@ export async function POST(req: Request) {
     cleanTags,
     cleanDueDate
   );
+
+  // Attachments were uploaded to Blob client-side before submit; persist the
+  // rows now that the patch (and its id) exist.
+  if (Array.isArray(attachments)) {
+    for (const att of attachments) {
+      if (
+        att &&
+        typeof att.url === "string" &&
+        typeof att.pathname === "string"
+      ) {
+        await addPatchAttachment(userId, patch.id, {
+          url: att.url,
+          pathname: att.pathname,
+          contentType: typeof att.contentType === "string" ? att.contentType : null,
+          size: typeof att.size === "number" ? att.size : null,
+        });
+      }
+    }
+  }
+
   return Response.json(patch, { status: 201 });
 }
