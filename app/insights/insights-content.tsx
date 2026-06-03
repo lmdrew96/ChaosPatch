@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ProjectSummary, PatchWithProject } from "@/lib/queries";
 import { StatCard } from "@/components/insights/stat-card";
 import { ActiveBars } from "@/components/insights/active-bars";
-import { LifecycleBars } from "@/components/insights/lifecycle-bars";
+import { MomentumTrend } from "@/components/insights/momentum-trend";
 import { CompletionHeatmap } from "@/components/insights/completion-heatmap";
 
 export function InsightsContent({
@@ -145,12 +145,12 @@ export function InsightsContent({
         <ActiveBars patches={patches} />
       </div>
 
-      {/* Lifecycle by project — horizontal stacked bars */}
+      {/* Completion momentum — daily volume stacked by project + 7-day avg */}
       <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
-          Lifecycle by Project
+          Completion Momentum
         </h2>
-        <LifecycleBars patches={patches} />
+        <MomentumTrend patches={patches} />
       </div>
 
       {/* Completion heatmap — day of week × hour of day */}
