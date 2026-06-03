@@ -8,9 +8,11 @@ import { PatchList } from "./patch-list";
 function CollapsibleSection({
   label,
   patches,
+  existingTags,
 }: {
   label: string;
   patches: Patch[];
+  existingTags: string[];
 }) {
   const [open, setOpen] = useState(false);
   if (patches.length === 0) return null;
@@ -32,7 +34,7 @@ function CollapsibleSection({
       </button>
       {open && (
         <div className="border-t border-border">
-          <PatchList patches={patches} />
+          <PatchList patches={patches} existingTags={existingTags} />
         </div>
       )}
     </div>
@@ -50,9 +52,11 @@ const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 
 export function ProjectPatchView({
   patches,
   archivedPatches,
+  existingTags,
 }: {
   patches: Patch[];
   archivedPatches: Patch[];
+  existingTags: string[];
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
@@ -219,17 +223,29 @@ export function ProjectPatchView({
         </p>
       ) : statusFilter === "done" ? (
         <>
-          <PatchList patches={filteredPatches} />
-          <CollapsibleSection label="Archived" patches={archivedPatches} />
+          <PatchList patches={filteredPatches} existingTags={existingTags} />
+          <CollapsibleSection
+            label="Archived"
+            patches={archivedPatches}
+            existingTags={existingTags}
+          />
         </>
       ) : (
         <>
-          <PatchList patches={filteredPatches.filter((p) => p.status !== "done")} />
+          <PatchList
+            patches={filteredPatches.filter((p) => p.status !== "done")}
+            existingTags={existingTags}
+          />
           <CollapsibleSection
             label="Completed"
             patches={filteredPatches.filter((p) => p.status === "done")}
+            existingTags={existingTags}
           />
-          <CollapsibleSection label="Archived" patches={archivedPatches} />
+          <CollapsibleSection
+            label="Archived"
+            patches={archivedPatches}
+            existingTags={existingTags}
+          />
         </>
       )}
     </div>

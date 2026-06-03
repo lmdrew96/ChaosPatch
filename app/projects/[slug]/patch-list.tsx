@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
+import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
@@ -17,11 +18,17 @@ const STATUS_LABEL: Record<Patch["status"], string> = {
   done: "Done",
 };
 
-export function PatchList({ patches }: { patches: Patch[] }) {
+export function PatchList({
+  patches,
+  existingTags = [],
+}: {
+  patches: Patch[];
+  existingTags?: string[];
+}) {
   return (
     <ul className="space-y-2">
       {patches.map((patch) => (
-        <PatchRow key={patch.id} patch={patch} />
+        <PatchRow key={patch.id} patch={patch} existingTags={existingTags} />
       ))}
     </ul>
   );
@@ -61,7 +68,7 @@ function DueDateChip({ dueDate }: { dueDate: string }) {
   );
 }
 
-function PatchRow({ patch }: { patch: Patch }) {
+function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
@@ -175,9 +182,10 @@ function PatchRow({ patch }: { patch: Patch }) {
             }}
             className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <input
+          <TagAutocompleteInput
             value={editTagsInput}
-            onChange={(e) => setEditTagsInput(e.target.value)}
+            onChange={setEditTagsInput}
+            existingTags={existingTags}
             placeholder="tags (comma-separated)"
             className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />

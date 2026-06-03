@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/queries";
+import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 
 const PRIORITIES = ["low", "medium", "high"] as const;
 
@@ -21,42 +22,14 @@ export function AddPatchForm({
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [tagsFocused, setTagsFocused] = useState(false);
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState("");
-  const tagInputRef = useRef<HTMLInputElement>(null);
 
   const parsedTags = tagsInput
     .split(",")
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
-
-  // Autocomplete: the in-progress token is the text after the last comma.
-  // Suggest existing tags that match it and aren't already entered.
-  const lastComma = tagsInput.lastIndexOf(",");
-  const currentToken = tagsInput.slice(lastComma + 1).trim().toLowerCase();
-  const tagSuggestions = existingTags.filter(
-    (t) =>
-      !parsedTags.some((p) => p.toLowerCase() === t.toLowerCase()) &&
-      (currentToken === "" || t.toLowerCase().includes(currentToken))
-  );
-  const showTagDropdown = tagsFocused && tagSuggestions.length > 0;
-
-  function selectTag(tag: string) {
-    // Drop the in-progress token, then append the chosen tag + a trailing
-    // ", " so the user can keep typing or picking the next one.
-    const base = lastComma >= 0 ? tagsInput.slice(0, lastComma + 1) : "";
-    const committed = base
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-    if (!committed.some((t) => t.toLowerCase() === tag.toLowerCase())) {
-      committed.push(tag);
-    }
-    setTagsInput(committed.join(", ") + ", ");
-    tagInputRef.current?.focus();
-  }
 
   const cancelHref = slug ? `/projects/${slug}` : "/dashboard";
 
@@ -156,41 +129,13 @@ export function AddPatchForm({
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Tags <span className="text-muted-foreground/50 normal-case tracking-normal">(optional, comma-separated)</span>
         </label>
-        <div className="relative">
-          <input
-            ref={tagInputRef}
-            type="text"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            onFocus={() => setTagsFocused(true)}
-            onBlur={() => setTagsFocused(false)}
-            placeholder="bug, ui, db"
-            autoComplete="off"
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          {showTagDropdown && (
-            <ul className="absolute z-10 mt-1 max-h-44 w-full overflow-y-auto rounded-md border border-border bg-card py-1 shadow-lg">
-              {tagSuggestions.map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    // Prevent input blur so focus + dropdown persist while picking.
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectTag(t);
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                  >
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-primary">
-                      #
-                    </span>
-                    {t}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <TagAutocompleteInput
+          value={tagsInput}
+          onChange={setTagsInput}
+          existingTags={existingTags}
+          placeholder="bug, ui, db"
+          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+        />
         {existingTags.length > 0 && (
           <p className="text-[10px] text-muted-foreground/50">
             Type a new tag, or focus the field to pick from existing ones.
