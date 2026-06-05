@@ -80,6 +80,7 @@ export const MCP_SCHEMAS = {
     tags: tags.optional(),
     due_date: isoDate.nullable().optional(),
     spec: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
   }),
   cp_add_tags: z.object({
     patch_id: z.string().min(1),

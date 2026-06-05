@@ -308,7 +308,8 @@ export async function updatePatch(
   priority: Patch["priority"],
   tags?: string[],
   dueDate?: string | null,
-  spec?: string | null
+  spec?: string | null,
+  notes?: string | null
 ): Promise<Patch | null> {
   const tagsParam = tags ?? null;
   const dueDateProvided = dueDate !== undefined;
@@ -316,13 +317,18 @@ export async function updatePatch(
   // spec: omit (undefined) = leave unchanged; null = clear; string = set.
   const specProvided = spec !== undefined;
   const specValue = spec ?? null;
+  // notes: same three-way contract as spec. Replaces the whole notes body —
+  // use addNote() for append-only. omit = unchanged; null = clear; string = set.
+  const notesProvided = notes !== undefined;
+  const notesValue = notes ?? null;
   const rows = await sql`
     UPDATE patches pa
     SET title = ${title},
         priority = ${priority},
         tags = COALESCE(${tagsParam}::text[], pa.tags),
         due_date = CASE WHEN ${dueDateProvided}::boolean THEN ${dueDateValue}::date ELSE pa.due_date END,
-        spec = CASE WHEN ${specProvided}::boolean THEN ${specValue}::text ELSE pa.spec END
+        spec = CASE WHEN ${specProvided}::boolean THEN ${specValue}::text ELSE pa.spec END,
+        notes = CASE WHEN ${notesProvided}::boolean THEN ${notesValue}::text ELSE pa.notes END
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*

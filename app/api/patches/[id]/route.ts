@@ -79,6 +79,18 @@ export async function PATCH(
     } else {
       specArg = undefined;
     }
+    // notes: same three-way contract as spec. Replaces the whole notes body
+    // (the inline editor) — distinct from `note` (singular), which appends.
+    let notesArg: string | null | undefined;
+    if (!("notes" in body)) {
+      notesArg = undefined;
+    } else if (body.notes === null || body.notes === "") {
+      notesArg = null;
+    } else if (typeof body.notes === "string") {
+      notesArg = body.notes;
+    } else {
+      notesArg = undefined;
+    }
     const patch = await updatePatch(
       userId,
       id,
@@ -86,7 +98,8 @@ export async function PATCH(
       body.priority,
       cleanTags,
       dueDateArg,
-      specArg
+      specArg,
+      notesArg
     );
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);

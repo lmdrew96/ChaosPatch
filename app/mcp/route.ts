@@ -283,7 +283,7 @@ const TOOLS = [
   {
     name: "cp_update_patch",
     description:
-      "Update a patch's title, priority, tags, due_date, and/or spec. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged. due_date: omit to leave unchanged, pass YYYY-MM-DD to set, pass null to clear. spec: omit to leave unchanged, pass a string to set the long-form spec, pass null to clear it.",
+      "Update a patch's title, priority, tags, due_date, notes, and/or spec. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged. due_date: omit to leave unchanged, pass YYYY-MM-DD to set, pass null to clear. notes: omit to leave unchanged, pass a string to REPLACE the entire notes body, pass null to clear — use cp_add_note to append instead. spec: omit to leave unchanged, pass a string to set the long-form spec, pass null to clear it.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -304,6 +304,11 @@ const TOOLS = [
           type: ["string", "null"],
           description:
             "Due date (YYYY-MM-DD) — pass null to clear, omit to leave unchanged",
+        },
+        notes: {
+          type: ["string", "null"],
+          description:
+            "Notes body — pass a string to REPLACE all notes, null to clear, omit to leave unchanged. For append-only, use cp_add_note instead.",
         },
         spec: {
           type: ["string", "null"],
@@ -641,7 +646,8 @@ async function handleTool(
         priority,
         a.tags,
         a.due_date,
-        a.spec
+        a.spec,
+        a.notes
       );
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
