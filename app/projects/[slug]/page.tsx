@@ -85,6 +85,7 @@ export default async function ProjectPage({
 
       <main className="px-6 py-8 max-w-3xl mx-auto space-y-8">
         <ProjectPatchView
+          slug={slug}
           patches={patchesWithImages}
           archivedPatches={archivedWithImages}
           existingTags={existingTags}

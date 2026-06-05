@@ -23,14 +23,29 @@ const STATUS_LABEL: Record<Patch["status"], string> = {
 export function PatchList({
   patches,
   existingTags = [],
+  selectable = false,
+  selectedIds,
+  onToggleSelect,
 }: {
   patches: Patch[];
   existingTags?: string[];
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
   return (
     <ul className="space-y-2">
       {patches.map((patch) => (
-        <PatchRow key={patch.id} patch={patch} existingTags={existingTags} />
+        <PatchRow
+          key={patch.id}
+          patch={patch}
+          existingTags={existingTags}
+          selectable={selectable}
+          selected={selectedIds?.has(patch.id) ?? false}
+          onSelectToggle={
+            onToggleSelect ? () => onToggleSelect(patch.id) : undefined
+          }
+        />
       ))}
     </ul>
   );
@@ -70,7 +85,19 @@ function DueDateChip({ dueDate }: { dueDate: string }) {
   );
 }
 
-function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[] }) {
+function PatchRow({
+  patch,
+  existingTags,
+  selectable = false,
+  selected = false,
+  onSelectToggle,
+}: {
+  patch: Patch;
+  existingTags: string[];
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectToggle?: () => void;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
@@ -174,7 +201,13 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
   }
 
   return (
-    <li className="rounded-lg border border-border bg-card px-4 py-3">
+    <li
+      className={`rounded-lg border bg-card px-4 py-3 transition-colors ${
+        selectable && selected
+          ? "border-primary/60 ring-1 ring-primary/30"
+          : "border-border"
+      }`}
+    >
       {editing ? (
         /* ── Edit mode ── */
         <div className="space-y-2">
@@ -236,6 +269,17 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
       ) : (
         /* ── View mode ── */
         <div className="flex items-start gap-3">
+          {/* Selection checkbox (bulk mode) */}
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onSelectToggle}
+              className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary"
+              aria-label={selected ? "Deselect patch" : "Select patch"}
+            />
+          )}
+
           {/* Priority badge */}
           <span
             className={`mt-0.5 shrink-0 text-[10px] font-semibold uppercase tracking-wider border rounded px-1.5 py-0.5 ${PRIORITY_STYLES[patch.priority]}`}
@@ -351,7 +395,8 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
             )}
           </div>
 
-          {/* Actions */}
+          {/* Actions (hidden while bulk-selecting) */}
+          {!selectable && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={startEditing}
@@ -421,6 +466,7 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
               </button>
             )}
           </div>
+          )}
         </div>
       )}
     </li>

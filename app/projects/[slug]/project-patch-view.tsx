@@ -1,20 +1,30 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Patch } from "@/lib/queries";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PatchList } from "./patch-list";
 
+type SelectionProps = {
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+};
+
 function CollapsibleSection({
   label,
   patches,
   existingTags,
+  selectable,
+  selectedIds,
+  onToggleSelect,
 }: {
   label: string;
   patches: Patch[];
   existingTags: string[];
-}) {
+} & SelectionProps) {
   const [open, setOpen] = useState(false);
   if (patches.length === 0) return null;
   return (
@@ -35,7 +45,13 @@ function CollapsibleSection({
       </button>
       {open && (
         <div className="border-t border-border">
-          <PatchList patches={patches} existingTags={existingTags} />
+          <PatchList
+            patches={patches}
+            existingTags={existingTags}
+            selectable={selectable}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
+          />
         </div>
       )}
     </div>
@@ -51,25 +67,77 @@ const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 };
 
 export function ProjectPatchView({
+  slug,
   patches,
   archivedPatches,
   existingTags,
 }: {
+  slug: string;
   patches: Patch[];
   archivedPatches: Patch[];
   existingTags: string[];
 }) {
+  const router = useRouter();
+  const [busy, startTransition] = useTransition();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("status");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
+  // Bulk-select mode (GUI parity with cp_batch_update).
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+
   const statusCounts = useMemo(() => {
     const counts = { open: 0, in_progress: 0, done: 0 };
     patches.forEach((p) => counts[p.status]++);
     return counts;
   }, [patches]);
+
+  const completedCount = statusCounts.done;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelect() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
+  async function bulkAction(action: "start" | "complete" | "reopen") {
+    if (selectedIds.size === 0) return;
+    await fetch("/api/patches/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patch_ids: Array.from(selectedIds), action }),
+    });
+    exitSelect();
+    startTransition(() => router.refresh());
+  }
+
+  async function archiveCompleted() {
+    await fetch("/api/patches/archive-completed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project: slug }),
+    });
+    setArchiveConfirm(false);
+    startTransition(() => router.refresh());
+  }
+
+  const selectionProps: SelectionProps = {
+    selectable: selectMode,
+    selectedIds,
+    onToggleSelect: toggleSelect,
+  };
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -126,6 +194,7 @@ export function ProjectPatchView({
   }
 
   return (
+    <>
     <div className="space-y-4">
       {/* Controls row */}
       <div className="flex flex-wrap items-center gap-3">
@@ -188,6 +257,48 @@ export function ProjectPatchView({
 
         <div className="flex-1" />
 
+        {/* Bulk actions */}
+        <div className="flex items-center gap-2">
+          {completedCount > 0 &&
+            (archiveConfirm ? (
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">
+                  Archive {completedCount} completed?
+                </span>
+                <button
+                  onClick={archiveCompleted}
+                  disabled={busy}
+                  className="font-medium text-amber-500 hover:text-amber-400 disabled:opacity-40 transition-colors"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setArchiveConfirm(false)}
+                  className="text-muted-foreground/50 hover:text-foreground/70 transition-colors"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setArchiveConfirm(true)}
+                className="text-xs text-muted-foreground border border-border rounded-md px-2 py-1 hover:text-foreground/70 hover:border-muted-foreground/40 transition-colors"
+              >
+                Archive completed
+              </button>
+            ))}
+          <button
+            onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+            className={`text-xs border rounded-md px-2 py-1 transition-colors ${
+              selectMode
+                ? "border-primary/40 text-primary bg-primary/10"
+                : "border-border text-muted-foreground hover:text-foreground/70 hover:border-muted-foreground/40"
+            }`}
+          >
+            {selectMode ? "Cancel" : "Select"}
+          </button>
+        </div>
+
         {/* Sort controls */}
         <div className="flex items-center gap-2">
           <select
@@ -229,11 +340,16 @@ export function ProjectPatchView({
         </p>
       ) : statusFilter === "done" ? (
         <>
-          <PatchList patches={filteredPatches} existingTags={existingTags} />
+          <PatchList
+            patches={filteredPatches}
+            existingTags={existingTags}
+            {...selectionProps}
+          />
           <CollapsibleSection
             label="Archived"
             patches={archivedPatches}
             existingTags={existingTags}
+            {...selectionProps}
           />
         </>
       ) : (
@@ -241,19 +357,60 @@ export function ProjectPatchView({
           <PatchList
             patches={filteredPatches.filter((p) => p.status !== "done")}
             existingTags={existingTags}
+            {...selectionProps}
           />
           <CollapsibleSection
             label="Completed"
             patches={filteredPatches.filter((p) => p.status === "done")}
             existingTags={existingTags}
+            {...selectionProps}
           />
           <CollapsibleSection
             label="Archived"
             patches={archivedPatches}
             existingTags={existingTags}
+            {...selectionProps}
           />
         </>
       )}
     </div>
+
+    {selectMode && (
+      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-full border border-border bg-card/95 px-4 py-2 shadow-xl backdrop-blur">
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {selectedIds.size} selected
+        </span>
+        <div className="h-4 w-px bg-border" />
+        <button
+          onClick={() => bulkAction("start")}
+          disabled={busy || selectedIds.size === 0}
+          className="text-xs text-primary hover:text-primary/80 disabled:opacity-40 transition-colors"
+        >
+          Start
+        </button>
+        <button
+          onClick={() => bulkAction("complete")}
+          disabled={busy || selectedIds.size === 0}
+          className="text-xs text-emerald-500 dark:text-emerald-400 hover:opacity-80 disabled:opacity-40 transition-colors"
+        >
+          Complete
+        </button>
+        <button
+          onClick={() => bulkAction("reopen")}
+          disabled={busy || selectedIds.size === 0}
+          className="text-xs text-blue-500 dark:text-blue-400 hover:opacity-80 disabled:opacity-40 transition-colors"
+        >
+          Reopen
+        </button>
+        <div className="h-4 w-px bg-border" />
+        <button
+          onClick={exitSelect}
+          className="text-xs text-muted-foreground/60 hover:text-foreground/70 transition-colors"
+        >
+          Done
+        </button>
+      </div>
+    )}
+    </>
   );
 }
