@@ -76,7 +76,6 @@ pnpm lint             # ESLint (next lint)
 pnpm db:migrate       # Run database migrations
 pnpm db:seed          # Seed database with initial data
 pnpm db:clean         # Clean database
-pnpm test:mcp         # Test MCP server locally
 ```
 
 ---

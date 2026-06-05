@@ -1,6 +1,6 @@
 {
   "name": "chaospatch",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,8 +9,7 @@
     "lint": "next lint",
     "db:migrate": "node --env-file=.env.local -r esbuild-register lib/migrate.ts",
     "db:seed": "node --env-file=.env.local -r esbuild-register lib/seed.ts",
-    "db:clean": "node --env-file=.env.local -r esbuild-register lib/clean.ts",
-    "test:mcp": "node -r esbuild-register mcp/index.ts"
+    "db:clean": "node --env-file=.env.local -r esbuild-register lib/clean.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.7",
