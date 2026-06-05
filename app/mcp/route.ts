@@ -67,7 +67,7 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive — patches due on or before this date).",
+      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive — patches due on or before this date). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -119,7 +119,7 @@ const TOOLS = [
   {
     name: "cp_list_all_patches",
     description:
-      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive).",
+      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -379,7 +379,7 @@ const TOOLS = [
   {
     name: "cp_search_patches",
     description:
-      "Search patches by title, notes, or tags (case-insensitive). Defaults to all projects, all statuses, non-archived. Optionally scope by project_slug and/or status, and opt in to archived results.",
+      "Search patches by title, notes, or tags (case-insensitive). Defaults to all projects, all statuses, non-archived. Optionally scope by project_slug and/or status, and opt in to archived results. Matching is against full notes, but each result carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a result's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -431,7 +431,7 @@ const TOOLS = [
   {
     name: "cp_get_velocity",
     description:
-      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color. Archived patches excluded by default.",
+      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color. Archived patches excluded by default. Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -472,6 +472,28 @@ const TOOLS = [
   },
 ];
 
+const NOTES_PREVIEW_LEN = 200;
+
+/**
+ * Strip the full `notes` body from a patch for list/search responses, replacing
+ * it with a short preview + the original length. Full notes are only served by
+ * cp_get_patch. Done HERE at the MCP boundary (not in lib/queries) so the web
+ * dashboard + insights page keep rendering full notes — see patch 4e9a9b62.
+ */
+function toListRow<T extends { notes: string | null }>(
+  patch: T
+): Omit<T, "notes"> & { notes_preview: string | null; notes_length: number } {
+  const { notes, ...rest } = patch;
+  const length = notes?.length ?? 0;
+  const notes_preview =
+    notes === null || notes === undefined
+      ? null
+      : length > NOTES_PREVIEW_LEN
+        ? notes.slice(0, NOTES_PREVIEW_LEN) + "…"
+        : notes;
+  return { ...rest, notes_preview, notes_length: length };
+}
+
 async function handleTool(
   name: McpToolName,
   args: ParsedArgs<McpToolName>,
@@ -503,7 +525,7 @@ async function handleTool(
         a.due_before,
         a.include_archived
       );
-      return JSON.stringify(patches, null, 2);
+      return JSON.stringify(patches.map(toListRow), null, 2);
     }
 
     case "cp_list_all_patches": {
@@ -519,7 +541,7 @@ async function handleTool(
         a.due_before,
         a.include_archived
       );
-      return JSON.stringify(patches, null, 2);
+      return JSON.stringify(patches.map(toListRow), null, 2);
     }
 
     case "cp_add_patch": {
@@ -647,7 +669,7 @@ async function handleTool(
         a.project_slug,
         a.status
       );
-      return JSON.stringify(results, null, 2);
+      return JSON.stringify(results.map(toListRow), null, 2);
     }
 
     case "cp_get_velocity": {
@@ -657,7 +679,11 @@ async function handleTool(
         a.completed_since,
         a.include_archived
       );
-      return JSON.stringify(result, null, 2);
+      return JSON.stringify(
+        { ...result, patches: result.patches.map(toListRow) },
+        null,
+        2
+      );
     }
 
     case "cp_archive_completed": {
