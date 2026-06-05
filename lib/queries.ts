@@ -21,6 +21,10 @@ export type Patch = {
   status: "open" | "in_progress" | "done";
   priority: "low" | "medium" | "high";
   notes: string | null;
+  // Long-form spec/brainstorm. Kept out of list/search payloads (see toListRow
+  // in app/mcp/route.ts) so the board stays scannable; only cp_get_patch and
+  // the web detail view surface it.
+  spec: string | null;
   tags: string[];
   due_date: string | null;
   archived: boolean;
@@ -222,14 +226,16 @@ export async function createPatch(
   priority: Patch["priority"] = "medium",
   notes?: string,
   tags?: string[],
-  dueDate?: string | null
+  dueDate?: string | null,
+  spec?: string | null
 ): Promise<Patch> {
   const initialNotes = notes ?? null;
   const initialTags = tags ?? [];
   const initialDueDate = dueDate ?? null;
+  const initialSpec = spec ?? null;
   const rows = await sql`
-    INSERT INTO patches (project_id, title, priority, notes, tags, due_date)
-    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialTags}::text[], ${initialDueDate}::date)
+    INSERT INTO patches (project_id, title, priority, notes, spec, tags, due_date)
+    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialSpec}, ${initialTags}::text[], ${initialDueDate}::date)
     RETURNING *
   `;
   return rows[0] as Patch;
@@ -301,17 +307,22 @@ export async function updatePatch(
   title: string,
   priority: Patch["priority"],
   tags?: string[],
-  dueDate?: string | null
+  dueDate?: string | null,
+  spec?: string | null
 ): Promise<Patch | null> {
   const tagsParam = tags ?? null;
   const dueDateProvided = dueDate !== undefined;
   const dueDateValue = dueDate ?? null;
+  // spec: omit (undefined) = leave unchanged; null = clear; string = set.
+  const specProvided = spec !== undefined;
+  const specValue = spec ?? null;
   const rows = await sql`
     UPDATE patches pa
     SET title = ${title},
         priority = ${priority},
         tags = COALESCE(${tagsParam}::text[], pa.tags),
-        due_date = CASE WHEN ${dueDateProvided}::boolean THEN ${dueDateValue}::date ELSE pa.due_date END
+        due_date = CASE WHEN ${dueDateProvided}::boolean THEN ${dueDateValue}::date ELSE pa.due_date END,
+        spec = CASE WHEN ${specProvided}::boolean THEN ${specValue}::text ELSE pa.spec END
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*

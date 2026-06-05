@@ -46,6 +46,7 @@ export const MCP_SCHEMAS = {
     title: z.string().min(1),
     priority: priority.optional(),
     notes: z.string().optional(),
+    spec: z.string().optional(),
     tags: tags.optional(),
     due_date: isoDate.optional(),
   }),
@@ -78,6 +79,7 @@ export const MCP_SCHEMAS = {
     priority: priority.optional(),
     tags: tags.optional(),
     due_date: isoDate.nullable().optional(),
+    spec: z.string().nullable().optional(),
   }),
   cp_add_tags: z.object({
     patch_id: z.string().min(1),

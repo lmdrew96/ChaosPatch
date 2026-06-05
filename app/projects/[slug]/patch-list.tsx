@@ -82,6 +82,7 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
   const [editPriority, setEditPriority] = useState(patch.priority);
   const [editTagsInput, setEditTagsInput] = useState(patch.tags.join(", "));
   const [editDueDate, setEditDueDate] = useState(patch.due_date ?? "");
+  const [editSpec, setEditSpec] = useState(patch.spec ?? "");
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const editTitleRef = useRef<HTMLInputElement>(null);
 
@@ -92,6 +93,7 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
     setEditPriority(patch.priority);
     setEditTagsInput(patch.tags.join(", "));
     setEditDueDate(patch.due_date ?? "");
+    setEditSpec(patch.spec ?? "");
     setEditing(true);
     setTimeout(() => editTitleRef.current?.focus(), 50);
   }
@@ -111,6 +113,8 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
         tags: parsedTags,
         // Empty string clears due_date; a YYYY-MM-DD string sets it.
         due_date: editDueDate === "" ? null : editDueDate,
+        // Empty string clears the spec; any text sets it.
+        spec: editSpec.trim() === "" ? null : editSpec,
       }),
     });
     setEditing(false);
@@ -197,6 +201,13 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
             onChange={(e) => setEditDueDate(e.target.value)}
             className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          <textarea
+            value={editSpec}
+            onChange={(e) => setEditSpec(e.target.value)}
+            placeholder="Long-form spec (optional) — kept out of the list view"
+            rows={4}
+            className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-y font-mono"
+          />
           <div className="flex items-center gap-2">
             <select
               value={editPriority}
@@ -269,6 +280,16 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-input rounded p-2">
                     {patch.notes}
                   </p>
+                )}
+                {patch.spec && (
+                  <div className="rounded bg-input p-2">
+                    <div className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                      Spec
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                      {patch.spec}
+                    </p>
+                  </div>
                 )}
                 <PatchImageAttachments
                   mode="saved"

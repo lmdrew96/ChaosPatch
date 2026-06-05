@@ -169,7 +169,7 @@ const TOOLS = [
   {
     name: "cp_add_patch",
     description:
-      "Add a new patch to a project, optionally with initial notes, tags, and a due date.",
+      "Add a new patch to a project, optionally with initial notes, a long-form spec, tags, and a due date. Keep `notes` terse (a triage summary + acceptance criteria); put long-form specs/brainstorms in `spec`, which is excluded from list/search payloads so the board stays scannable.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -182,7 +182,13 @@ const TOOLS = [
         },
         notes: {
           type: "string",
-          description: "Initial notes to set on the patch (optional)",
+          description:
+            "Initial terse notes to set on the patch — triage summary + acceptance criteria (optional)",
+        },
+        spec: {
+          type: "string",
+          description:
+            "Long-form spec / brainstorm (optional). Never returned by list/search tools — only by cp_get_patch and the web detail view.",
         },
         tags: {
           type: "array",
@@ -201,7 +207,7 @@ const TOOLS = [
   {
     name: "cp_get_patch",
     description:
-      "Fetch a single patch by ID. Returns the patch object (including an `attachments` array of any images) or an error if not found / not owned by the authenticated user.",
+      "Fetch a single patch by ID. Returns the full patch object — including complete `notes`, the long-form `spec`, and an `attachments` array of any images — or an error if not found / not owned by the authenticated user. This is the deep-read tool: use it to read a patch's full notes/spec after a list/search tool showed only a preview.",
     inputSchema: {
       type: "object" as const,
       properties: { patch_id: { type: "string", description: "Patch UUID" } },
@@ -277,7 +283,7 @@ const TOOLS = [
   {
     name: "cp_update_patch",
     description:
-      "Update a patch's title, priority, tags, and/or due_date. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged. due_date: omit to leave unchanged, pass YYYY-MM-DD to set, pass null to clear.",
+      "Update a patch's title, priority, tags, due_date, and/or spec. If tags is provided (even as []), it REPLACES the existing tags array; if omitted, tags are left unchanged. due_date: omit to leave unchanged, pass YYYY-MM-DD to set, pass null to clear. spec: omit to leave unchanged, pass a string to set the long-form spec, pass null to clear it.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -298,6 +304,11 @@ const TOOLS = [
           type: ["string", "null"],
           description:
             "Due date (YYYY-MM-DD) — pass null to clear, omit to leave unchanged",
+        },
+        spec: {
+          type: ["string", "null"],
+          description:
+            "Long-form spec — pass a string to set, null to clear, omit to leave unchanged. Excluded from list/search payloads.",
         },
       },
       required: ["patch_id"],
@@ -475,15 +486,20 @@ const TOOLS = [
 const NOTES_PREVIEW_LEN = 200;
 
 /**
- * Strip the full `notes` body from a patch for list/search responses, replacing
- * it with a short preview + the original length. Full notes are only served by
- * cp_get_patch. Done HERE at the MCP boundary (not in lib/queries) so the web
- * dashboard + insights page keep rendering full notes — see patch 4e9a9b62.
+ * Trim a patch for list/search responses: replace the full `notes` body with a
+ * short preview + length, and drop the long-form `spec` entirely (keeping only
+ * its length as a signal). Full notes + spec are served only by cp_get_patch.
+ * Done HERE at the MCP boundary (not in lib/queries) so the web dashboard +
+ * insights page keep rendering full notes — see patches 4e9a9b62 / 7bfbcac9.
  */
-function toListRow<T extends { notes: string | null }>(
+function toListRow<T extends { notes: string | null; spec: string | null }>(
   patch: T
-): Omit<T, "notes"> & { notes_preview: string | null; notes_length: number } {
-  const { notes, ...rest } = patch;
+): Omit<T, "notes" | "spec"> & {
+  notes_preview: string | null;
+  notes_length: number;
+  spec_length: number;
+} {
+  const { notes, spec, ...rest } = patch;
   const length = notes?.length ?? 0;
   const notes_preview =
     notes === null || notes === undefined
@@ -491,7 +507,12 @@ function toListRow<T extends { notes: string | null }>(
       : length > NOTES_PREVIEW_LEN
         ? notes.slice(0, NOTES_PREVIEW_LEN) + "…"
         : notes;
-  return { ...rest, notes_preview, notes_length: length };
+  return {
+    ...rest,
+    notes_preview,
+    notes_length: length,
+    spec_length: spec?.length ?? 0,
+  };
 }
 
 async function handleTool(
@@ -554,7 +575,8 @@ async function handleTool(
         a.priority ?? "medium",
         a.notes,
         a.tags,
-        a.due_date
+        a.due_date,
+        a.spec
       );
       return JSON.stringify(patch, null, 2);
     }
@@ -618,7 +640,8 @@ async function handleTool(
         title,
         priority,
         a.tags,
-        a.due_date
+        a.due_date,
+        a.spec
       );
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);

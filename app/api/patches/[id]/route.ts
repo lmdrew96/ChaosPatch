@@ -67,13 +67,26 @@ export async function PATCH(
     } else {
       dueDateArg = undefined;
     }
+    // spec: omit key → undefined (unchanged); null or "" → null (clear);
+    //       non-empty string → set.
+    let specArg: string | null | undefined;
+    if (!("spec" in body)) {
+      specArg = undefined;
+    } else if (body.spec === null || body.spec === "") {
+      specArg = null;
+    } else if (typeof body.spec === "string") {
+      specArg = body.spec;
+    } else {
+      specArg = undefined;
+    }
     const patch = await updatePatch(
       userId,
       id,
       body.title,
       body.priority,
       cleanTags,
-      dueDateArg
+      dueDateArg,
+      specArg
     );
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
