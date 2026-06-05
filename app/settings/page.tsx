@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { getOrCreateMcpToken } from "@/lib/queries";
 import { McpTokenDisplay } from "./mcp-token";
@@ -19,9 +20,10 @@ export default async function SettingsPage() {
       <header className="border-b border-border px-6 py-4 flex items-center gap-3">
         <Link
           href="/"
-          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
-          ← Projects
+          <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+          Projects
         </Link>
         <span className="text-border">/</span>
         <span className="text-sm text-muted-foreground">Settings</span>

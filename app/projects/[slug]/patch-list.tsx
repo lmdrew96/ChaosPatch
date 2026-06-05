@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
+import { Paperclip, X } from "lucide-react";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
@@ -246,8 +247,9 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {patch.due_date && <DueDateChip dueDate={patch.due_date} />}
                 {(patch.attachments?.length ?? 0) > 0 && (
-                  <span className="text-[9px] font-medium uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border rounded-full px-1.5 py-0.5">
-                    📎 {patch.attachments!.length}
+                  <span className="inline-flex items-center gap-1 text-[9px] font-medium uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border rounded-full px-1.5 py-0.5">
+                    <Paperclip aria-hidden className="h-2.5 w-2.5" />
+                    {patch.attachments!.length}
                   </span>
                 )}
                 {patch.tags.map((t) => (
@@ -381,9 +383,11 @@ function PatchRow({ patch, existingTags }: { patch: Patch; existingTags: string[
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                  className="inline-flex items-center text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                  aria-label="Cancel delete"
+                  title="Cancel"
                 >
-                  ✕
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </span>
             ) : (

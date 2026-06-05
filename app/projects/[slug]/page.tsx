@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import {
   getArchivedPatches,
   getAttachmentsForPatchIds,
@@ -54,9 +55,10 @@ export default async function ProjectPage({
           <div className="flex items-center gap-2 min-w-0">
             <Link
               href="/dashboard"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0"
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm transition-colors shrink-0"
             >
-              ← Projects
+              <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+              Projects
             </Link>
             <span className="text-border shrink-0">/</span>
             <div className="flex items-center gap-2 min-w-0">

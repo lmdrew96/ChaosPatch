@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import type { ProjectSummary, PatchWithProject } from "@/lib/queries";
 import { StatCard } from "@/components/insights/stat-card";
 import { ActiveBars } from "@/components/insights/active-bars";
@@ -91,9 +92,10 @@ export function InsightsContent({
         </div>
         <Link
           href="/dashboard"
-          className="text-xs text-muted-foreground/50 hover:text-foreground/70 transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-foreground/70 transition-colors"
         >
-          ← Dashboard
+          <ArrowLeft aria-hidden className="h-3 w-3" />
+          Dashboard
         </Link>
       </div>
 

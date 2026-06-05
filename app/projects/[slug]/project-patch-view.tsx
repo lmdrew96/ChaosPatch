@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Patch } from "@/lib/queries";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PatchList } from "./patch-list";
@@ -200,10 +201,15 @@ export function ProjectPatchView({
           </select>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
+            className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
             title={sortDir === "desc" ? "Descending" : "Ascending"}
+            aria-label={sortDir === "desc" ? "Sort descending" : "Sort ascending"}
           >
-            {sortDir === "desc" ? "↓" : "↑"}
+            {sortDir === "desc" ? (
+              <ArrowDown aria-hidden className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowUp aria-hidden className="h-3.5 w-3.5" />
+            )}
           </button>
         </div>
       </div>

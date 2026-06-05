@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
+import { X } from "lucide-react";
 import type { PatchAttachment } from "@/lib/queries";
 
 export type PendingImage = {
@@ -177,11 +178,11 @@ export function PatchImageAttachments(props: Props) {
                     ? removePending(item.url)
                     : removeSaved(item.id!)
                 }
-                className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-border bg-card text-[10px] text-muted-foreground opacity-80 transition-colors hover:text-red-400"
+                className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-80 transition-colors hover:text-red-400"
                 aria-label="Remove image"
                 title="Remove image"
               >
-                ✕
+                <X className="h-2.5 w-2.5" />
               </button>
             </div>
           ))}

@@ -1,4 +1,5 @@
 import type { DashboardSummaryData } from "@/lib/queries";
+import { Zap, Target, CircleCheck, Sparkles, ArrowDown } from "lucide-react";
 import { PatchListItem } from "./patch-list-item";
 
 export function DashboardSummary({
@@ -21,12 +22,12 @@ export function DashboardSummary({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
       <Card className="md:col-span-2">
         <CardHeader
-          icon="⚡"
+          icon={<Zap className="h-4 w-4 text-amber-500" />}
           title="In Progress"
           count={counts.inProgress}
           right={
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50">
-              <span aria-hidden>🎯 </span>Open:{" "}
+            <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground/50">
+              <Target aria-hidden className="h-3 w-3" />Open:{" "}
               <span className="font-mono text-muted-foreground tabular-nums">
                 {counts.open}
               </span>
@@ -35,7 +36,8 @@ export function DashboardSummary({
         />
         {inProgress.length === 0 ? (
           <EmptyMessage>
-            Nothing in progress. Pick one from the list below ↓
+            Nothing in progress. Pick one from the list below{" "}
+            <ArrowDown aria-hidden className="inline h-3 w-3 align-[-2px]" />
           </EmptyMessage>
         ) : (
           <ul className="space-y-1.5">
@@ -48,7 +50,7 @@ export function DashboardSummary({
 
       <Card>
         <CardHeader
-          icon="✅"
+          icon={<CircleCheck className="h-4 w-4 text-emerald-500" />}
           title="Recently Done"
           count={recentlyCompleted.length}
         />
@@ -65,7 +67,7 @@ export function DashboardSummary({
 
       <Card>
         <CardHeader
-          icon="✨"
+          icon={<Sparkles className="h-4 w-4 text-primary" />}
           title="Recently Added"
           count={recentlyAdded.length}
         />
@@ -105,7 +107,7 @@ function CardHeader({
   count,
   right,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   count: number;
   right?: React.ReactNode;
@@ -113,7 +115,7 @@ function CardHeader({
   return (
     <div className="flex items-center justify-between mb-3 gap-2">
       <div className="flex items-baseline gap-2 min-w-0">
-        <span aria-hidden className="shrink-0">
+        <span aria-hidden className="shrink-0 self-center">
           {icon}
         </span>
         <span className="text-sm font-medium text-foreground/90 truncate">

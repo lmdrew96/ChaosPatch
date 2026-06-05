@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FolderKanban, Bot, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
@@ -83,15 +84,19 @@ export default function LandingPage() {
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
-            { icon: '🗂️', title: 'Organized by Project', desc: 'Group patches under projects and track their status from open to complete.' },
-            { icon: '🤖', title: 'MCP Integration', desc: 'Manage patches without leaving your editor via the MCP server.' },
-            { icon: '📱', title: 'Works Anywhere', desc: 'Installable PWA — access your patch log from desktop or mobile.' },
+            { Icon: FolderKanban, title: 'Organized by Project', desc: 'Group patches under projects and track their status from open to complete.' },
+            { Icon: Bot, title: 'MCP Integration', desc: 'Manage patches without leaving your editor via the MCP server.' },
+            { Icon: Smartphone, title: 'Works Anywhere', desc: 'Installable PWA — access your patch log from desktop or mobile.' },
           ].map((feature) => (
             <div
               key={feature.title}
               className="p-6 rounded-2xl border border-border bg-card/70 backdrop-blur hover:bg-card transition-all duration-300 hover:shadow-xl hover:scale-105"
             >
-              <div className="text-4xl mb-4">{feature.icon}</div>
+              <feature.Icon
+                aria-hidden
+                className="h-10 w-10 mb-4 text-[color:var(--adhd-purple)]"
+                strokeWidth={1.5}
+              />
               <h3 className="font-[family-name:var(--font-display)] text-2xl font-normal text-card-foreground mb-2">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.desc}</p>
             </div>

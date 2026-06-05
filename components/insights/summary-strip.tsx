@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import type { ProjectSummary } from "@/lib/queries";
 
 export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
@@ -106,9 +107,10 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
 
         <Link
           href="/insights"
-          className="text-[10px] uppercase tracking-widest text-muted-foreground/50 hover:text-foreground/70 transition-colors shrink-0"
+          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground/50 hover:text-foreground/70 transition-colors shrink-0"
         >
-          Insights →
+          Insights
+          <ArrowRight aria-hidden className="h-3 w-3" />
         </Link>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
 import { SummaryStrip } from "@/components/insights/summary-strip";
 import { TagFilterBar } from "@/components/tag-filter-bar";
@@ -183,10 +184,15 @@ export function HomeContent({
               </select>
               <button
                 onClick={() => setProjectSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-                className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
+                className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
                 title={projectSortDir === "desc" ? "Descending" : "Ascending"}
+                aria-label={projectSortDir === "desc" ? "Sort descending" : "Sort ascending"}
               >
-                {projectSortDir === "desc" ? "↓" : "↑"}
+                {projectSortDir === "desc" ? (
+                  <ArrowDown aria-hidden className="h-3.5 w-3.5" />
+                ) : (
+                  <ArrowUp aria-hidden className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           )}
@@ -212,10 +218,15 @@ export function HomeContent({
               </select>
               <button
                 onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-                className="text-xs text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
+                className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
                 title={sortDir === "desc" ? "Newest first" : "Oldest first"}
+                aria-label={sortDir === "desc" ? "Newest first" : "Oldest first"}
               >
-                {sortDir === "desc" ? "↓" : "↑"}
+                {sortDir === "desc" ? (
+                  <ArrowDown aria-hidden className="h-3.5 w-3.5" />
+                ) : (
+                  <ArrowUp aria-hidden className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           )}
