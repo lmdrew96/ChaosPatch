@@ -1,24 +1,23 @@
 import { auth } from "@clerk/nextjs/server";
-import { del } from "@vercel/blob";
-import { BLOB_TOKEN } from "@/lib/blob";
+import { deleteObject } from "@/lib/r2";
 
 /**
- * Delete a blob by url. Used to clean up a *pending* add-form image the user
- * removes before the patch (and its attachment rows) exist. Auth-gated; blob
- * urls carry a random suffix so they're unguessable.
+ * Delete an object by key. Used to clean up a *pending* add-form image the
+ * user removes before the patch (and its attachment rows) exist. Auth-gated;
+ * keys carry a random prefix so they're unguessable.
  */
 export async function POST(request: Request): Promise<Response> {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { url } = await request.json();
-  if (typeof url !== "string" || !url) {
-    return Response.json({ error: "url is required" }, { status: 400 });
+  const { pathname } = await request.json();
+  if (typeof pathname !== "string" || !pathname) {
+    return Response.json({ error: "pathname is required" }, { status: 400 });
   }
   try {
-    await del(url, { token: BLOB_TOKEN });
+    await deleteObject(pathname);
   } catch {
-    // ignore — blob may already be gone
+    // ignore — object may already be gone
   }
   return new Response(null, { status: 204 });
 }

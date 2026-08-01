@@ -1,57 +1,54 @@
+import { randomUUID } from "crypto";
 import { auth } from "@clerk/nextjs/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getPatchById } from "@/lib/queries";
+import { objectUrl, presignPutUrl } from "@/lib/r2";
+
+const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
- * Token route for client-side uploads (`upload()` from @vercel/blob/client).
- * Validates the Clerk session and, when uploading to an existing patch, that
- * the user owns it. The browser uploads straight to Vercel Blob, so this never
- * sees the file bytes — only mints a scoped, short-lived upload token.
+ * Mint a presigned PUT URL for a direct-to-R2 browser upload. Validates the
+ * Clerk session and, when uploading to an existing patch, that the user owns
+ * it. The browser uploads straight to R2 with the returned URL, so this
+ * route never sees the file bytes.
  */
 export async function POST(request: Request): Promise<Response> {
-  const body = (await request.json()) as HandleUploadBody;
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Not authorized" }, { status: 401 });
+  }
 
-  try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
-        const { userId } = await auth();
-        if (!userId) throw new Error("Not authorized");
-
-        let patchId: string | undefined;
-        if (clientPayload) {
-          try {
-            patchId = (JSON.parse(clientPayload) as { patchId?: string }).patchId;
-          } catch {
-            // Malformed payload — treat as no patch context (add-form flow).
-          }
-        }
-        if (patchId) {
-          const patch = await getPatchById(userId, patchId);
-          if (!patch) throw new Error("Not authorized");
-        }
-
-        return {
-          allowedContentTypes: ["image/*"],
-          maximumSizeInBytes: 10 * 1024 * 1024,
-          addRandomSuffix: true,
-          tokenPayload: JSON.stringify({ userId, patchId: patchId ?? null }),
-        };
-      },
-      onUploadCompleted: async () => {
-        // No-op: the DB row is inserted by a client-initiated call after
-        // upload() resolves, so attaching works on localhost too (Vercel can't
-        // reach this webhook in local dev).
-      },
-    });
-
-    return Response.json(jsonResponse);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Upload failed";
+  const { filename, contentType, size, patchId } = await request.json();
+  if (
+    typeof filename !== "string" ||
+    !filename ||
+    typeof contentType !== "string" ||
+    typeof size !== "number"
+  ) {
     return Response.json(
-      { error: message },
-      { status: message === "Not authorized" ? 401 : 400 }
+      { error: "filename, contentType, and size are required" },
+      { status: 400 }
     );
   }
+  if (!contentType.startsWith("image/")) {
+    return Response.json(
+      { error: "Only image uploads are allowed" },
+      { status: 400 }
+    );
+  }
+  if (size > MAX_BYTES) {
+    return Response.json(
+      { error: "Image exceeds the 10MB limit" },
+      { status: 400 }
+    );
+  }
+  if (typeof patchId === "string" && patchId) {
+    const patch = await getPatchById(userId, patchId);
+    if (!patch) {
+      return Response.json({ error: "Not authorized" }, { status: 401 });
+    }
+  }
+
+  const key = `attachments/${randomUUID()}-${filename}`;
+  const uploadUrl = await presignPutUrl(key, contentType, size);
+  return Response.json({ uploadUrl, key, url: objectUrl(key) });
 }

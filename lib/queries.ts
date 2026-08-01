@@ -819,13 +819,14 @@ export async function getAttachmentsForPatchIds(
 }
 
 /**
- * Delete an attachment row (ownership-checked) and return its blob url so the
- * caller can remove the underlying blob. Returns null if not found / not owned.
+ * Delete an attachment row (ownership-checked) and return its storage key so
+ * the caller can remove the underlying object. Returns null if not found /
+ * not owned.
  */
 export async function deletePatchAttachment(
   userId: string,
   attachmentId: string
-): Promise<{ url: string } | null> {
+): Promise<{ url: string; pathname: string } | null> {
   const rows = await sql`
     DELETE FROM patch_attachments a
     USING patches pa, projects p
@@ -833,9 +834,9 @@ export async function deletePatchAttachment(
       AND pa.id = a.patch_id
       AND p.id = pa.project_id
       AND p.user_id = ${userId}
-    RETURNING a.url
+    RETURNING a.url, a.pathname
   `;
-  return (rows[0] as { url: string }) ?? null;
+  return (rows[0] as { url: string; pathname: string }) ?? null;
 }
 
 // ── MCP Tokens ─────────────────────────────────────────────────────────────

@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
 import { X } from "lucide-react";
 import type { PatchAttachment } from "@/lib/queries";
 
@@ -33,6 +32,42 @@ function safeUploadName(filename: string): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 60) || "image";
   return ext ? `${base}.${ext}` : base;
+}
+
+/**
+ * Two-step direct-to-R2 upload: ask the server to mint a presigned PUT URL
+ * (auth + ownership checked there), then PUT the file straight to R2 so the
+ * bytes never pass through our server.
+ */
+async function uploadToR2(file: File, patchId?: string): Promise<PendingImage> {
+  const startRes = await fetch("/api/blob/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      filename: safeUploadName(file.name),
+      contentType: file.type,
+      size: file.size,
+      patchId,
+    }),
+  });
+  if (!startRes.ok) {
+    const body = await startRes.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error ?? "Failed to start upload");
+  }
+  const { uploadUrl, key, url } = (await startRes.json()) as {
+    uploadUrl: string;
+    key: string;
+    url: string;
+  };
+
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!putRes.ok) throw new Error("Upload failed");
+
+  return { url, pathname: key, contentType: file.type || null, size: file.size ?? null };
 }
 
 type Props =
@@ -86,27 +121,16 @@ export function PatchImageAttachments(props: Props) {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setError("");
-    const clientPayload =
-      props.mode === "saved"
-        ? JSON.stringify({ patchId: props.patchId })
-        : "{}";
 
     const added: PendingImage[] = [];
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
       setUploading((n) => n + 1);
       try {
-        const blob = await upload(safeUploadName(file.name), file, {
-          access: "private",
-          handleUploadUrl: "/api/blob/upload",
-          clientPayload,
-        });
-        const meta: PendingImage = {
-          url: blob.url,
-          pathname: blob.pathname,
-          contentType: file.type || null,
-          size: file.size ?? null,
-        };
+        const meta = await uploadToR2(
+          file,
+          props.mode === "saved" ? props.patchId : undefined
+        );
         if (props.mode === "saved") {
           const res = await fetch(
             `/api/patches/${props.patchId}/attachments`,
@@ -137,13 +161,16 @@ export function PatchImageAttachments(props: Props) {
 
   function removePending(url: string) {
     if (props.mode !== "pending") return;
+    const removed = props.images.find((i) => i.url === url);
     props.onChange(props.images.filter((i) => i.url !== url));
-    // Fire-and-forget blob cleanup — no DB row exists yet.
-    fetch("/api/blob/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    }).catch(() => {});
+    // Fire-and-forget storage cleanup — no DB row exists yet.
+    if (removed) {
+      fetch("/api/blob/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pathname: removed.pathname }),
+      }).catch(() => {});
+    }
   }
 
   async function removeSaved(id: string) {

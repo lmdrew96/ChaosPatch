@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import { del } from "@vercel/blob";
 import {
   addNote,
   deletePatch,
@@ -9,7 +8,7 @@ import {
   updatePatch,
   updatePatchStatus,
 } from "@/lib/queries";
-import { BLOB_TOKEN } from "@/lib/blob";
+import { deleteObject } from "@/lib/r2";
 
 export async function PATCH(
   req: Request,
@@ -116,15 +115,15 @@ export async function DELETE(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  // Grab blob urls before the cascade removes the attachment rows.
+  // Grab storage keys before the cascade removes the attachment rows.
   const attachments = await getPatchAttachments(userId, id);
   const ok = await deletePatch(userId, id);
   if (!ok) return Response.json({ error: "Not found" }, { status: 404 });
   for (const a of attachments) {
     try {
-      await del(a.url, { token: BLOB_TOKEN });
+      await deleteObject(a.pathname);
     } catch {
-      // ignore — blob may already be gone
+      // ignore — object may already be gone
     }
   }
   return new Response(null, { status: 204 });

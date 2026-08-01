@@ -31,7 +31,7 @@ import {
   unarchivePatch,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
-import { presignBlobGetUrl } from "@/lib/blob";
+import { presignGetUrl } from "@/lib/r2";
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
@@ -764,10 +764,10 @@ async function getPatchImagesContent(
   const imageBlocks: McpContentBlock[] = [];
   const summaryLines: string[] = [];
 
-  // Blobs are private — presign a short-lived GET URL before fetching each one.
+  // Objects are private — presign a short-lived GET URL before fetching each one.
   for (const a of attachments.slice(0, MAX_IMAGES)) {
     try {
-      const signedUrl = await presignBlobGetUrl(a.pathname);
+      const signedUrl = await presignGetUrl(a.pathname);
       const res = await fetch(signedUrl);
       if (!res.ok) {
         summaryLines.push(`- ${a.pathname} (fetch failed: HTTP ${res.status})`);

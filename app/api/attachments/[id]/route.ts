@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { del } from "@vercel/blob";
 import { deletePatchAttachment } from "@/lib/queries";
-import { BLOB_TOKEN } from "@/lib/blob";
+import { deleteObject } from "@/lib/r2";
 
 /**
  * Delete an attachment: remove the DB row (ownership-checked) then best-effort
@@ -19,9 +18,9 @@ export async function DELETE(
   if (!deleted) return Response.json({ error: "Not found" }, { status: 404 });
 
   try {
-    await del(deleted.url, { token: BLOB_TOKEN });
+    await deleteObject(deleted.pathname);
   } catch {
-    // ignore — blob may already be gone
+    // ignore — object may already be gone
   }
   return new Response(null, { status: 204 });
 }
