@@ -12,9 +12,9 @@ const PRIORITY_LABELS: Record<Priority, string> = {
   low: "Low",
 };
 const PRIORITY_COLORS: Record<Priority, string> = {
-  high: "#f43f5e",   // rose
-  medium: "#DFA649", // amber
-  low: "#64748b",    // slate
+  high: "var(--destructive)",       // rich mahogany, brightened for legibility
+  medium: "#9F8DEF",                // soft periwinkle
+  low: "var(--muted-foreground)",   // themed neutral
 };
 
 type ProjectRow = {

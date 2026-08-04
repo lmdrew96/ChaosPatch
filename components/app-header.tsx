@@ -41,7 +41,7 @@ export function AppHeader() {
   return (
     <>
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-3 rounded-full border border-border bg-card/90 backdrop-blur px-4 py-2 shadow-lg">
+        <div className="flex items-center gap-3 rounded-full border border-border bg-card/90 backdrop-blur px-4 py-2 shadow-lg shadow-primary/10">
           <Link
             href="/dashboard"
             className="text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors"

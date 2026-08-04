@@ -78,7 +78,7 @@ export function InsightsContent({
           <h1
             className="text-xl font-bold tracking-tight"
             style={{
-              background: "linear-gradient(135deg, #88739E, #DFA649, #8CBDB9)",
+              background: "linear-gradient(135deg, #9F8DEF, #AFCEFD, #3A5874)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -105,8 +105,8 @@ export function InsightsContent({
           label="Active"
           value={activeCount}
           sub={prioritySub}
-          accent="#88739E"
-          glow="rgba(136, 115, 158, 0.4)"
+          accent="#9F8DEF"
+          glow="rgba(159, 141, 239, 0.4)"
           delay={0}
         />
         <StatCard
@@ -117,24 +117,24 @@ export function InsightsContent({
               ? `${Math.round((totals.done / totals.total) * 100)}% completion rate`
               : undefined
           }
-          accent="#8CBDB9"
-          glow="rgba(140, 189, 185, 0.4)"
+          accent="#3A5874"
+          glow="rgba(58, 88, 116, 0.4)"
           delay={80}
         />
         <StatCard
           label="Daily Rate"
           value={dailyRateDisplay}
           sub={dailySub}
-          accent="#DFA649"
-          glow="rgba(223, 166, 73, 0.4)"
+          accent="#AFCEFD"
+          glow="rgba(175, 206, 253, 0.4)"
           delay={160}
         />
         <StatCard
           label="Projects"
           value={summary.length}
           sub={busiest ? `busiest: ${busiest.project_name}` : undefined}
-          accent="#244952"
-          glow="rgba(36, 73, 82, 0.4)"
+          accent="#4E3459"
+          glow="rgba(78, 52, 89, 0.4)"
           delay={240}
         />
       </div>

@@ -5,20 +5,20 @@ import { Button } from '@/components/ui/button';
 export default function LandingPage() {
   return (
     <div className="relative overflow-hidden bg-background text-foreground">
-      {/* Animated background blobs — ADHDesigns palette */}
+      {/* Animated background blobs — futuristic jewel-tone palette */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-background" />
         <div
           className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--adhd-lavender) 60%, transparent)' }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--theme-ice) 60%, transparent)' }}
         />
         <div
           className="absolute top-1/3 right-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-2000"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--adhd-purple) 30%, transparent)' }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--theme-periwinkle) 30%, transparent)' }}
         />
         <div
           className="absolute bottom-0 right-1/3 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-4000"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--adhd-amber) 25%, transparent)' }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--theme-mahogany) 25%, transparent)' }}
         />
       </div>
 
@@ -30,7 +30,7 @@ export default function LandingPage() {
               className="font-[family-name:var(--font-display)] text-7xl md:text-8xl font-normal tracking-tight bg-clip-text text-transparent animate-fade-in leading-[1.15] pb-2"
               style={{
                 backgroundImage:
-                  'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
+                  'linear-gradient(to right, var(--theme-periwinkle), var(--theme-mahogany))',
               }}
             >
               ChaosPatch
@@ -39,7 +39,7 @@ export default function LandingPage() {
               className="h-1 w-24 mx-auto rounded-full"
               style={{
                 backgroundImage:
-                  'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
+                  'linear-gradient(to right, var(--theme-periwinkle), var(--theme-mahogany))',
               }}
             />
           </div>
@@ -76,7 +76,7 @@ export default function LandingPage() {
           className="font-[family-name:var(--font-display)] text-5xl md:text-6xl font-normal italic tracking-tight text-center mb-16 bg-clip-text text-transparent leading-[1.25] pb-2"
           style={{
             backgroundImage:
-              'linear-gradient(to right, var(--adhd-purple), var(--adhd-amber))',
+              'linear-gradient(to right, var(--theme-periwinkle), var(--theme-mahogany))',
           }}
         >
           Why ChaosPatch?
@@ -94,7 +94,7 @@ export default function LandingPage() {
             >
               <feature.Icon
                 aria-hidden
-                className="h-10 w-10 mb-4 text-[color:var(--adhd-purple)]"
+                className="h-10 w-10 mb-4 text-[color:var(--theme-periwinkle)]"
                 strokeWidth={1.5}
               />
               <h3 className="font-[family-name:var(--font-display)] text-2xl font-normal text-card-foreground mb-2">{feature.title}</h3>

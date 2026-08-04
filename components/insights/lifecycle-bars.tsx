@@ -13,10 +13,10 @@ const BUCKET_LABELS: Record<Bucket, string> = {
   long: "1mo+",
 };
 const BUCKET_COLORS: Record<Bucket, string> = {
-  sameDay: "#849440", // olive — quick ship
-  week: "#8CBDB9",    // sage teal — normal cadence
-  month: "#DFA649",   // amber — slow burn
-  long: "#88739E",    // mauve — deep cuts
+  sameDay: "#AFCEFD", // baby blue ice — quick ship
+  week: "#9F8DEF",    // soft periwinkle — normal cadence
+  month: "#3A5874",   // dusk blue — slow burn
+  long: "#4E3459",    // vintage grape — deep cuts
 };
 
 const bucketFor = (days: number): Bucket => {

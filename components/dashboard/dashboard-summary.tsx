@@ -22,7 +22,7 @@ export function DashboardSummary({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
       <Card className="md:col-span-2">
         <CardHeader
-          icon={<Zap className="h-4 w-4 text-amber-500" />}
+          icon={<Zap className="h-4 w-4 text-primary" />}
           title="In Progress"
           count={counts.inProgress}
           right={
@@ -50,7 +50,7 @@ export function DashboardSummary({
 
       <Card>
         <CardHeader
-          icon={<CircleCheck className="h-4 w-4 text-emerald-500" />}
+          icon={<CircleCheck className="h-4 w-4 text-success" />}
           title="Recently Done"
           count={recentlyCompleted.length}
         />

@@ -4,7 +4,7 @@ import type { PatchWithProject } from "@/lib/queries";
 import { useContainerWidth } from "@/hooks/use-container-width";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const HEAT_COLOR = "#88739E"; // mauve purple
+const HEAT_COLOR = "#9F8DEF"; // soft periwinkle
 
 export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) {
   const { ref, width } = useContainerWidth();
@@ -141,7 +141,7 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
                     width={cellW - 3}
                     height={cellH - 3}
                     fill="none"
-                    stroke="#DFA649"
+                    stroke="#AFCEFD"
                     strokeWidth={1}
                     rx={1}
                     opacity={0.95}

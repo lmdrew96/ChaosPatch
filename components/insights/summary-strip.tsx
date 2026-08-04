@@ -49,7 +49,7 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
                     cy="22"
                     r={R}
                     fill="none"
-                    stroke="#10b981"
+                    stroke="#3A5874"
                     strokeWidth="6"
                     strokeDasharray={`${doneLen} ${C}`}
                     strokeDashoffset="0"
@@ -61,7 +61,7 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
                     cy="22"
                     r={R}
                     fill="none"
-                    stroke="#f59e0b"
+                    stroke="#9F8DEF"
                     strokeWidth="6"
                     strokeDasharray={`${ipLen} ${C}`}
                     strokeDashoffset={`${-doneLen}`}
@@ -73,7 +73,7 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
                     cy="22"
                     r={R}
                     fill="none"
-                    stroke="#3b82f6"
+                    stroke="#AFCEFD"
                     strokeWidth="6"
                     strokeDasharray={`${openLen} ${C}`}
                     strokeDashoffset={`${-(doneLen + ipLen)}`}
@@ -99,9 +99,9 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
 
         {/* Stats */}
         <div className="hidden sm:flex items-center gap-6">
-          <MiniStat label="Done" value={totals.done} color="#10b981" />
-          <MiniStat label="Active" value={totals.in_progress} color="#f59e0b" />
-          <MiniStat label="Open" value={totals.open} color="#3b82f6" />
+          <MiniStat label="Done" value={totals.done} color="#3A5874" />
+          <MiniStat label="Active" value={totals.in_progress} color="#9F8DEF" />
+          <MiniStat label="Open" value={totals.open} color="#AFCEFD" />
           <MiniStat label="Rate" value={`${completionRate}%`} />
         </div>
 
@@ -116,9 +116,9 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
 
       {/* Mobile stats */}
       <div className="flex sm:hidden items-center gap-4 pt-2 border-t border-border/50">
-        <MiniStat label="Done" value={totals.done} color="#10b981" />
-        <MiniStat label="Active" value={totals.in_progress} color="#f59e0b" />
-        <MiniStat label="Open" value={totals.open} color="#3b82f6" />
+        <MiniStat label="Done" value={totals.done} color="#3A5874" />
+        <MiniStat label="Active" value={totals.in_progress} color="#9F8DEF" />
+        <MiniStat label="Open" value={totals.open} color="#AFCEFD" />
         <MiniStat label="Rate" value={`${completionRate}%`} />
       </div>
     </div>

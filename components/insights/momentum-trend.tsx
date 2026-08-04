@@ -24,7 +24,7 @@ const MONTHS = [
 
 const TOP_N = 6;
 const OTHER_KEY = "Other";
-const OTHER_COLOR = "#8A8780"; // neutral warm gray for the long tail
+const OTHER_COLOR = "var(--muted-foreground)"; // themed neutral for the long tail
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 // Local calendar-day key — deliberately NOT toISOString (that's UTC and would
@@ -265,7 +265,7 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
         </g>
 
         {/* Peak marker */}
-        <circle cx={cx(peakIdx)} cy={yFor(peakVal)} r={3} fill="#DFA649" />
+        <circle cx={cx(peakIdx)} cy={yFor(peakVal)} r={3} fill="#AFCEFD" />
 
         {/* X-axis date labels */}
         {cells.map((c, i) =>
