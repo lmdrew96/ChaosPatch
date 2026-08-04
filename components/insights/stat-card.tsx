@@ -17,7 +17,7 @@ export function StatCard({
 }) {
   return (
     <div
-      className="relative rounded-lg border border-border bg-card p-4 overflow-hidden animate-fade-in"
+      className="hud-panel relative rounded-lg border border-border bg-card p-4 overflow-hidden animate-fade-in"
       style={{
         animationDelay: `${delay}ms`,
         borderLeftWidth: 3,

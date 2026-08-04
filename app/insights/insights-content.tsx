@@ -140,7 +140,7 @@ export function InsightsContent({
       </div>
 
       {/* Active patches — beeswarm by age, lanes by priority */}
-      <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-5">
           Active Patches
         </h2>
@@ -148,7 +148,7 @@ export function InsightsContent({
       </div>
 
       {/* Completion momentum — daily volume stacked by project + 7-day avg */}
-      <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Completion Momentum
         </h2>
@@ -156,7 +156,7 @@ export function InsightsContent({
       </div>
 
       {/* Completion heatmap — day of week × hour of day */}
-      <div className="rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Completion Rhythm
         </h2>

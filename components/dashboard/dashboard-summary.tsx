@@ -94,7 +94,7 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-lg border border-border bg-card/60 backdrop-blur p-4 ${className}`}
+      className={`hud-panel rounded-lg border border-border bg-card/60 backdrop-blur p-4 ${className}`}
     >
       {children}
     </div>

@@ -216,7 +216,11 @@ export function LifecycleBars({ patches }: { patches: PatchWithProject[] }) {
           <div key={b} className="flex items-center gap-1.5">
             <span
               className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: BUCKET_COLORS[b], opacity: 0.85 }}
+              style={{
+                backgroundColor: BUCKET_COLORS[b],
+                opacity: 0.85,
+                boxShadow: `0 0 5px ${BUCKET_COLORS[b]}`,
+              }}
             />
             <span>{BUCKET_LABELS[b]}</span>
           </div>

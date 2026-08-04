@@ -195,7 +195,11 @@ export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
           <div key={p} className="flex items-center gap-1.5">
             <span
               className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: PRIORITY_COLORS[p], opacity: 0.85 }}
+              style={{
+                backgroundColor: PRIORITY_COLORS[p],
+                opacity: 0.85,
+                boxShadow: `0 0 5px ${PRIORITY_COLORS[p]}`,
+              }}
             />
             <span>{PRIORITY_LABELS[p]}</span>
           </div>

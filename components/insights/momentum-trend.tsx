@@ -318,7 +318,11 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
           <div key={key} className="flex items-center gap-1.5">
             <span
               className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: colorFor(key), opacity: 0.8 }}
+              style={{
+                backgroundColor: colorFor(key),
+                opacity: 0.8,
+                boxShadow: `0 0 5px ${colorFor(key)}`,
+              }}
             />
             <span>
               {key.length > 14 ? key.slice(0, 13) + "…" : key}

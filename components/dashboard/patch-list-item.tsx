@@ -42,7 +42,8 @@ export function PatchListItem({
           {patch.title}
         </span>
         {patch.priority === "high" && (
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-destructive bg-destructive/10 border border-destructive/30 rounded px-1.5 py-0.5 shrink-0">
+          <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-destructive bg-destructive/10 border border-destructive/30 rounded px-1.5 py-0.5 shrink-0">
+            <span className="hud-dot animate-pulse" aria-hidden />
             High
           </span>
         )}

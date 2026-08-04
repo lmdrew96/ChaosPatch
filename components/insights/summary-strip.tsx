@@ -27,7 +27,7 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
   const openLen = (totals.open / safeTotal) * C;
 
   return (
-    <div className="rounded-lg border border-border bg-card/60 backdrop-blur p-4 animate-fade-in">
+    <div className="hud-panel rounded-lg border border-border bg-card/60 backdrop-blur p-4 animate-fade-in">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           {/* Donut — done · in_progress · open */}

@@ -26,8 +26,11 @@ export default function LandingPage() {
       <div className="flex flex-col items-center justify-center px-4 py-32 min-h-[calc(100vh-64px)]">
         <div className="text-center max-w-3xl space-y-8">
           <div className="space-y-4">
+            <p className="font-mono text-xs tracking-[0.35em] uppercase text-muted-foreground animate-fade-in">
+              // patch_tracker.sys
+            </p>
             <h1
-              className="font-[family-name:var(--font-display)] text-7xl md:text-8xl font-normal tracking-tight bg-clip-text text-transparent animate-fade-in leading-[1.15] pb-2"
+              className="font-mono text-6xl md:text-7xl font-black tracking-tight bg-clip-text text-transparent animate-fade-in leading-[1.15] pb-2"
               style={{
                 backgroundImage:
                   'linear-gradient(to right, var(--theme-periwinkle), var(--theme-mahogany))',
@@ -44,10 +47,10 @@ export default function LandingPage() {
             />
           </div>
 
-          <p className="font-[family-name:var(--font-display)] text-2xl md:text-3xl text-foreground/85 leading-relaxed animate-fade-in animation-delay-200">
+          <p className="text-2xl md:text-3xl text-foreground/85 leading-relaxed animate-fade-in animation-delay-200">
             A lightweight patch tracker for developers — log bug fixes and{" "}
             <em>refactors</em> across your projects.
-            <span className="block font-sans text-base md:text-lg mt-3 text-muted-foreground not-italic">
+            <span className="block font-mono text-[11px] tracking-widest uppercase mt-3 text-muted-foreground not-italic">
               Manage patches from your browser or directly from Claude Code.
             </span>
           </p>
@@ -73,7 +76,7 @@ export default function LandingPage() {
       {/* Features */}
       <div className="px-4 py-16 max-w-6xl mx-auto">
         <h2
-          className="font-[family-name:var(--font-display)] text-5xl md:text-6xl font-normal italic tracking-tight text-center mb-16 bg-clip-text text-transparent leading-[1.25] pb-2"
+          className="font-mono text-4xl md:text-5xl font-black tracking-tight text-center mb-16 bg-clip-text text-transparent leading-[1.25] pb-2"
           style={{
             backgroundImage:
               'linear-gradient(to right, var(--theme-periwinkle), var(--theme-mahogany))',
@@ -90,14 +93,14 @@ export default function LandingPage() {
           ].map((feature) => (
             <div
               key={feature.title}
-              className="p-6 rounded-2xl border border-border bg-card/70 backdrop-blur hover:bg-card transition-all duration-300 hover:shadow-xl hover:scale-105"
+              className="hud-panel p-6 rounded-2xl border border-border bg-card/70 backdrop-blur hover:bg-card transition-all duration-300 hover:shadow-xl hover:scale-105"
             >
               <feature.Icon
                 aria-hidden
                 className="h-10 w-10 mb-4 text-[color:var(--theme-periwinkle)]"
                 strokeWidth={1.5}
               />
-              <h3 className="font-[family-name:var(--font-display)] text-2xl font-normal text-card-foreground mb-2">{feature.title}</h3>
+              <h3 className="text-2xl font-bold text-card-foreground mb-2">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.desc}</p>
             </div>
           ))}
