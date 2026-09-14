@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { Paperclip, X } from "lucide-react";
+import { Check, Copy, Paperclip, X } from "lucide-react";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { Markdown } from "@/components/markdown";
@@ -83,6 +83,38 @@ function DueDateChip({ dueDate }: { dueDate: string }) {
     >
       {label}
     </span>
+  );
+}
+
+// Shows the short ID prefix agents cite (e.g. "dcc26973"); click copies the full UUID.
+function PatchIdChip({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy patch ID", err);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={`Patch ID: ${id} — click to copy`}
+      aria-label={copied ? "Patch ID copied" : `Copy patch ID ${id}`}
+      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:text-foreground/80 hover:border-muted-foreground/40 transition-colors"
+    >
+      <span>ID {id.slice(0, 8)}</span>
+      {copied ? (
+        <Check aria-hidden className="h-2.5 w-2.5 text-primary" />
+      ) : (
+        <Copy aria-hidden className="h-2.5 w-2.5" />
+      )}
+    </button>
   );
 }
 
@@ -352,16 +384,15 @@ function PatchRow({
                   patchId={patch.id}
                   attachments={patch.attachments ?? []}
                 />
-                {(patch.started_at || patch.completed_at) && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
-                    {patch.started_at && (
-                      <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
-                    )}
-                    {patch.completed_at && (
-                      <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
-                    )}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
+                  <PatchIdChip id={patch.id} />
+                  {patch.started_at && (
+                    <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
+                  )}
+                  {patch.completed_at && (
+                    <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
+                  )}
+                </div>
                 {showNoteInput ? (
                   <div className="space-y-2">
                     <textarea

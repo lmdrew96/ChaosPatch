@@ -70,6 +70,9 @@ export function HomeContent({
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (p) =>
+          // Agents cite patches by UUID — let a pasted ID (or its prefix) find it.
+          // Min 4 chars so short text queries don't match random ID prefixes.
+          (q.trim().length >= 4 && p.id.toLowerCase().startsWith(q.trim())) ||
           p.title.toLowerCase().includes(q) ||
           (p.notes && p.notes.toLowerCase().includes(q)) ||
           p.tags.some((t) => t.toLowerCase().includes(q))
