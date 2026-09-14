@@ -11,6 +11,8 @@ next-env.d.ts
 
 # Dependencies
 node_modules/
+# pnpm is the package manager — never commit an npm lockfile
+package-lock.json
 
 # Env files
 .env
