@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Patch } from "@/lib/queries";
 import { TagFilterBar } from "@/components/tag-filter-bar";
+import { useUrlParam } from "@/hooks/use-url-param";
+import { matchesPatchSearch } from "@/lib/patch-search";
 import { PatchList } from "./patch-list";
 
 type SelectionProps = {
@@ -64,10 +66,12 @@ function CollapsibleSection({
   );
 }
 
-type StatusFilter = "all" | "open" | "in_progress" | "done";
-type PriorityFilter = "all" | "low" | "medium" | "high";
-type SortField = "created" | "priority" | "status";
-type SortDir = "asc" | "desc";
+const STATUS_FILTERS = ["all", "open", "in_progress", "done"] as const;
+const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
+const SORT_FIELDS = ["created", "priority", "status"] as const;
+const SORT_DIRS = ["asc", "desc"] as const;
+
+type SortField = (typeof SORT_FIELDS)[number];
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 };
@@ -87,11 +91,16 @@ export function ProjectPatchView({
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
-  const [tagFilters, setTagFilters] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<SortField>("status");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // Filter, sort, and search state lives in the URL so it survives back-nav and refresh.
+  const [statusFilter, setStatusFilter] = useUrlParam("status", "all", STATUS_FILTERS);
+  const [priorityFilter, setPriorityFilter] = useUrlParam("priority", "all", PRIORITY_FILTERS);
+  const [tagParam, setTagParam] = useUrlParam<string>("tags", "");
+  const [sortField, setSortField] = useUrlParam("sort", "status", SORT_FIELDS);
+  const [sortDir, setSortDir] = useUrlParam("dir", "asc", SORT_DIRS);
+  const [searchQuery, setSearchQuery] = useUrlParam<string>("q", "");
+
+  // Tags can't contain commas (the tag input splits on them), so a joined param is safe.
+  const tagFilters = useMemo(() => (tagParam ? tagParam.split(",") : []), [tagParam]);
 
   // Bulk-select mode (GUI parity with cp_batch_update).
   const [selectMode, setSelectMode] = useState(false);
@@ -173,9 +182,10 @@ export function ProjectPatchView({
   }, [patches]);
 
   function toggleTag(tag: string) {
-    setTagFilters((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    const next = tagFilters.includes(tag)
+      ? tagFilters.filter((t) => t !== tag)
+      : [...tagFilters, tag];
+    setTagParam(next.join(","));
   }
 
   const filteredPatches = useMemo(() => {
@@ -191,6 +201,9 @@ export function ProjectPatchView({
       result = result.filter((p) =>
         p.tags.some((t) => tagFilters.includes(t))
       );
+    }
+    if (searchQuery.trim()) {
+      result = result.filter((p) => matchesPatchSearch(p, searchQuery));
     }
 
     result.sort((a, b) => {
@@ -210,7 +223,13 @@ export function ProjectPatchView({
     });
 
     return result;
-  }, [patches, statusFilter, priorityFilter, tagFilters, sortField, sortDir]);
+  }, [patches, statusFilter, priorityFilter, tagFilters, searchQuery, sortField, sortDir]);
+
+  // Archived section ignores status/priority/tag chips (as before) but honors search.
+  const filteredArchived = useMemo(
+    () => archivedPatches.filter((p) => matchesPatchSearch(p, searchQuery)),
+    [archivedPatches, searchQuery]
+  );
 
   if (patches.length === 0 && archivedPatches.length === 0) {
     return (
@@ -326,8 +345,16 @@ export function ProjectPatchView({
           </button>
         </div>
 
-        {/* Sort controls */}
+        {/* Search + sort controls */}
         <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search patches..."
+            aria-label="Search patches"
+            className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
+          />
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value as SortField)}
@@ -338,7 +365,7 @@ export function ProjectPatchView({
             <option value="priority">Sort: Priority</option>
           </select>
           <button
-            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            onClick={() => setSortDir(sortDir === "desc" ? "asc" : "desc")}
             className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
             title={sortDir === "desc" ? "Descending" : "Ascending"}
             aria-label={sortDir === "desc" ? "Sort descending" : "Sort ascending"}
@@ -363,11 +390,11 @@ export function ProjectPatchView({
         tags={allTags}
         active={tagFilters}
         onToggle={toggleTag}
-        onClear={() => setTagFilters([])}
+        onClear={() => setTagParam("")}
       />
 
       {/* Patch list */}
-      {filteredPatches.length === 0 && archivedPatches.length === 0 ? (
+      {filteredPatches.length === 0 && filteredArchived.length === 0 ? (
         <p className="text-center text-muted-foreground/50 text-sm py-8">
           No patches match your filters.
         </p>
@@ -380,7 +407,7 @@ export function ProjectPatchView({
           />
           <CollapsibleSection
             label="Archived"
-            patches={archivedPatches}
+            patches={filteredArchived}
             existingTags={existingTags}
             {...selectionProps}
           />
@@ -400,7 +427,7 @@ export function ProjectPatchView({
           />
           <CollapsibleSection
             label="Archived"
-            patches={archivedPatches}
+            patches={filteredArchived}
             existingTags={existingTags}
             {...selectionProps}
           />

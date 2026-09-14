@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
@@ -8,15 +8,22 @@ import { SummaryStrip } from "@/components/insights/summary-strip";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 import { DueDateChip } from "@/app/projects/[slug]/patch-list";
+import { useUrlParam } from "@/hooks/use-url-param";
+import { matchesPatchSearch } from "@/lib/patch-search";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type ViewMode = "projects" | "patches";
-type StatusFilter = "all" | "open" | "in_progress" | "done";
-type PriorityFilter = "all" | "low" | "medium" | "high";
-type ProjectSortField = "name" | "open_count" | "created";
-type SortField = "created" | "priority" | "status" | "project";
-type SortDir = "asc" | "desc";
+const VIEW_MODES = ["projects", "patches"] as const;
+const STATUS_FILTERS = ["all", "open", "in_progress", "done"] as const;
+const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
+const PROJECT_SORT_FIELDS = ["name", "open_count", "created"] as const;
+const SORT_FIELDS = ["created", "priority", "status", "project"] as const;
+const SORT_DIRS = ["asc", "desc"] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+type PriorityFilter = (typeof PRIORITY_FILTERS)[number];
+type ProjectSortField = (typeof PROJECT_SORT_FIELDS)[number];
+type SortField = (typeof SORT_FIELDS)[number];
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 const STATUS_ORDER = { in_progress: 0, open: 1, done: 2 };
@@ -32,21 +39,26 @@ export function HomeContent({
   patches: PatchWithProject[];
   summary: ProjectSummary[];
 }) {
-  const [view, setView] = useState<ViewMode>("projects");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
-  const [tagFilters, setTagFilters] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<SortField>("created");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [projectSort, setProjectSort] = useState<ProjectSortField>("open_count");
-  const [projectSortDir, setProjectSortDir] = useState<SortDir>("desc");
-  const [searchQuery, setSearchQuery] = useState("");
+  // View, filter, and sort state lives in the URL so it survives back-nav and refresh.
+  const [view, setView] = useUrlParam("view", "projects", VIEW_MODES);
+  const [statusFilter, setStatusFilter] = useUrlParam("status", "all", STATUS_FILTERS);
+  const [priorityFilter, setPriorityFilter] = useUrlParam("priority", "all", PRIORITY_FILTERS);
+  const [tagParam, setTagParam] = useUrlParam<string>("tags", "");
+  const [sortField, setSortField] = useUrlParam("sort", "created", SORT_FIELDS);
+  const [sortDir, setSortDir] = useUrlParam("dir", "desc", SORT_DIRS);
+  const [projectFilter, setProjectFilter] = useUrlParam<string>("project", "all");
+  const [projectSort, setProjectSort] = useUrlParam("psort", "open_count", PROJECT_SORT_FIELDS);
+  const [projectSortDir, setProjectSortDir] = useUrlParam("pdir", "desc", SORT_DIRS);
+  const [searchQuery, setSearchQuery] = useUrlParam<string>("q", "");
+
+  // Tags can't contain commas (the tag input splits on them), so a joined param is safe.
+  const tagFilters = useMemo(() => (tagParam ? tagParam.split(",") : []), [tagParam]);
 
   function toggleTag(tag: string) {
-    setTagFilters((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    const next = tagFilters.includes(tag)
+      ? tagFilters.filter((t) => t !== tag)
+      : [...tagFilters, tag];
+    setTagParam(next.join(","));
   }
 
   // ── Filtered + sorted patches ──────────────────────────────────────────
@@ -68,16 +80,7 @@ export function HomeContent({
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          // Agents cite patches by UUID — let a pasted ID (or its prefix) find it.
-          // Min 4 chars so short text queries don't match random ID prefixes.
-          (q.trim().length >= 4 && p.id.toLowerCase().startsWith(q.trim())) ||
-          p.title.toLowerCase().includes(q) ||
-          (p.notes && p.notes.toLowerCase().includes(q)) ||
-          p.tags.some((t) => t.toLowerCase().includes(q))
-      );
+      result = result.filter((p) => matchesPatchSearch(p, searchQuery));
     }
 
     result.sort((a, b) => {
@@ -187,7 +190,7 @@ export function HomeContent({
                 <option value="created">Sort: Date</option>
               </select>
               <button
-                onClick={() => setProjectSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+                onClick={() => setProjectSortDir(projectSortDir === "desc" ? "asc" : "desc")}
                 className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
                 title={projectSortDir === "desc" ? "Descending" : "Ascending"}
                 aria-label={projectSortDir === "desc" ? "Sort descending" : "Sort ascending"}
@@ -221,7 +224,7 @@ export function HomeContent({
                 <option value="project">Sort: Project</option>
               </select>
               <button
-                onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+                onClick={() => setSortDir(sortDir === "desc" ? "asc" : "desc")}
                 className="inline-flex items-center text-muted-foreground hover:text-foreground/70 border border-border rounded-md px-2 py-1 transition-colors"
                 title={sortDir === "desc" ? "Newest first" : "Oldest first"}
                 aria-label={sortDir === "desc" ? "Newest first" : "Oldest first"}
@@ -294,7 +297,7 @@ export function HomeContent({
             tags={allTags}
             active={tagFilters}
             onToggle={toggleTag}
-            onClear={() => setTagFilters([])}
+            onClear={() => setTagParam("")}
           />
         )}
       </div>
