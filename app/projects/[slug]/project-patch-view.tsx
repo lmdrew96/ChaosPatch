@@ -360,10 +360,11 @@ export function ProjectPatchView({
         {/* Search + sort controls */}
         <div className="flex items-center gap-2">
           <input
+            data-search-input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search patches..."
+            placeholder="Search patches… ( / )"
             aria-label="Search patches"
             className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
           />

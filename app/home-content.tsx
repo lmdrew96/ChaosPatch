@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
@@ -10,6 +10,7 @@ import { PRIORITY_STYLES } from "@/lib/priority-styles";
 import { DueDateChip } from "@/app/projects/[slug]/patch-list";
 import { useUrlParam } from "@/hooks/use-url-param";
 import { matchesPatchSearch } from "@/lib/patch-search";
+import { FOCUS_SEARCH_EVENT } from "@/components/keyboard-shortcuts";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,18 @@ export function HomeContent({
 
   // Tags can't contain commas (the tag input splits on them), so a joined param is safe.
   const tagFilters = useMemo(() => (tagParam ? tagParam.split(",") : []), [tagParam]);
+
+  // "/" from the Projects view: switch to Patches, then focus its search box.
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    function onFocusSearch() {
+      setView("patches");
+      // The input mounts on the next render after the view switch.
+      setTimeout(() => searchRef.current?.focus(), 0);
+    }
+    window.addEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
+    return () => window.removeEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
+  }, [setView]);
 
   function toggleTag(tag: string) {
     const next = tagFilters.includes(tag)
@@ -207,10 +220,13 @@ export function HomeContent({
           {view === "patches" && (
             <div className="flex items-center gap-2">
               <input
+                ref={searchRef}
+                data-search-input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search patches..."
+                placeholder="Search patches… ( / )"
+                aria-label="Search patches"
                 className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
               />
               <select

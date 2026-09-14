@@ -4,6 +4,8 @@ import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { Keyboard } from "lucide-react";
+import { SHORTCUTS_HELP_EVENT } from "@/components/keyboard-shortcuts";
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -93,6 +95,15 @@ export function AppHeader() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </Link>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent(SHORTCUTS_HELP_EVENT))}
+              className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition-colors"
+              title="Keyboard shortcuts (?)"
+              aria-label="Keyboard shortcuts"
+            >
+              <Keyboard aria-hidden className="h-3.5 w-3.5" />
+            </button>
             <ThemeToggle />
             <UserButton />
           </div>
