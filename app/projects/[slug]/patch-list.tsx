@@ -150,6 +150,7 @@ function PatchRow({
   const [editDueDate, setEditDueDate] = useState(patch.due_date ?? "");
   const [editNotes, setEditNotes] = useState(patch.notes ?? "");
   const [editSpec, setEditSpec] = useState(patch.spec ?? "");
+  const [error, setError] = useState("");
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const editTitleRef = useRef<HTMLInputElement>(null);
 
@@ -166,16 +167,40 @@ function PatchRow({
     setTimeout(() => editTitleRef.current?.focus(), 50);
   }
 
+  // Runs a mutation against this patch. On failure, sets an inline error and
+  // returns false so callers keep any open editor (and the user's typed text).
+  async function mutate(init: RequestInit): Promise<boolean> {
+    setError("");
+    try {
+      const res = await fetch(`/api/patches/${patch.id}`, init);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? `Request failed (${res.status})`);
+        return false;
+      }
+    } catch (err) {
+      console.error("Patch mutation failed", err);
+      setError("Couldn't reach the server — check your connection and try again.");
+      return false;
+    }
+    startTransition(() => router.refresh());
+    return true;
+  }
+
+  const patchBody = (body: object): RequestInit => ({
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
   async function saveEdit() {
     if (!editTitle.trim()) return;
     const parsedTags = editTagsInput
       .split(",")
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
-    await fetch(`/api/patches/${patch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const ok = await mutate(
+      patchBody({
         title: editTitle.trim(),
         priority: editPriority,
         tags: parsedTags,
@@ -185,55 +210,36 @@ function PatchRow({
         notes: editNotes.trim() === "" ? null : editNotes,
         // Empty string clears the spec; any text sets it.
         spec: editSpec.trim() === "" ? null : editSpec,
-      }),
-    });
-    setEditing(false);
-    startTransition(() => router.refresh());
+      })
+    );
+    if (ok) setEditing(false);
   }
 
   async function advance() {
     if (!nextStatus) return;
-    await fetch(`/api/patches/${patch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    startTransition(() => router.refresh());
+    await mutate(patchBody({ status: nextStatus }));
   }
 
   async function reopen() {
-    await fetch(`/api/patches/${patch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reopen: "open" }),
-    });
-    startTransition(() => router.refresh());
+    await mutate(patchBody({ reopen: "open" }));
   }
 
   async function addNote() {
     if (!noteText.trim()) return;
-    await fetch(`/api/patches/${patch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note: noteText.trim() }),
-    });
-    setNoteText("");
-    setShowNoteInput(false);
-    startTransition(() => router.refresh());
+    const ok = await mutate(patchBody({ note: noteText.trim() }));
+    if (ok) {
+      setNoteText("");
+      setShowNoteInput(false);
+    }
   }
 
   async function remove() {
-    await fetch(`/api/patches/${patch.id}`, { method: "DELETE" });
-    startTransition(() => router.refresh());
+    const ok = await mutate({ method: "DELETE" });
+    if (!ok) setConfirmDelete(false);
   }
 
   async function toggleArchive() {
-    await fetch(`/api/patches/${patch.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ archive: !patch.archived }),
-    });
-    startTransition(() => router.refresh());
+    await mutate(patchBody({ archive: !patch.archived }));
   }
 
   function handleNoteToggle() {
@@ -524,6 +530,11 @@ function PatchRow({
           </div>
           )}
         </div>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-red-400">
+          {error}
+        </p>
       )}
     </li>
   );

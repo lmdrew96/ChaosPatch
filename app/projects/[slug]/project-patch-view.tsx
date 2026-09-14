@@ -89,6 +89,7 @@ export function ProjectPatchView({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const statusCounts = useMemo(() => {
     const counts = { open: 0, in_progress: 0, done: 0 };
@@ -112,25 +113,42 @@ export function ProjectPatchView({
     setSelectedIds(new Set());
   }
 
+  // POSTs a bulk mutation. On failure, sets an inline error and returns false
+  // so the caller keeps the current selection / confirm state.
+  async function post(url: string, body: object): Promise<boolean> {
+    setActionError("");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setActionError(data?.error ?? `Request failed (${res.status})`);
+        return false;
+      }
+    } catch (err) {
+      console.error("Bulk mutation failed", err);
+      setActionError("Couldn't reach the server — check your connection and try again.");
+      return false;
+    }
+    startTransition(() => router.refresh());
+    return true;
+  }
+
   async function bulkAction(action: "start" | "complete" | "reopen") {
     if (selectedIds.size === 0) return;
-    await fetch("/api/patches/batch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patch_ids: Array.from(selectedIds), action }),
+    const ok = await post("/api/patches/batch", {
+      patch_ids: Array.from(selectedIds),
+      action,
     });
-    exitSelect();
-    startTransition(() => router.refresh());
+    if (ok) exitSelect();
   }
 
   async function archiveCompleted() {
-    await fetch("/api/patches/archive-completed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project: slug }),
-    });
-    setArchiveConfirm(false);
-    startTransition(() => router.refresh());
+    const ok = await post("/api/patches/archive-completed", { project: slug });
+    if (ok) setArchiveConfirm(false);
   }
 
   const selectionProps: SelectionProps = {
@@ -325,6 +343,12 @@ export function ProjectPatchView({
         </div>
       </div>
 
+      {actionError && (
+        <p role="alert" className="text-xs text-red-400">
+          {actionError}
+        </p>
+      )}
+
       {/* Tag filter row */}
       <TagFilterBar
         tags={allTags}
@@ -380,6 +404,11 @@ export function ProjectPatchView({
         <span className="text-xs tabular-nums text-muted-foreground">
           {selectedIds.size} selected
         </span>
+        {actionError && (
+          <span role="alert" className="text-xs text-red-400 max-w-[16rem] truncate" title={actionError}>
+            {actionError}
+          </span>
+        )}
         <div className="h-4 w-px bg-border" />
         <button
           onClick={() => bulkAction("start")}
