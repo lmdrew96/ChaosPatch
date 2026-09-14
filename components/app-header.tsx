@@ -19,6 +19,7 @@ function ThemeToggle() {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className="text-muted-foreground hover:text-foreground transition-colors"
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? (
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,6 +55,7 @@ export function AppHeader() {
               href="/insights"
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="Insights"
+              aria-label="Insights"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -74,6 +76,7 @@ export function AppHeader() {
               href="/settings"
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="Settings"
+              aria-label="Settings"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

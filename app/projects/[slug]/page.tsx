@@ -51,6 +51,8 @@ export default async function ProjectPage({
 
   const patchesWithImages = withImages(patches);
   const archivedWithImages = withImages(archivedPatches);
+  // Deleting a project cascades to archived patches too.
+  const totalPatches = patches.length + archivedPatches.length;
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-16">
@@ -104,7 +106,7 @@ export default async function ProjectPage({
             </h3>
             <p className="text-xs text-muted-foreground/70 mb-4">
               Permanently delete <strong className="text-foreground/70">{project.name}</strong> and
-              all {patches.length} {patches.length === 1 ? "patch" : "patches"}.
+              all {totalPatches} {totalPatches === 1 ? "patch" : "patches"}.
               This cannot be undone.
             </p>
             <DeleteProjectButton slug={slug} projectName={project.name} />

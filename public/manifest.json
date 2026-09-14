@@ -4,8 +4,8 @@
   "description": "Project-scoped patch tracker for developers",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#1E1830",
-  "theme_color": "#88739E",
+  "background_color": "#240202",
+  "theme_color": "#240202",
   "icons": [
     {
       "src": "/icon-192.png",
