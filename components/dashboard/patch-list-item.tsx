@@ -27,7 +27,7 @@ export function PatchListItem({
   return (
     <li className="list-none">
       <Link
-        href={`/projects/${patch.project_slug}`}
+        href={`/projects/${patch.project_slug}?patch=${patch.id}`}
         className="flex items-center gap-2.5 rounded-md border border-border/60 bg-card/40 px-3 py-2 hover:border-muted-foreground/40 hover:bg-card transition-colors"
       >
         <span

@@ -17,13 +17,17 @@ import { ProjectPatchView } from "./project-patch-view";
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ patch?: string | string[] }>;
 }) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
   const { slug } = await params;
+  const { patch: patchParam } = await searchParams;
+  const focusPatchId = typeof patchParam === "string" ? patchParam : undefined;
   const project = await getProjectBySlug(userId, slug);
   if (!project) notFound();
 
@@ -88,6 +92,7 @@ export default async function ProjectPage({
           slug={slug}
           patches={patchesWithImages}
           archivedPatches={archivedWithImages}
+          focusPatchId={focusPatchId}
           existingTags={existingTags}
         />
 

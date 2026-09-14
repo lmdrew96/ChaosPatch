@@ -11,6 +11,7 @@ type SelectionProps = {
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  focusId?: string;
 };
 
 function CollapsibleSection({
@@ -20,12 +21,16 @@ function CollapsibleSection({
   selectable,
   selectedIds,
   onToggleSelect,
+  focusId,
 }: {
   label: string;
   patches: Patch[];
   existingTags: string[];
 } & SelectionProps) {
-  const [open, setOpen] = useState(false);
+  // Start open when a deep link targets a patch inside this section.
+  const [open, setOpen] = useState(
+    () => !!focusId && patches.some((p) => p.id === focusId)
+  );
   if (patches.length === 0) return null;
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -48,6 +53,7 @@ function CollapsibleSection({
           <PatchList
             patches={patches}
             existingTags={existingTags}
+            focusId={focusId}
             selectable={selectable}
             selectedIds={selectedIds}
             onToggleSelect={onToggleSelect}
@@ -71,11 +77,13 @@ export function ProjectPatchView({
   patches,
   archivedPatches,
   existingTags,
+  focusPatchId,
 }: {
   slug: string;
   patches: Patch[];
   archivedPatches: Patch[];
   existingTags: string[];
+  focusPatchId?: string;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -155,6 +163,7 @@ export function ProjectPatchView({
     selectable: selectMode,
     selectedIds,
     onToggleSelect: toggleSelect,
+    focusId: focusPatchId,
   };
 
   const allTags = useMemo(() => {

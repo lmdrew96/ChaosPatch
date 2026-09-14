@@ -416,7 +416,7 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
   return (
     <li className="list-none">
       <Link
-        href={`/projects/${patch.project_slug}`}
+        href={`/projects/${patch.project_slug}?patch=${patch.id}`}
         className="block rounded-lg border border-border bg-card px-4 py-3 hover:border-muted-foreground/40 transition-colors cursor-pointer"
       >
         {/* Title */}

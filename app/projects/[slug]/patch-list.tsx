@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import type { Patch } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Paperclip, X } from "lucide-react";
+import { Check, Copy, Link2, Paperclip, X, type LucideIcon } from "lucide-react";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { Markdown } from "@/components/markdown";
@@ -33,12 +33,15 @@ export function PatchList({
   selectable = false,
   selectedIds,
   onToggleSelect,
+  focusId,
 }: {
   patches: Patch[];
   existingTags?: string[];
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  // Patch targeted by a ?patch=<id> deep link — expanded, scrolled to, highlighted.
+  focusId?: string;
 }) {
   return (
     <ul className="space-y-2">
@@ -47,6 +50,7 @@ export function PatchList({
           key={patch.id}
           patch={patch}
           existingTags={existingTags}
+          focused={patch.id === focusId}
           selectable={selectable}
           selected={selectedIds?.has(patch.id) ?? false}
           onSelectToggle={
@@ -92,17 +96,28 @@ export function DueDateChip({ dueDate }: { dueDate: string }) {
   );
 }
 
-// Shows the short ID prefix agents cite (e.g. "dcc26973"); click copies the full UUID.
-function PatchIdChip({ id }: { id: string }) {
+// Click-to-copy chip. `getValue` runs at click time so it can read
+// window.location without touching it during render.
+function CopyChip({
+  label,
+  title,
+  getValue,
+  Icon,
+}: {
+  label: string;
+  title: string;
+  getValue: () => string;
+  Icon: LucideIcon;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(getValue());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
-      console.error("Failed to copy patch ID", err);
+      console.error(`Failed to copy ${label}`, err);
     }
   }
 
@@ -110,15 +125,15 @@ function PatchIdChip({ id }: { id: string }) {
     <button
       type="button"
       onClick={copy}
-      title={`Patch ID: ${id} — click to copy`}
-      aria-label={copied ? "Patch ID copied" : `Copy patch ID ${id}`}
+      title={title}
+      aria-label={copied ? `${label} copied` : title}
       className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:text-foreground/80 hover:border-muted-foreground/40 transition-colors"
     >
-      <span>ID {id.slice(0, 8)}</span>
+      <span>{label}</span>
       {copied ? (
         <Check aria-hidden className="h-2.5 w-2.5 text-primary" />
       ) : (
-        <Copy aria-hidden className="h-2.5 w-2.5" />
+        <Icon aria-hidden className="h-2.5 w-2.5" />
       )}
     </button>
   );
@@ -127,19 +142,31 @@ function PatchIdChip({ id }: { id: string }) {
 function PatchRow({
   patch,
   existingTags,
+  focused = false,
   selectable = false,
   selected = false,
   onSelectToggle,
 }: {
   patch: Patch;
   existingTags: string[];
+  focused?: boolean;
   selectable?: boolean;
   selected?: boolean;
   onSelectToggle?: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(focused);
+  const [highlight, setHighlight] = useState(focused);
+  const rowRef = useRef<HTMLLIElement>(null);
+
+  // Deep-linked row: bring it into view, then fade the highlight.
+  useEffect(() => {
+    if (!focused) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setHighlight(false), 2500);
+    return () => clearTimeout(t);
+  }, [focused]);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -251,9 +278,12 @@ function PatchRow({
 
   return (
     <li
-      className={`rounded-lg border bg-card px-4 py-3 transition-colors ${
+      ref={rowRef}
+      className={`rounded-lg border bg-card px-4 py-3 transition-colors scroll-mt-24 ${
         selectable && selected
           ? "border-primary/60 ring-1 ring-primary/30"
+          : highlight
+          ? "border-primary/60 ring-2 ring-primary/40"
           : "border-border"
       }`}
     >
@@ -397,7 +427,21 @@ function PatchRow({
                   attachments={patch.attachments ?? []}
                 />
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
-                  <PatchIdChip id={patch.id} />
+                  {/* Short ID prefix agents cite (e.g. "dcc26973"); copies the full UUID. */}
+                  <CopyChip
+                    label={`ID ${patch.id.slice(0, 8)}`}
+                    title={`Patch ID: ${patch.id} — click to copy`}
+                    getValue={() => patch.id}
+                    Icon={Copy}
+                  />
+                  <CopyChip
+                    label="Link"
+                    title="Copy link to this patch"
+                    getValue={() =>
+                      `${window.location.origin}${window.location.pathname}?patch=${patch.id}`
+                    }
+                    Icon={Link2}
+                  />
                   <span>
                     Status: {STATUS_TEXT[patch.status]}
                     {patch.archived && " · Archived"}
