@@ -912,6 +912,25 @@ export async function getAttachmentsForPatchIds(
 }
 
 /**
+ * All attachments across a project's patches (archived included). Fetch
+ * before deleteProject so the storage objects can be removed after the
+ * cascade drops the rows.
+ */
+export async function getAttachmentsForProject(
+  userId: string,
+  projectSlug: string
+): Promise<PatchAttachment[]> {
+  const rows = await sql`
+    SELECT a.*
+    FROM patch_attachments a
+    JOIN patches pa ON pa.id = a.patch_id
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND p.slug = ${projectSlug}
+  `;
+  return rows as PatchAttachment[];
+}
+
+/**
  * Delete an attachment row (ownership-checked) and return its storage key so
  * the caller can remove the underlying object. Returns null if not found /
  * not owned.

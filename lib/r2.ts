@@ -70,3 +70,17 @@ export async function presignGetUrl(
 export async function deleteObject(key: string): Promise<void> {
   await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
+
+/**
+ * Best-effort removal of several objects, e.g. a deleted patch's or project's
+ * attachments. Failures are logged, not thrown: the DB rows are already gone,
+ * so a stray object shouldn't fail the user's delete.
+ */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  const results = await Promise.allSettled(keys.map((key) => deleteObject(key)));
+  results.forEach((result, i) => {
+    if (result.status === "rejected") {
+      console.error("Failed to delete R2 object", keys[i], result.reason);
+    }
+  });
+}

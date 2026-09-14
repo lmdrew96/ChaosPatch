@@ -1,5 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
-import { deleteProject, ProjectSlugError, updateProject } from "@/lib/queries";
+import {
+  deleteProject,
+  getAttachmentsForProject,
+  ProjectSlugError,
+  updateProject,
+} from "@/lib/queries";
+import { deleteObjects } from "@/lib/r2";
 
 export async function PATCH(
   req: Request,
@@ -43,6 +49,9 @@ export async function DELETE(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { slug } = await params;
+  // Grab storage keys before the cascade removes the attachment rows.
+  const attachments = await getAttachmentsForProject(userId, slug);
   await deleteProject(userId, slug);
+  await deleteObjects(attachments.map((a) => a.pathname));
   return new Response(null, { status: 204 });
 }

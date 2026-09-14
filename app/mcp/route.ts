@@ -27,12 +27,13 @@ import {
   searchPatches,
   batchUpdatePatches,
   getAttachmentsForPatchIds,
+  getAttachmentsForProject,
   getVelocity,
   archiveCompletedPatches,
   unarchivePatch,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
-import { deleteObject, presignGetUrl } from "@/lib/r2";
+import { deleteObjects, presignGetUrl } from "@/lib/r2";
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
@@ -647,14 +648,19 @@ async function handleTool(
 
     case "cp_delete_patch": {
       const a = args as ParsedArgs<"cp_delete_patch">;
+      // Grab storage keys before the cascade removes the attachment rows.
+      const attachments = await getPatchAttachments(userId, a.patch_id);
       const ok = await deletePatch(userId, a.patch_id);
       if (!ok) throw new Error(`Patch '${a.patch_id}' not found`);
+      await deleteObjects(attachments.map((att) => att.pathname));
       return `Patch ${a.patch_id} deleted.`;
     }
 
     case "cp_delete_project": {
       const a = args as ParsedArgs<"cp_delete_project">;
+      const attachments = await getAttachmentsForProject(userId, a.project_slug);
       await deleteProject(userId, a.project_slug);
+      await deleteObjects(attachments.map((att) => att.pathname));
       return `Project '${a.project_slug}' and all its patches deleted.`;
     }
 
@@ -771,13 +777,7 @@ async function handleTool(
         priority: a.priority,
         tags: a.tags,
       });
-      for (const att of attachments) {
-        try {
-          await deleteObject(att.pathname);
-        } catch (err) {
-          console.error("Failed to delete attachment object", att.pathname, err);
-        }
-      }
+      await deleteObjects(attachments.map((att) => att.pathname));
       return JSON.stringify(result, null, 2);
     }
   }

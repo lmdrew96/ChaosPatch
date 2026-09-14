@@ -6,7 +6,7 @@ import {
   type BatchUpdateAction,
   type Patch,
 } from "@/lib/queries";
-import { deleteObject } from "@/lib/r2";
+import { deleteObjects } from "@/lib/r2";
 
 const PRIORITIES: readonly Patch["priority"][] = ["low", "medium", "high"];
 
@@ -75,13 +75,7 @@ export async function POST(req: Request) {
 
   const result = await batchUpdatePatches(userId, patchIds, action, { priority, tags });
 
-  for (const a of attachments) {
-    try {
-      await deleteObject(a.pathname);
-    } catch (err) {
-      console.error("Failed to delete attachment object", a.pathname, err);
-    }
-  }
+  await deleteObjects(attachments.map((a) => a.pathname));
 
   return Response.json(result);
 }

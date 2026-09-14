@@ -8,7 +8,7 @@ import {
   updatePatch,
   updatePatchStatus,
 } from "@/lib/queries";
-import { deleteObject } from "@/lib/r2";
+import { deleteObjects } from "@/lib/r2";
 
 export async function PATCH(
   req: Request,
@@ -119,12 +119,6 @@ export async function DELETE(
   const attachments = await getPatchAttachments(userId, id);
   const ok = await deletePatch(userId, id);
   if (!ok) return Response.json({ error: "Not found" }, { status: 404 });
-  for (const a of attachments) {
-    try {
-      await deleteObject(a.pathname);
-    } catch {
-      // ignore — object may already be gone
-    }
-  }
+  await deleteObjects(attachments.map((a) => a.pathname));
   return new Response(null, { status: 204 });
 }
