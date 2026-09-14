@@ -1,6 +1,6 @@
 {
   "name": "chaospatch",
-  "version": "0.44.2",
+  "version": "0.45.0",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {

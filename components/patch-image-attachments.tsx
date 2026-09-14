@@ -35,11 +35,42 @@ function safeUploadName(filename: string): string {
 }
 
 /**
+ * PUT a file with upload progress. fetch() can't report upload progress, so
+ * this uses XHR. CORS is unchanged: a PUT with an image Content-Type was
+ * already preflighted under fetch.
+ */
+function putWithProgress(
+  url: string,
+  file: File,
+  onProgress: (fraction: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`Upload failed (${xhr.status})`));
+    xhr.onerror = () =>
+      reject(new Error("Upload failed — check your connection"));
+    xhr.send(file);
+  });
+}
+
+/**
  * Two-step direct-to-R2 upload: ask the server to mint a presigned PUT URL
  * (auth + ownership checked there), then PUT the file straight to R2 so the
  * bytes never pass through our server.
  */
-async function uploadToR2(file: File, patchId?: string): Promise<PendingImage> {
+async function uploadToR2(
+  file: File,
+  patchId: string | undefined,
+  onProgress: (fraction: number) => void
+): Promise<PendingImage> {
   const startRes = await fetch("/api/blob/upload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -60,12 +91,7 @@ async function uploadToR2(file: File, patchId?: string): Promise<PendingImage> {
     url: string;
   };
 
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  });
-  if (!putRes.ok) throw new Error("Upload failed");
+  await putWithProgress(uploadUrl, file, onProgress);
 
   return { url, pathname: key, contentType: file.type || null, size: file.size ?? null };
 }
@@ -88,7 +114,12 @@ type Props =
 export function PatchImageAttachments(props: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(0);
+  // Which file of the batch is uploading, and how far along it is.
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+  } | null>(null);
   const [error, setError] = useState("");
 
   const items: {
@@ -122,41 +153,47 @@ export function PatchImageAttachments(props: Props) {
     if (!files || files.length === 0) return;
     setError("");
 
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
     const added: PendingImage[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      setUploading((n) => n + 1);
-      try {
-        const meta = await uploadToR2(
-          file,
-          props.mode === "saved" ? props.patchId : undefined
-        );
-        if (props.mode === "saved") {
-          const res = await fetch(
-            `/api/patches/${props.patchId}/attachments`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(meta),
-            }
-          );
-          if (!res.ok) throw new Error("Failed to attach image");
-        } else {
-          added.push(meta);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
-      } finally {
-        setUploading((n) => n - 1);
-      }
-    }
 
-    if (props.mode === "pending" && added.length > 0) {
-      props.onChange([...props.images, ...added]);
-    } else if (props.mode === "saved") {
-      router.refresh();
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const file = images[i];
+        const step = { current: i + 1, total: images.length };
+        setProgress({ ...step, percent: 0 });
+        try {
+          const meta = await uploadToR2(
+            file,
+            props.mode === "saved" ? props.patchId : undefined,
+            (fraction) =>
+              setProgress({ ...step, percent: Math.round(fraction * 100) })
+          );
+          // Surface each image as soon as it lands, not after the whole batch.
+          if (props.mode === "saved") {
+            const res = await fetch(
+              `/api/patches/${props.patchId}/attachments`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(meta),
+              }
+            );
+            if (!res.ok) throw new Error("Failed to attach image");
+            router.refresh();
+          } else {
+            added.push(meta);
+            props.onChange([...props.images, ...added]);
+          }
+        } catch (err) {
+          // Keep going with the rest of the batch; name the file that failed.
+          const reason = err instanceof Error ? err.message : "Upload failed";
+          setError(`${file.name}: ${reason}`);
+        }
+      }
+    } finally {
+      setProgress(null);
+      if (fileRef.current) fileRef.current.value = "";
     }
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   function removePending(url: string) {
@@ -220,15 +257,18 @@ export function PatchImageAttachments(props: Props) {
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading > 0}
+          disabled={progress !== null}
           className="text-xs text-muted-foreground/60 hover:text-foreground/70 disabled:opacity-50 transition-colors"
         >
-          {uploading > 0
-            ? "Uploading…"
-            : hasItems
-            ? "+ Add image"
-            : "+ Attach image"}
+          {hasItems ? "+ Add image" : "+ Attach image"}
         </button>
+        {progress && (
+          <span aria-live="polite" className="text-[10px] tabular-nums text-muted-foreground">
+            {progress.total > 1
+              ? `Uploading ${progress.current} of ${progress.total}… ${progress.percent}%`
+              : `Uploading… ${progress.percent}%`}
+          </span>
+        )}
         {error && <span className="text-[10px] text-red-400">{error}</span>}
       </div>
 
