@@ -92,6 +92,7 @@ export const MCP_SCHEMAS = {
   }),
   cp_update_project: z.object({
     project_slug: z.string().min(1),
+    slug: z.string().min(1).optional(),
     name: z.string().optional(),
     color: z.string().optional(),
   }),

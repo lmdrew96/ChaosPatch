@@ -403,18 +403,44 @@ export async function deletePatch(
   return rows.length > 0;
 }
 
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** A user-fixable slug problem (malformed or taken) — surface its message as-is. */
+export class ProjectSlugError extends Error {}
+
+// Patches reference projects by id, not slug, so a slug rename is a plain
+// field update — every patch stays attached. Old slug URLs simply 404.
 export async function updateProject(
   userId: string,
   slug: string,
   name: string,
-  color: string
-): Promise<Project> {
-  const rows = await sql`
-    UPDATE projects SET name = ${name}, color = ${color}
-    WHERE user_id = ${userId} AND slug = ${slug}
-    RETURNING *
-  `;
-  return rows[0] as Project;
+  color: string,
+  newSlug: string = slug
+): Promise<Project | null> {
+  if (newSlug !== slug) {
+    if (!SLUG_PATTERN.test(newSlug)) {
+      throw new ProjectSlugError(
+        `Invalid slug '${newSlug}' — use lowercase letters, numbers, and single hyphens (e.g. 'my-project').`
+      );
+    }
+    if (await getProjectBySlug(userId, newSlug)) {
+      throw new ProjectSlugError(`Slug '${newSlug}' is already used by another project.`);
+    }
+  }
+  try {
+    const rows = await sql`
+      UPDATE projects SET name = ${name}, color = ${color}, slug = ${newSlug}
+      WHERE user_id = ${userId} AND slug = ${slug}
+      RETURNING *
+    `;
+    return (rows[0] as Project) ?? null;
+  } catch (err) {
+    // Race with a concurrent create/rename: UNIQUE(user_id, slug) caught it.
+    if ((err as { code?: string }).code === "23505") {
+      throw new ProjectSlugError(`Slug '${newSlug}' is already used by another project.`);
+    }
+    throw err;
+  }
 }
 
 // ── Reopen Patch ──────────────────────────────────────────────────────────

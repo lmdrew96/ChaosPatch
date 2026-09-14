@@ -355,11 +355,17 @@ const TOOLS = [
   },
   {
     name: "cp_update_project",
-    description: "Update a project's name and/or color.",
+    description:
+      "Update a project's name, color, and/or slug. Renaming the slug keeps every patch attached; the old slug stops resolving immediately (tools and web URLs must use the new one).",
     inputSchema: {
       type: "object" as const,
       properties: {
-        project_slug: { type: "string" },
+        project_slug: { type: "string", description: "Current slug of the project to update" },
+        slug: {
+          type: "string",
+          description:
+            "New URL-safe slug (optional; lowercase letters, numbers, single hyphens). Rejected if malformed or already taken.",
+        },
         name: { type: "string", description: "New display name (optional)" },
         color: { type: "string", description: "New hex color (optional)" },
       },
@@ -673,7 +679,14 @@ async function handleTool(
       if (!existing) throw new Error(`Project '${a.project_slug}' not found`);
       const projectName = a.name ?? existing.name;
       const color = a.color ?? existing.color;
-      const project = await updateProject(userId, a.project_slug, projectName, color);
+      const project = await updateProject(
+        userId,
+        a.project_slug,
+        projectName,
+        color,
+        a.slug?.trim() ?? existing.slug
+      );
+      if (!project) throw new Error(`Project '${a.project_slug}' not found`);
       return JSON.stringify(project, null, 2);
     }
 

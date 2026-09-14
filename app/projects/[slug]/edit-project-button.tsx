@@ -16,13 +16,17 @@ export function EditProjectButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(currentName);
+  const [newSlug, setNewSlug] = useState(slug);
   const [color, setColor] = useState(currentColor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
 
+  const slugChanged = newSlug.trim() !== slug;
+
   function handleOpen() {
     setName(currentName);
+    setNewSlug(slug);
     setColor(currentColor);
     setError("");
     setOpen(true);
@@ -31,14 +35,14 @@ export function EditProjectButton({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !newSlug.trim()) return;
     setLoading(true);
     setError("");
     try {
       const res = await fetch(`/api/projects/${slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), color }),
+        body: JSON.stringify({ name: name.trim(), color, slug: newSlug.trim() }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -46,7 +50,9 @@ export function EditProjectButton({
         return;
       }
       setOpen(false);
-      router.refresh();
+      // The current URL is keyed by the old slug — move to the new one.
+      if (slugChanged) router.replace(`/projects/${newSlug.trim()}`);
+      else router.refresh();
     } catch {
       setError("Network error.");
     } finally {
@@ -96,6 +102,20 @@ export function EditProjectButton({
                 />
               </div>
               <div>
+                <label className="block text-xs text-muted-foreground mb-1">Slug</label>
+                <input
+                  value={newSlug}
+                  onChange={(e) => setNewSlug(e.target.value.toLowerCase())}
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                {slugChanged && (
+                  <p className="mt-1 text-[11px] text-amber-400">
+                    Patches stay attached, but the old slug stops working — update any
+                    Tangle tags or links that use <span className="font-mono">{slug}</span>.
+                  </p>
+                )}
+              </div>
+              <div>
                 <label className="block text-xs text-muted-foreground mb-2">Color</label>
                 <ColorPicker value={color} onChange={setColor} />
               </div>
@@ -110,7 +130,7 @@ export function EditProjectButton({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !name.trim()}
+                  disabled={loading || !name.trim() || !newSlug.trim()}
                   className="rounded-md bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
                 >
                   {loading ? "Saving…" : "Save"}
