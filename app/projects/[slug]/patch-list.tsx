@@ -21,6 +21,12 @@ const STATUS_LABEL: Record<Patch["status"], string> = {
   done: "Done",
 };
 
+const STATUS_TEXT: Record<Patch["status"], string> = {
+  open: "Open",
+  in_progress: "In progress",
+  done: "Done",
+};
+
 export function PatchList({
   patches,
   existingTags = [],
@@ -52,7 +58,7 @@ export function PatchList({
   );
 }
 
-function DueDateChip({ dueDate }: { dueDate: string }) {
+export function DueDateChip({ dueDate }: { dueDate: string }) {
   // Compare in local time at day granularity so "today" matches the user's day.
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -386,12 +392,19 @@ function PatchRow({
                 />
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
                   <PatchIdChip id={patch.id} />
+                  <span>
+                    Status: {STATUS_TEXT[patch.status]}
+                    {patch.archived && " · Archived"}
+                  </span>
+                  <span>Filed: {new Date(patch.created_at).toLocaleString()}</span>
                   {patch.started_at && (
                     <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
                   )}
                   {patch.completed_at && (
                     <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
                   )}
+                  {/* DATE column — no time component, so show as-is (no tz shift). */}
+                  {patch.due_date && <span>Due: {patch.due_date.slice(0, 10)}</span>}
                 </div>
                 {showNoteInput ? (
                   <div className="space-y-2">

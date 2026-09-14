@@ -7,6 +7,7 @@ import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
 import { SummaryStrip } from "@/components/insights/summary-strip";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
+import { DueDateChip } from "@/app/projects/[slug]/patch-list";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -438,6 +439,7 @@ function PatchRow({ patch }: { patch: PatchWithProject }) {
               {patch.project_slug}
             </span>
           </span>
+          {patch.due_date && <DueDateChip dueDate={patch.due_date} />}
           {patch.tags.length > 0 && (
             <span className="flex flex-wrap gap-1 shrink min-w-0">
               {patch.tags.map((t) => (
