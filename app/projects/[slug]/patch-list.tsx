@@ -354,7 +354,10 @@ function PatchRow({
         </div>
       ) : (
         /* ── View mode ── */
-        <div className="flex items-start gap-3">
+        <>
+        {/* Header row. On phones the actions wrap to their own line so the title
+            isn't squeezed; from sm up they sit on the right. */}
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-1 sm:flex-nowrap">
           {/* Selection checkbox (bulk mode) */}
           {selectable && (
             <input
@@ -404,106 +407,11 @@ function PatchRow({
               </div>
             )}
 
-            {expanded && (
-              <div className="mt-2 space-y-2">
-                {patch.notes && (
-                  <Markdown className="text-xs text-muted-foreground bg-input rounded p-2">
-                    {patch.notes}
-                  </Markdown>
-                )}
-                {patch.spec && (
-                  <div className="rounded bg-input p-2">
-                    <div className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                      Spec
-                    </div>
-                    <Markdown className="text-xs text-muted-foreground">
-                      {patch.spec}
-                    </Markdown>
-                  </div>
-                )}
-                <PatchImageAttachments
-                  mode="saved"
-                  patchId={patch.id}
-                  attachments={patch.attachments ?? []}
-                />
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
-                  {/* Short ID prefix agents cite (e.g. "dcc26973"); copies the full UUID. */}
-                  <CopyChip
-                    label={`ID ${patch.id.slice(0, 8)}`}
-                    title={`Patch ID: ${patch.id} — click to copy`}
-                    getValue={() => patch.id}
-                    Icon={Copy}
-                  />
-                  <CopyChip
-                    label="Link"
-                    title="Copy link to this patch"
-                    getValue={() =>
-                      `${window.location.origin}${window.location.pathname}?patch=${patch.id}`
-                    }
-                    Icon={Link2}
-                  />
-                  <span>
-                    Status: {STATUS_TEXT[patch.status]}
-                    {patch.archived && " · Archived"}
-                  </span>
-                  <span>Filed: {new Date(patch.created_at).toLocaleString()}</span>
-                  {patch.started_at && (
-                    <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
-                  )}
-                  {patch.completed_at && (
-                    <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
-                  )}
-                  {/* DATE column — no time component, so show as-is (no tz shift). */}
-                  {patch.due_date && <span>Due: {patch.due_date.slice(0, 10)}</span>}
-                </div>
-                {showNoteInput ? (
-                  <div className="space-y-2">
-                    <textarea
-                      ref={noteRef}
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Add a note…"
-                      rows={2}
-                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && e.metaKey) addNote();
-                        if (e.key === "Escape") {
-                          setShowNoteInput(false);
-                          setNoteText("");
-                        }
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={addNote}
-                        disabled={isPending || !noteText.trim()}
-                        className="text-xs bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded px-2.5 py-1 transition-colors"
-                      >
-                        Save note
-                      </button>
-                      <button
-                        onClick={() => { setShowNoteInput(false); setNoteText(""); }}
-                        className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleNoteToggle}
-                    className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                  >
-                    + Add note
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Actions (hidden while bulk-selecting) */}
           {!selectable && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:shrink-0">
             <button
               onClick={startEditing}
               className="text-xs text-muted-foreground/50 hover:text-foreground/70 transition-colors"
@@ -574,6 +482,105 @@ function PatchRow({
           </div>
           )}
         </div>
+
+        {/* Expanded details span the full row width — previously they lived in
+            the title column and got squeezed beside the action buttons. */}
+        {expanded && (
+          <div className="mt-2 space-y-2">
+            {patch.notes && (
+              <Markdown className="text-xs text-muted-foreground bg-input rounded p-2">
+                {patch.notes}
+              </Markdown>
+            )}
+            {patch.spec && (
+              <div className="rounded bg-input p-2">
+                <div className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  Spec
+                </div>
+                <Markdown className="text-xs text-muted-foreground">
+                  {patch.spec}
+                </Markdown>
+              </div>
+            )}
+            <PatchImageAttachments
+              mode="saved"
+              patchId={patch.id}
+              attachments={patch.attachments ?? []}
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground/60 font-mono">
+              {/* Short ID prefix agents cite (e.g. "dcc26973"); copies the full UUID. */}
+              <CopyChip
+                label={`ID ${patch.id.slice(0, 8)}`}
+                title={`Patch ID: ${patch.id} — click to copy`}
+                getValue={() => patch.id}
+                Icon={Copy}
+              />
+              <CopyChip
+                label="Link"
+                title="Copy link to this patch"
+                getValue={() =>
+                  `${window.location.origin}${window.location.pathname}?patch=${patch.id}`
+                }
+                Icon={Link2}
+              />
+              <span>
+                Status: {STATUS_TEXT[patch.status]}
+                {patch.archived && " · Archived"}
+              </span>
+              <span>Filed: {new Date(patch.created_at).toLocaleString()}</span>
+              {patch.started_at && (
+                <span>Started: {new Date(patch.started_at).toLocaleString()}</span>
+              )}
+              {patch.completed_at && (
+                <span>Completed: {new Date(patch.completed_at).toLocaleString()}</span>
+              )}
+              {/* DATE column — no time component, so show as-is (no tz shift). */}
+              {patch.due_date && <span>Due: {patch.due_date.slice(0, 10)}</span>}
+            </div>
+            {showNoteInput ? (
+              <div className="space-y-2">
+                <textarea
+                  ref={noteRef}
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Add a note…"
+                  rows={2}
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground/90 placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.metaKey) addNote();
+                    if (e.key === "Escape") {
+                      setShowNoteInput(false);
+                      setNoteText("");
+                    }
+                  }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={addNote}
+                    disabled={isPending || !noteText.trim()}
+                    className="text-xs bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded px-2.5 py-1 transition-colors"
+                  >
+                    Save note
+                  </button>
+                  <button
+                    onClick={() => { setShowNoteInput(false); setNoteText(""); }}
+                    className="text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleNoteToggle}
+                className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              >
+                + Add note
+              </button>
+            )}
+          </div>
+        )}
+        </>
       )}
       {error && (
         <p role="alert" className="mt-2 text-xs text-red-400">
