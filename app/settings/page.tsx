@@ -16,10 +16,10 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pt-16">
       <header className="border-b border-border px-6 py-4 flex items-center gap-3">
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
           <ArrowLeft aria-hidden className="h-3.5 w-3.5" />

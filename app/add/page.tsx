@@ -18,7 +18,7 @@ export default async function AddPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pt-16">
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-sm font-medium text-muted-foreground">
           <span className="text-foreground">ChaosPatch</span> / Add patch
