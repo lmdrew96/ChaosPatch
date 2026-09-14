@@ -102,7 +102,9 @@ type Props =
       // state and are persisted when the patch is created.
       mode: "pending";
       images: PendingImage[];
-      onChange: (images: PendingImage[]) => void;
+      // Functional updater (a React state setter fits) so adds that land
+      // mid-batch never overwrite removals made in the meantime.
+      onChange: (update: (prev: PendingImage[]) => PendingImage[]) => void;
     }
   | {
       // Existing patch: upload → POST attachment → refresh server data.
@@ -154,7 +156,6 @@ export function PatchImageAttachments(props: Props) {
     setError("");
 
     const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    const added: PendingImage[] = [];
 
     try {
       for (let i = 0; i < images.length; i++) {
@@ -181,8 +182,7 @@ export function PatchImageAttachments(props: Props) {
             if (!res.ok) throw new Error("Failed to attach image");
             router.refresh();
           } else {
-            added.push(meta);
-            props.onChange([...props.images, ...added]);
+            props.onChange((prev) => [...prev, meta]);
           }
         } catch (err) {
           // Keep going with the rest of the batch; name the file that failed.
@@ -199,7 +199,7 @@ export function PatchImageAttachments(props: Props) {
   function removePending(url: string) {
     if (props.mode !== "pending") return;
     const removed = props.images.find((i) => i.url === url);
-    props.onChange(props.images.filter((i) => i.url !== url));
+    props.onChange((prev) => prev.filter((i) => i.url !== url));
     // Fire-and-forget storage cleanup — no DB row exists yet.
     if (removed) {
       fetch("/api/blob/delete", {
