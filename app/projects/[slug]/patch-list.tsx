@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Paperclip, X } from "lucide-react";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
+import { Markdown } from "@/components/markdown";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
@@ -332,18 +333,18 @@ function PatchRow({
             {expanded && (
               <div className="mt-2 space-y-2">
                 {patch.notes && (
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-input rounded p-2">
+                  <Markdown className="text-xs text-muted-foreground bg-input rounded p-2">
                     {patch.notes}
-                  </p>
+                  </Markdown>
                 )}
                 {patch.spec && (
                   <div className="rounded bg-input p-2">
                     <div className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                       Spec
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                    <Markdown className="text-xs text-muted-foreground">
                       {patch.spec}
-                    </p>
+                    </Markdown>
                   </div>
                 )}
                 <PatchImageAttachments
