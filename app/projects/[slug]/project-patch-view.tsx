@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import type { Patch } from "@/lib/queries";
+import type { BatchUpdateAction, Patch } from "@/lib/queries";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { useUrlParam } from "@/hooks/use-url-param";
 import { matchesPatchSearch } from "@/lib/patch-search";
@@ -107,6 +107,8 @@ export function ProjectPatchView({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkTag, setBulkTag] = useState("");
 
   const statusCounts = useMemo(() => {
     const counts = { open: 0, in_progress: 0, done: 0 };
@@ -128,6 +130,8 @@ export function ProjectPatchView({
   function exitSelect() {
     setSelectMode(false);
     setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
+    setBulkTag("");
   }
 
   // POSTs a bulk mutation. On failure, sets an inline error and returns false
@@ -154,13 +158,21 @@ export function ProjectPatchView({
     return true;
   }
 
-  async function bulkAction(action: "start" | "complete" | "reopen") {
-    if (selectedIds.size === 0) return;
+  async function bulkAction(
+    action: BatchUpdateAction,
+    options: { priority?: Patch["priority"]; tags?: string[] } = {}
+  ): Promise<boolean> {
+    if (selectedIds.size === 0) return false;
     const ok = await post("/api/patches/batch", {
       patch_ids: Array.from(selectedIds),
       action,
+      ...options,
     });
-    if (ok) exitSelect();
+    if (!ok) return false;
+    // Status/archive/delete move or remove rows, so leave select mode.
+    // Priority and tag edits keep the selection so they can be chained.
+    if (action !== "set_priority" && action !== "add_tags") exitSelect();
+    return true;
   }
 
   async function archiveCompleted() {
@@ -436,7 +448,7 @@ export function ProjectPatchView({
     </div>
 
     {selectMode && (
-      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-full border border-border bg-card/95 px-4 py-2 shadow-xl backdrop-blur">
+      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 w-max max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card/95 px-4 py-2 shadow-xl backdrop-blur">
         <span className="text-xs tabular-nums text-muted-foreground">
           {selectedIds.size} selected
         </span>
@@ -467,6 +479,81 @@ export function ProjectPatchView({
         >
           Reopen
         </button>
+        <button
+          onClick={() => bulkAction("archive")}
+          disabled={busy || selectedIds.size === 0}
+          className="text-xs text-muted-foreground hover:text-foreground/80 disabled:opacity-40 transition-colors"
+        >
+          Archive
+        </button>
+        <div className="h-4 w-px bg-border" />
+        <select
+          value=""
+          onChange={(e) => {
+            const priority = e.target.value as Patch["priority"];
+            if (priority) bulkAction("set_priority", { priority });
+          }}
+          disabled={busy || selectedIds.size === 0}
+          aria-label="Set priority for selected patches"
+          className="rounded-md border border-border bg-card px-1.5 py-0.5 text-xs text-muted-foreground disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="" disabled>
+            Priority…
+          </option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const tags = bulkTag
+              .split(",")
+              .map((t) => t.trim())
+              .filter((t) => t.length > 0);
+            if (tags.length === 0) return;
+            if (await bulkAction("add_tags", { tags })) setBulkTag("");
+          }}
+          className="flex items-center"
+        >
+          <input
+            value={bulkTag}
+            onChange={(e) => setBulkTag(e.target.value)}
+            placeholder="+ tag ↵"
+            aria-label="Add tag to selected patches"
+            disabled={busy || selectedIds.size === 0}
+            className="w-20 rounded-md border border-border bg-card px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/50 disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </form>
+        <div className="h-4 w-px bg-border" />
+        {bulkDeleteConfirm ? (
+          <span className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">
+              Delete {selectedIds.size}?
+            </span>
+            <button
+              onClick={() => bulkAction("delete")}
+              disabled={busy || selectedIds.size === 0}
+              className="text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-40 transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setBulkDeleteConfirm(false)}
+              className="text-xs text-muted-foreground/60 hover:text-foreground/70 transition-colors"
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button
+            onClick={() => setBulkDeleteConfirm(true)}
+            disabled={busy || selectedIds.size === 0}
+            className="text-xs text-muted-foreground/60 hover:text-red-400 disabled:opacity-40 transition-colors"
+          >
+            Delete
+          </button>
+        )}
         <div className="h-4 w-px bg-border" />
         <button
           onClick={exitSelect}

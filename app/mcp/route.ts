@@ -26,12 +26,13 @@ import {
   getProjectSummary,
   searchPatches,
   batchUpdatePatches,
+  getAttachmentsForPatchIds,
   getVelocity,
   archiveCompletedPatches,
   unarchivePatch,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
-import { presignGetUrl } from "@/lib/r2";
+import { deleteObject, presignGetUrl } from "@/lib/r2";
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
@@ -474,7 +475,7 @@ const TOOLS = [
   {
     name: "cp_batch_update",
     description:
-      "Bulk-update patch status. Action 'start' sets in_progress + started_at; 'complete' sets done + completed_at; 'reopen' reverts to open and clears timestamps. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] }.",
+      "Bulk-apply one action to many patches. 'start' sets in_progress + started_at; 'complete' sets done + completed_at; 'reopen' reverts to open, clears timestamps, and unarchives; 'archive' archives; 'delete' permanently deletes the patches and their image attachments; 'set_priority' sets `priority` (required for this action); 'add_tags' appends `tags` (required for this action), skipping tags a patch already has. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] } — for 'delete', `updated` lists the deleted patches.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -485,8 +486,26 @@ const TOOLS = [
         },
         action: {
           type: "string",
-          enum: ["start", "complete", "reopen"],
+          enum: [
+            "start",
+            "complete",
+            "reopen",
+            "archive",
+            "delete",
+            "set_priority",
+            "add_tags",
+          ],
           description: "Action to apply to every patch_id",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Required when action is 'set_priority'",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Required (non-empty) when action is 'add_tags'",
         },
       },
       required: ["patch_ids", "action"],
@@ -743,7 +762,22 @@ async function handleTool(
 
     case "cp_batch_update": {
       const a = args as ParsedArgs<"cp_batch_update">;
-      const result = await batchUpdatePatches(userId, a.patch_ids, a.action);
+      // Grab storage keys before the cascade removes the attachment rows.
+      const attachments =
+        a.action === "delete"
+          ? await getAttachmentsForPatchIds(userId, a.patch_ids)
+          : [];
+      const result = await batchUpdatePatches(userId, a.patch_ids, a.action, {
+        priority: a.priority,
+        tags: a.tags,
+      });
+      for (const att of attachments) {
+        try {
+          await deleteObject(att.pathname);
+        } catch (err) {
+          console.error("Failed to delete attachment object", att.pathname, err);
+        }
+      }
       return JSON.stringify(result, null, 2);
     }
   }

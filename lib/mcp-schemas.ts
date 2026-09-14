@@ -122,10 +122,29 @@ export const MCP_SCHEMAS = {
       }),
     include_archived: z.boolean().optional(),
   }),
-  cp_batch_update: z.object({
-    patch_ids: z.array(z.string().min(1)).min(1),
-    action: z.enum(["start", "complete", "reopen"]),
-  }),
+  cp_batch_update: z
+    .object({
+      patch_ids: z.array(z.string().min(1)).min(1),
+      action: z.enum([
+        "start",
+        "complete",
+        "reopen",
+        "archive",
+        "delete",
+        "set_priority",
+        "add_tags",
+      ]),
+      priority: z.enum(["low", "medium", "high"]).optional(),
+      tags: z.array(z.string().trim().min(1)).optional(),
+    })
+    .refine((a) => a.action !== "set_priority" || a.priority !== undefined, {
+      message: "priority is required when action is 'set_priority'",
+      path: ["priority"],
+    })
+    .refine((a) => a.action !== "add_tags" || (a.tags?.length ?? 0) > 0, {
+      message: "tags (non-empty) is required when action is 'add_tags'",
+      path: ["tags"],
+    }),
 } as const;
 
 export type McpToolName = keyof typeof MCP_SCHEMAS;

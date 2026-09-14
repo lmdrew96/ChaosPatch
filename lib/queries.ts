@@ -472,9 +472,27 @@ export async function reopenPatch(
 
 // ── Batch Update Patches ──────────────────────────────────────────────────
 
-export type BatchUpdateAction = "start" | "complete" | "reopen";
+export const BATCH_ACTIONS = [
+  "start",
+  "complete",
+  "reopen",
+  "archive",
+  "delete",
+  "set_priority",
+  "add_tags",
+] as const;
+
+export type BatchUpdateAction = (typeof BATCH_ACTIONS)[number];
+
+export type BatchUpdateOptions = {
+  // Required for set_priority.
+  priority?: Patch["priority"];
+  // Required for add_tags. Appended, skipping tags a patch already has.
+  tags?: string[];
+};
 
 export type BatchUpdateResult = {
+  // For "delete", the rows that were deleted.
   updated: Patch[];
   errors: { patch_id: string; reason: string }[];
 };
@@ -482,14 +500,63 @@ export type BatchUpdateResult = {
 export async function batchUpdatePatches(
   userId: string,
   patchIds: string[],
-  action: BatchUpdateAction
+  action: BatchUpdateAction,
+  options: BatchUpdateOptions = {}
 ): Promise<BatchUpdateResult> {
   if (patchIds.length === 0) {
     return { updated: [], errors: [] };
   }
 
   let rows: unknown[];
-  if (action === "start") {
+  if (action === "archive") {
+    rows = await sql`
+      UPDATE patches pa
+      SET archived = TRUE
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "delete") {
+    // Callers remove attachment objects from storage (rows cascade here).
+    rows = await sql`
+      DELETE FROM patches pa
+      USING projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "set_priority") {
+    if (!options.priority) throw new Error("set_priority requires a priority");
+    rows = await sql`
+      UPDATE patches pa
+      SET priority = ${options.priority}
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "add_tags") {
+    const tags = [...new Set(options.tags ?? [])];
+    if (tags.length === 0) throw new Error("add_tags requires at least one tag");
+    // Same append-only-new-tags shape as addPatchTags.
+    rows = await sql`
+      UPDATE patches pa
+      SET tags = pa.tags || COALESCE((
+        SELECT array_agg(t)
+        FROM unnest(${tags}::text[]) t
+        WHERE NOT (t = ANY(pa.tags))
+      ), '{}'::text[])
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "start") {
     rows = await sql`
       UPDATE patches pa
       SET status = 'in_progress', started_at = NOW()
