@@ -5,6 +5,8 @@ import { useContainerWidth } from "@/hooks/use-container-width";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HEAT_COLOR = "#9F8DEF"; // soft periwinkle
+// Below this, one late-night completion reads as a "rhythm" — it's just noise.
+const MIN_COMPLETIONS = 20;
 
 export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) {
   const { ref, width } = useContainerWidth();
@@ -30,6 +32,17 @@ export function CompletionHeatmap({ patches }: { patches: PatchWithProject[] }) 
         className="flex items-center justify-center h-[200px] text-xs text-muted-foreground/50"
       >
         Completion rhythm will appear here as you ship patches
+      </div>
+    );
+  }
+
+  if (total < MIN_COMPLETIONS) {
+    return (
+      <div
+        ref={ref}
+        className="flex items-center justify-center h-[120px] text-xs text-muted-foreground/50 text-center"
+      >
+        Rhythm needs ~{MIN_COMPLETIONS} completions to mean anything — {total} so far
       </div>
     );
   }

@@ -4,6 +4,7 @@ export function StatCard({
   label,
   value,
   sub,
+  sub2,
   accent,
   glow,
   delay = 0,
@@ -11,6 +12,7 @@ export function StatCard({
   label: string;
   value: string | number;
   sub?: string;
+  sub2?: string;
   accent?: string;
   glow?: string;
   delay?: number;
@@ -47,6 +49,9 @@ export function StatCard({
         <p className="text-[10px] text-muted-foreground/40 mt-1.5 font-mono relative">
           {sub}
         </p>
+      )}
+      {sub2 && (
+        <p className="text-[10px] text-muted-foreground/30 font-mono relative">{sub2}</p>
       )}
     </div>
   );

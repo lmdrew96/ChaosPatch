@@ -9,7 +9,8 @@ export default async function InsightsPage() {
 
   const [summary, patches] = await Promise.all([
     getProjectSummary(userId),
-    getAllPatches(userId),
+    // Archiving is housekeeping, not undoing work — stats keep archived history.
+    getAllPatches(userId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true),
   ]);
 
   return (

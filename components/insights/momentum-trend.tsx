@@ -31,6 +31,8 @@ const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 // split days at the wrong boundary vs. the heatmap's local bucketing).
 const localKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+// Calendar-day stepping — adding 86_400_000 ms drifts off midnight across DST.
+const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const fmtDay = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 
 type DayCell = {
@@ -68,13 +70,12 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
   const start =
     range.days === null
       ? earliest
-      : startOfLocalDay(new Date(today.getTime() - (range.days - 1) * 86_400_000));
+      : addDays(today, -(range.days - 1));
 
   // Pre-build a continuous day spine so zero-days render as gaps, not skips.
   const cells: DayCell[] = [];
   const cellByKey = new Map<string, DayCell>();
-  for (let t = start.getTime(); t <= today.getTime(); t += 86_400_000) {
-    const date = new Date(t);
+  for (let date = start; date <= today; date = addDays(date, 1)) {
     const cell: DayCell = { key: localKey(date), date, total: 0, byProject: new Map() };
     cells.push(cell);
     cellByKey.set(cell.key, cell);
@@ -115,11 +116,20 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
   });
 
   // 7-day trailing rolling average of daily totals = the momentum signal.
+  // Counts come from ALL completions, not just the window, so the first six
+  // days of the window still average a full 7 days instead of warming up.
   const totals = cells.map((c) => c.total);
-  const rolling = totals.map((_, i) => {
-    const w = totals.slice(Math.max(0, i - 6), i + 1);
-    return w.reduce((a, b) => a + b, 0) / w.length;
+  const dailyCount = new Map<string, number>();
+  for (const p of done) {
+    const k = localKey(new Date(p.completed_at!));
+    dailyCount.set(k, (dailyCount.get(k) ?? 0) + 1);
+  }
+  const rolling = cells.map((c) => {
+    let sum = 0;
+    for (let k = 0; k < 7; k++) sum += dailyCount.get(localKey(addDays(c.date, -k))) ?? 0;
+    return sum / 7;
   });
+  const windowTotal = totals.reduce((a, b) => a + b, 0);
 
   // Peak day (single-day high).
   let peakIdx = 0;
@@ -139,7 +149,7 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
   const H = PAD.top + plotH + PAD.bottom;
   const baseY = PAD.top + plotH;
 
-  const maxVal = Math.max(1, ...totals);
+  const maxVal = Math.max(1, ...totals, ...rolling);
   const slot = innerW / Math.max(1, cells.length);
   const barW = Math.max(1, Math.min(slot - 1.5, isMobile ? 7 : 9));
   const cx = (i: number) => PAD.left + i * slot + slot / 2;
@@ -174,6 +184,12 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
         ))}
       </div>
 
+      {windowTotal === 0 ? (
+        <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground/50">
+          No completions in the last {range.days} days
+        </div>
+      ) : (
+      <>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
@@ -334,6 +350,8 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
           <span>7-day avg</span>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
