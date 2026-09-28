@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS patches (
   tags         TEXT[] NOT NULL DEFAULT '{}',
   created_at   TIMESTAMPTZ DEFAULT now(),
   started_at   TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS patch_attachments (

@@ -31,6 +31,8 @@ export type Patch = {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  // Last touched — bumped by a DB trigger on every UPDATE (see lib/migrate.ts).
+  updated_at: string;
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];
 };
@@ -632,6 +634,49 @@ export async function getProjectSummary(
     ORDER BY p.name ASC
   `;
   return rows as ProjectSummaryWithArchive[];
+}
+
+// ── Stale Patches ─────────────────────────────────────────────────────────
+
+// Active patches nobody has touched in STALE_DAYS — the in-app notification set.
+export const STALE_DAYS = 7;
+
+export async function getStalePatches(userId: string): Promise<PatchWithProject[]> {
+  const rows = await sql`
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId}
+      AND pa.status IN ('open', 'in_progress')
+      AND NOT pa.archived
+      AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
+    ORDER BY pa.updated_at ASC
+  `;
+  return rows as PatchWithProject[];
+}
+
+export async function getStaleCount(userId: string): Promise<number> {
+  const rows = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId}
+      AND pa.status IN ('open', 'in_progress')
+      AND NOT pa.archived
+      AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
+  `;
+  return (rows[0] as { count: number }).count;
+}
+
+// "Still relevant" — marks a patch touched without changing anything else.
+export async function touchPatch(userId: string, patchId: string): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa SET updated_at = now()
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
 }
 
 // ── Dashboard Summary Strip ───────────────────────────────────────────────

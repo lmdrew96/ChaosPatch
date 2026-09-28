@@ -45,7 +45,37 @@ void (async () => {
     CREATE INDEX IF NOT EXISTS patch_attachments_patch_id_idx
       ON patch_attachments(patch_id)
   `;
+  // updated_at = "last touched", for stale-patch notifications. Backfill from
+  // the latest known timestamp, then let a trigger bump it on every UPDATE so
+  // every write path (web, MCP, batch) counts without touching each query.
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+  `;
+  await sql`
+    UPDATE patches
+    SET updated_at = GREATEST(created_at, started_at, completed_at)
+    WHERE updated_at IS NULL
+  `;
+  await sql`
+    ALTER TABLE patches
+    ALTER COLUMN updated_at SET DEFAULT now(),
+    ALTER COLUMN updated_at SET NOT NULL
+  `;
+  await sql`
+    CREATE OR REPLACE FUNCTION patches_touch_updated_at() RETURNS trigger AS $$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `;
+  await sql`
+    CREATE OR REPLACE TRIGGER patches_touch_updated_at
+    BEFORE UPDATE ON patches
+    FOR EACH ROW EXECUTE FUNCTION patches_touch_updated_at()
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec columns ensured."
+    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at columns ensured."
   );
 })();

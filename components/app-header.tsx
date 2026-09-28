@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { Keyboard } from "lucide-react";
+import { Hourglass, Keyboard } from "lucide-react";
 import { SHORTCUTS_HELP_EVENT } from "@/components/keyboard-shortcuts";
+import { STALE_CHANGED_EVENT } from "@/components/dashboard/stale-card";
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -37,6 +39,47 @@ function ThemeToggle() {
   );
 }
 
+// Count of active patches untouched for a week. Refetches on navigation and
+// whenever a patch is marked still-relevant; hidden entirely when zero.
+function StaleBadge() {
+  const pathname = usePathname();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/patches/stale");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: { count: number } = await res.json();
+        if (!cancelled) setCount(data.count);
+      } catch (err) {
+        console.error("Failed to load stale patch count", err);
+      }
+    };
+    load();
+    window.addEventListener(STALE_CHANGED_EVENT, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(STALE_CHANGED_EVENT, load);
+    };
+  }, [pathname]);
+
+  if (count === 0) return null;
+
+  return (
+    <Link
+      href="/dashboard#stale"
+      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+      title={`${count} patch${count === 1 ? "" : "es"} untouched for a week`}
+      aria-label={`${count} stale patch${count === 1 ? "" : "es"}`}
+    >
+      <Hourglass aria-hidden className="h-3.5 w-3.5" />
+      <span className="text-[10px] font-mono tabular-nums">{count}</span>
+    </Link>
+  );
+}
+
 export function AppHeader() {
   const { isSignedIn } = useAuth();
   if (!isSignedIn) return null;
@@ -53,6 +96,7 @@ export function AppHeader() {
           </Link>
           <div className="w-px h-3.5 bg-border" />
           <div className="flex items-center gap-2.5">
+            <StaleBadge />
             <Link
               href="/insights"
               className="text-muted-foreground hover:text-foreground transition-colors"

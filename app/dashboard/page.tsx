@@ -3,11 +3,14 @@ import { redirect } from 'next/navigation';
 import { NewProjectButton } from '@/app/new-project-button';
 import { HomeContent } from '@/app/home-content';
 import { DashboardSummary } from '@/components/dashboard/dashboard-summary';
+import { StaleCard } from '@/components/dashboard/stale-card';
 import {
   getAllPatches,
   getDashboardSummary,
   getProjects,
   getProjectSummary,
+  getStalePatches,
+  STALE_DAYS,
 } from '@/lib/queries';
 
 export default async function DashboardPage() {
@@ -16,11 +19,12 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  const [projects, patches, summary, dashboardSummary] = await Promise.all([
+  const [projects, patches, summary, dashboardSummary, stale] = await Promise.all([
     getProjects(userId),
     getAllPatches(userId),
     getProjectSummary(userId),
     getDashboardSummary(userId),
+    getStalePatches(userId),
   ]);
 
   return (
@@ -29,6 +33,7 @@ export default async function DashboardPage() {
         <NewProjectButton />
       </div>
       <div className="w-full max-w-5xl space-y-8">
+        <StaleCard patches={stale} staleDays={STALE_DAYS} />
         <DashboardSummary data={dashboardSummary} />
         <HomeContent projects={projects} patches={patches} summary={summary} />
       </div>

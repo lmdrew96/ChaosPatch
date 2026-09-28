@@ -5,6 +5,7 @@ import {
   getPatchAttachments,
   reopenPatch,
   setPatchArchived,
+  touchPatch,
   updatePatch,
   updatePatchStatus,
 } from "@/lib/queries";
@@ -34,6 +35,12 @@ export async function PATCH(
 
   if (body.note) {
     const patch = await addNote(userId, id, body.note);
+    if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(patch);
+  }
+
+  if (body.touch === true) {
+    const patch = await touchPatch(userId, id);
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
   }
