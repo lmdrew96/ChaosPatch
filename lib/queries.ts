@@ -35,7 +35,8 @@ export type Patch = {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
-  // Last touched — bumped by a DB trigger on every UPDATE (see lib/migrate.ts).
+  // Last touched — bumped by a DB trigger when status/title/notes/spec change,
+  // or set explicitly by touchPatch. Tags/priority/due_date don't count (see lib/migrate.ts).
   updated_at: string;
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];

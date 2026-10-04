@@ -55,8 +55,9 @@ void (async () => {
       ON patch_attachments(patch_id)
   `;
   // updated_at = "last touched", for stale-patch notifications. Backfill from
-  // the latest known timestamp, then let a trigger bump it on every UPDATE so
-  // every write path (web, MCP, batch) counts without touching each query.
+  // the latest known timestamp, then let a trigger bump it on meaningful
+  // UPDATEs so every write path (web, MCP, batch) counts without touching
+  // each query.
   await sql`
     ALTER TABLE patches
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
@@ -74,7 +75,17 @@ void (async () => {
   await sql`
     CREATE OR REPLACE FUNCTION patches_touch_updated_at() RETURNS trigger AS $$
     BEGIN
-      NEW.updated_at = now();
+      -- An explicit touch ("still relevant") sets updated_at itself; keep it.
+      IF NEW.updated_at IS DISTINCT FROM OLD.updated_at THEN
+        RETURN NEW;
+      END IF;
+      -- Only real work counts as touching a patch. Triage metadata (tags,
+      -- priority, due_date, archived) doesn't, so bulk tagging can't hide
+      -- stale patches.
+      IF (NEW.status, NEW.title, NEW.notes, NEW.spec)
+         IS DISTINCT FROM (OLD.status, OLD.title, OLD.notes, OLD.spec) THEN
+        NEW.updated_at = now();
+      END IF;
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql
