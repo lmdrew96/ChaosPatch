@@ -14,7 +14,9 @@ const isoDate = z
   });
 
 export const MCP_SCHEMAS = {
-  cp_list_projects: z.object({}),
+  cp_list_projects: z.object({
+    include_archived: z.boolean().optional(),
+  }),
   cp_add_project: z.object({
     name: z.string().min(1),
     slug: z.string().min(1),
@@ -100,7 +102,16 @@ export const MCP_SCHEMAS = {
     patch_id: z.string().min(1),
     status: z.enum(["open", "in_progress"]).optional(),
   }),
-  cp_get_project_summary: z.object({}),
+  cp_get_project_summary: z.object({
+    include_archived: z.boolean().optional(),
+  }),
+  cp_archive_project: z.object({
+    project_slug: z.string().min(1),
+    force: z.boolean().optional(),
+  }),
+  cp_unarchive_project: z.object({
+    project_slug: z.string().min(1),
+  }),
   cp_search_patches: z.object({
     query: z.string().min(1),
     include_archived: z.boolean().optional(),

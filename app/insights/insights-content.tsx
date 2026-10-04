@@ -18,9 +18,12 @@ export function InsightsContent({
   summary: ProjectSummary[];
   patches: PatchWithProject[];
 }) {
-  // Active = on the board now; archived patches are hidden, so leave them out.
+  // Active = on the board now; archived patches and projects are hidden, so leave them out.
   const activePatches = patches.filter(
-    (p) => !p.archived && (p.status === "open" || p.status === "in_progress")
+    (p) =>
+      !p.archived &&
+      !p.project_archived &&
+      (p.status === "open" || p.status === "in_progress")
   );
   const activeCount = activePatches.length;
   const highCount = activePatches.filter((p) => p.priority === "high").length;

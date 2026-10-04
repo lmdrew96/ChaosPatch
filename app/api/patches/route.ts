@@ -4,6 +4,7 @@ import {
   createPatch,
   getPatches,
   getProjectBySlug,
+  unarchiveProject,
 } from "@/lib/queries";
 
 export async function GET(req: Request) {
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
   if (!project) {
     return Response.json({ error: "Project not found" }, { status: 404 });
   }
+  // New work means the project is active again (same rule as cp_add_patch).
+  if (project.archived) await unarchiveProject(userId, project.slug);
 
   const trimmedNotes = typeof notes === "string" ? notes.trim() : "";
   const cleanTags = Array.isArray(tags)

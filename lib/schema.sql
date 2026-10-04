@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS projects (
   name       TEXT NOT NULL,
   slug       TEXT NOT NULL,
   color      TEXT DEFAULT '#6366f1',
+  archived   BOOLEAN NOT NULL DEFAULT FALSE,
+  archived_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, slug)
 );

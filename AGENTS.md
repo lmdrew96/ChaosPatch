@@ -45,6 +45,7 @@ The MCP server is the primary integration point — Codex and Codex Desktop use 
 - `cp_start_patch` — Mark as in_progress
 - `cp_complete_patch` — Mark as done
 - `cp_add_project` / `cp_delete_project` / `cp_delete_patch` — CRUD
+- `cp_archive_project` / `cp_unarchive_project` — Hide a project (and its patches) from default lists without deleting; refuses with in-progress patches unless `force`. Adding a patch auto-unarchives.
 - `cp_search_patches` — Cross-project text search
 - `cp_update_patch` — Update title/priority
 - `cp_reopen_patch` — Revert done/in_progress to open

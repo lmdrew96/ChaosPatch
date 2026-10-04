@@ -31,6 +31,9 @@ import {
   getVelocity,
   archiveCompletedPatches,
   unarchivePatch,
+  archiveProject,
+  unarchiveProject,
+  ProjectHasActiveWorkError,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 import { deleteObjects, presignGetUrl } from "@/lib/r2";
@@ -44,8 +47,41 @@ const TOOLS = [
   {
     name: "cp_list_projects",
     description:
-      "Get all ChaosPatch projects for the authenticated user. Each project includes open_count, in_progress_count, and done_count (all exclude archived patches), so a dashboard view can be built from one call.",
-    inputSchema: { type: "object" as const, properties: {} },
+      "Get all ChaosPatch projects for the authenticated user. Each project includes open_count, in_progress_count, and done_count (all exclude archived patches), so a dashboard view can be built from one call. Archived projects are hidden unless include_archived is true; each project carries an `archived` flag.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        include_archived: {
+          type: "boolean",
+          description: "If true, include archived projects (marked archived: true). Default false.",
+        },
+      },
+    },
+  },
+  {
+    name: "cp_archive_project",
+    description:
+      "Archive a project: hide it (and its patches) from project lists, cross-project patch lists, search, and summaries without deleting anything. Its completed patches still count toward cp_get_velocity. Refuses if the project has in-progress patches unless force is true. Adding a patch to an archived project unarchives it automatically.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        project_slug: { type: "string" },
+        force: {
+          type: "boolean",
+          description: "Archive even if the project has in-progress patches. Default false.",
+        },
+      },
+      required: ["project_slug"],
+    },
+  },
+  {
+    name: "cp_unarchive_project",
+    description: "Unarchive a project so it shows up in default lists again.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { project_slug: { type: "string" } },
+      required: ["project_slug"],
+    },
   },
   {
     name: "cp_add_project",
@@ -121,7 +157,7 @@ const TOOLS = [
   {
     name: "cp_list_all_patches",
     description:
-      "Get patches across ALL projects for the authenticated user, optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
+      "Get patches across ALL projects for the authenticated user (patches in archived projects are excluded unless include_archived is true), optionally filtered by status, priority, and/or tags (any-overlap match). Each patch includes project_name, project_slug, and project_color. Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -171,7 +207,7 @@ const TOOLS = [
   {
     name: "cp_add_patch",
     description:
-      "Add a new patch to a project, optionally with initial notes, a long-form spec, tags, and a due date. Keep `notes` terse (a triage summary + acceptance criteria); put long-form specs/brainstorms in `spec`, which is excluded from list/search payloads so the board stays scannable.",
+      "Add a new patch to a project, optionally with initial notes, a long-form spec, tags, and a due date. If the project is archived it is unarchived automatically (the response includes project_unarchived: true). Keep `notes` terse (a triage summary + acceptance criteria); put long-form specs/brainstorms in `spec`, which is excluded from list/search payloads so the board stays scannable.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -394,16 +430,21 @@ const TOOLS = [
   {
     name: "cp_get_project_summary",
     description:
-      "Get open/in_progress/done/archived/total counts for each project. open, in_progress, done, and total all exclude archived patches; archived is a separate count.",
+      "Get open/in_progress/done/archived/total counts for each project. open, in_progress, done, and total all exclude archived patches; archived is a separate count. Archived projects are omitted unless include_archived is true (each row carries project_archived).",
     inputSchema: {
       type: "object" as const,
-      properties: {},
+      properties: {
+        include_archived: {
+          type: "boolean",
+          description: "If true, include archived projects. Default false.",
+        },
+      },
     },
   },
   {
     name: "cp_search_patches",
     description:
-      "Search patches by title, notes, or tags (case-insensitive). Defaults to all projects, all statuses, non-archived. Optionally scope by project_slug and/or status, and opt in to archived results. Matching is against full notes, but each result carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a result's complete notes.",
+      "Search patches by title, notes, or tags (case-insensitive). Defaults to all non-archived projects, all statuses, non-archived patches. Optionally scope by project_slug and/or status, and opt in to archived results. Matching is against full notes, but each result carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a result's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -420,7 +461,7 @@ const TOOLS = [
         include_archived: {
           type: "boolean",
           description:
-            "If true, include archived patches in results. Default false.",
+            "If true, include archived patches and patches in archived projects. Default false.",
         },
       },
       required: ["query"],
@@ -455,7 +496,7 @@ const TOOLS = [
   {
     name: "cp_get_velocity",
     description:
-      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color. Archived patches excluded by default. Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
+      "Get patches completed since a given date/time across all projects (most recent first). Returns { completed_since, count, patches }. Each patch includes project_name, project_slug, project_color. Archived patches excluded by default; patches in archived projects are always included, so wins don't vanish when a project is archived. Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -553,8 +594,32 @@ async function handleTool(
 ): Promise<string> {
   switch (name) {
     case "cp_list_projects": {
-      const projects = await getProjects(userId);
+      const a = args as ParsedArgs<"cp_list_projects">;
+      const projects = await getProjects(userId, a.include_archived);
       return JSON.stringify(projects, null, 2);
+    }
+
+    case "cp_archive_project": {
+      const a = args as ParsedArgs<"cp_archive_project">;
+      try {
+        const project = await archiveProject(userId, a.project_slug, a.force);
+        if (!project) throw new Error(`Project '${a.project_slug}' not found`);
+        return JSON.stringify(project, null, 2);
+      } catch (err) {
+        if (err instanceof ProjectHasActiveWorkError) {
+          throw new Error(
+            `Not archived: '${a.project_slug}' has ${err.inProgressCount} in-progress ${err.inProgressCount === 1 ? "patch" : "patches"}. Complete or reopen ${err.inProgressCount === 1 ? "it" : "them"}, or call again with force: true.`
+          );
+        }
+        throw err;
+      }
+    }
+
+    case "cp_unarchive_project": {
+      const a = args as ParsedArgs<"cp_unarchive_project">;
+      const project = await unarchiveProject(userId, a.project_slug);
+      if (!project) throw new Error(`Project '${a.project_slug}' not found`);
+      return JSON.stringify(project, null, 2);
     }
 
     case "cp_add_project": {
@@ -600,6 +665,8 @@ async function handleTool(
       const a = args as ParsedArgs<"cp_add_patch">;
       const project = await getProjectBySlug(userId, a.project_slug);
       if (!project) throw new Error(`Project '${a.project_slug}' not found`);
+      // New work means the project is active again.
+      if (project.archived) await unarchiveProject(userId, project.slug);
       const patch = await createPatch(
         project.id,
         a.title,
@@ -609,7 +676,11 @@ async function handleTool(
         a.due_date,
         a.spec
       );
-      return JSON.stringify(patch, null, 2);
+      return JSON.stringify(
+        project.archived ? { ...patch, project_unarchived: true } : patch,
+        null,
+        2
+      );
     }
 
     case "cp_get_patch": {
@@ -723,7 +794,8 @@ async function handleTool(
     }
 
     case "cp_get_project_summary": {
-      const summary = await getProjectSummary(userId);
+      const a = args as ParsedArgs<"cp_get_project_summary">;
+      const summary = await getProjectSummary(userId, a.include_archived);
       return JSON.stringify(summary, null, 2);
     }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Archive, ChevronRight } from "lucide-react";
 import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
 import { SummaryStrip } from "@/components/insights/summary-strip";
 import { TagFilterBar } from "@/components/tag-filter-bar";
@@ -51,6 +51,10 @@ export function HomeContent({
   const [projectSort, setProjectSort] = useUrlParam("psort", "open_count", PROJECT_SORT_FIELDS);
   const [projectSortDir, setProjectSortDir] = useUrlParam("pdir", "desc", SORT_DIRS);
   const [searchQuery, setSearchQuery] = useUrlParam<string>("q", "");
+
+  // Archived projects live in their own collapsed section below the grid.
+  const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
+  const archivedProjects = useMemo(() => projects.filter((p) => p.archived), [projects]);
 
   // Tags can't contain commas (the tag input splits on them), so a joined param is safe.
   const tagFilters = useMemo(() => (tagParam ? tagParam.split(",") : []), [tagParam]);
@@ -129,7 +133,7 @@ export function HomeContent({
   // ── Filtered + sorted projects ─────────────────────────────────────────
 
   const filteredProjects = useMemo(() => {
-    const result = [...projects];
+    const result = [...activeProjects];
     result.sort((a, b) => {
       let cmp = 0;
       switch (projectSort) {
@@ -146,7 +150,7 @@ export function HomeContent({
       return projectSortDir === "desc" ? -cmp : cmp;
     });
     return result;
-  }, [projects, projectSort, projectSortDir]);
+  }, [activeProjects, projectSort, projectSortDir]);
 
   // ── Counts for filter badges ───────────────────────────────────────────
 
@@ -287,7 +291,7 @@ export function HomeContent({
             />
 
             {/* Project filter */}
-            {projects.length > 1 && (
+            {activeProjects.length > 1 && (
               <>
                 <div className="w-px bg-border mx-1 self-stretch" />
                 <select
@@ -296,7 +300,7 @@ export function HomeContent({
                   className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="all">All projects</option>
-                  {projects.map((p) => (
+                  {activeProjects.map((p) => (
                     <option key={p.id} value={p.slug}>
                       {p.name}
                     </option>
@@ -320,13 +324,24 @@ export function HomeContent({
 
       {/* Content */}
       {view === "projects" ? (
-        filteredProjects.length === 0 ? (
+        projects.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
-            {filteredProjects.map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
+          <div className="space-y-6">
+            {filteredProjects.length === 0 ? (
+              <p className="text-center py-12 text-muted-foreground/50 text-sm">
+                Every project is archived.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
+                {filteredProjects.map((p) => (
+                  <ProjectCard key={p.id} project={p} />
+                ))}
+              </div>
+            )}
+            {archivedProjects.length > 0 && (
+              <ArchivedProjects projects={archivedProjects} />
+            )}
           </div>
         )
       ) : filteredPatches.length === 0 ? (
@@ -414,6 +429,46 @@ function ProjectCard({ project }: { project: Project }) {
         </p>
       </div>
     </Link>
+  );
+}
+
+// ── Archived Projects (collapsed) ──────────────────────────────────────────
+
+function ArchivedProjects({ projects }: { projects: Project[] }) {
+  // Collapsed by default — archived means "out of the way".
+  const [open, setOpen] = useState(false);
+  const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="archived-projects"
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground/70 transition-colors"
+      >
+        <ChevronRight
+          aria-hidden
+          className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`}
+        />
+        <Archive aria-hidden className="h-3.5 w-3.5" />
+        Archived
+        <span className="font-mono text-[10px] text-muted-foreground/70 tabular-nums">
+          ({projects.length})
+        </span>
+      </button>
+      {open && (
+        <div
+          id="archived-projects"
+          className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 opacity-70"
+        >
+          {sorted.map((p) => (
+            <ProjectCard key={p.id} project={p} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

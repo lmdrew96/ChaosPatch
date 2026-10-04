@@ -11,6 +11,7 @@ import {
   type Patch,
   type PatchAttachment,
 } from "@/lib/queries";
+import { ArchiveProjectButton } from "./archive-project-button";
 import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
@@ -78,6 +79,11 @@ export default async function ProjectPage({
                 currentName={project.name}
                 currentColor={project.color}
               />
+              {project.archived && (
+                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                  Archived
+                </span>
+              )}
             </div>
           </div>
           <Link
@@ -90,6 +96,12 @@ export default async function ProjectPage({
       </header>
 
       <main className="px-6 py-8 max-w-3xl mx-auto space-y-8">
+        {project.archived && (
+          <p className="rounded-md border border-border bg-card/60 px-4 py-3 text-xs text-muted-foreground">
+            This project is archived — it&apos;s hidden from the dashboard and patch lists, but
+            its history still counts in Insights. Adding a patch unarchives it.
+          </p>
+        )}
         <ProjectPatchView
           slug={slug}
           patches={patchesWithImages}
@@ -98,8 +110,21 @@ export default async function ProjectPage({
           existingTags={existingTags}
         />
 
+        {/* Archive */}
+        <div className="border-t border-border pt-8 mt-12 space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {project.archived ? "Archived" : "Archive"}
+          </h3>
+          <p className="text-xs text-muted-foreground/70">
+            {project.archived
+              ? "Bring this project back onto the dashboard and into patch lists."
+              : "Hide this project and its patches from the dashboard without deleting anything. Completed work still counts in Insights."}
+          </p>
+          <ArchiveProjectButton slug={slug} archived={project.archived} />
+        </div>
+
         {/* Danger zone */}
-        <div className="border-t border-border pt-8 mt-12">
+        <div className="border-t border-border pt-8">
           <div className="rounded-lg border border-red-950 bg-red-950/10 p-5">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-red-400 mb-2">
               Danger zone

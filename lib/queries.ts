@@ -8,6 +8,10 @@ export type Project = {
   name: string;
   slug: string;
   color: string;
+  // Archived projects are hidden from the board; their patches still count
+  // toward velocity and insights history.
+  archived: boolean;
+  archived_at: string | null;
   created_at: string;
   open_count?: number;
   in_progress_count?: number;
@@ -51,6 +55,7 @@ export type PatchWithProject = Patch & {
   project_name: string;
   project_slug: string;
   project_color: string;
+  project_archived: boolean;
 };
 
 export type PatchSortBy = "priority" | "created_at";
@@ -77,11 +82,11 @@ export async function getAllPatches(
 
   if (sortBy === "priority") {
     const rows = await sql`
-      SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+      SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
       FROM patches pa
       JOIN projects p ON p.id = pa.project_id
       WHERE p.user_id = ${userId}
-        AND (${includeArchived}::boolean OR NOT pa.archived)
+        AND (${includeArchived}::boolean OR (NOT pa.archived AND NOT p.archived))
         AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
         AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
         AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -96,11 +101,11 @@ export async function getAllPatches(
   }
 
   const rows = await sql`
-    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
-      AND (${includeArchived}::boolean OR NOT pa.archived)
+      AND (${includeArchived}::boolean OR (NOT pa.archived AND NOT p.archived))
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (${priorityFilter}::text IS NULL OR pa.priority = ${priorityFilter}::text)
       AND (${tagsFilter}::text[] IS NULL OR pa.tags && ${tagsFilter}::text[])
@@ -114,7 +119,10 @@ export async function getAllPatches(
 
 // ── Projects ───────────────────────────────────────────────────────────────
 
-export async function getProjects(userId: string): Promise<Project[]> {
+export async function getProjects(
+  userId: string,
+  includeArchived = false
+): Promise<Project[]> {
   // Counts exclude archived patches to match getProjectSummary semantics.
   const rows = await sql`
     SELECT p.*,
@@ -124,6 +132,7 @@ export async function getProjects(userId: string): Promise<Project[]> {
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
     WHERE p.user_id = ${userId}
+      AND (${includeArchived}::boolean OR NOT p.archived)
     GROUP BY p.id
     ORDER BY p.created_at DESC
   `;
@@ -164,6 +173,53 @@ export async function deleteProject(
     DELETE FROM projects
     WHERE user_id = ${userId} AND slug = ${slug}
   `;
+}
+
+/** Thrown when archiving a project that still has work in flight. */
+export class ProjectHasActiveWorkError extends Error {
+  constructor(public inProgressCount: number) {
+    super(
+      `Project has ${inProgressCount} in-progress ${inProgressCount === 1 ? "patch" : "patches"}. Finish or reopen ${inProgressCount === 1 ? "it" : "them"} first, or archive anyway with force.`
+    );
+  }
+}
+
+export async function archiveProject(
+  userId: string,
+  slug: string,
+  force = false
+): Promise<Project | null> {
+  if (!force) {
+    const rows = await sql`
+      SELECT COUNT(pa.id)::int AS count
+      FROM patches pa
+      JOIN projects p ON p.id = pa.project_id
+      WHERE p.user_id = ${userId} AND p.slug = ${slug}
+        AND pa.status = 'in_progress' AND NOT pa.archived
+    `;
+    const count = (rows[0] as { count: number }).count;
+    if (count > 0) throw new ProjectHasActiveWorkError(count);
+  }
+  // COALESCE keeps the original archived_at if it's archived twice.
+  const rows = await sql`
+    UPDATE projects
+    SET archived = TRUE, archived_at = COALESCE(archived_at, now())
+    WHERE user_id = ${userId} AND slug = ${slug}
+    RETURNING *
+  `;
+  return (rows[0] as Project) ?? null;
+}
+
+export async function unarchiveProject(
+  userId: string,
+  slug: string
+): Promise<Project | null> {
+  const rows = await sql`
+    UPDATE projects SET archived = FALSE, archived_at = NULL
+    WHERE user_id = ${userId} AND slug = ${slug}
+    RETURNING *
+  `;
+  return (rows[0] as Project) ?? null;
 }
 
 // ── Patches ────────────────────────────────────────────────────────────────
@@ -611,10 +667,14 @@ export type ProjectSummary = {
   total: number;
 };
 
-export type ProjectSummaryWithArchive = ProjectSummary & { archived: number };
+export type ProjectSummaryWithArchive = ProjectSummary & {
+  archived: number;
+  project_archived: boolean;
+};
 
 export async function getProjectSummary(
-  userId: string
+  userId: string,
+  includeArchivedProjects = false
 ): Promise<ProjectSummaryWithArchive[]> {
   // open / in_progress / done / total exclude archived; archived is its own column.
   const rows = await sql`
@@ -622,6 +682,7 @@ export async function getProjectSummary(
       p.name AS project_name,
       p.slug AS project_slug,
       p.color AS project_color,
+      p.archived AS project_archived,
       COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open,
       COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress,
       COUNT(pa.id) FILTER (WHERE pa.status = 'done' AND NOT pa.archived)::int AS done,
@@ -630,6 +691,7 @@ export async function getProjectSummary(
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
     WHERE p.user_id = ${userId}
+      AND (${includeArchivedProjects}::boolean OR NOT p.archived)
     GROUP BY p.id
     ORDER BY p.name ASC
   `;
@@ -643,12 +705,13 @@ export const STALE_DAYS = 7;
 
 export async function getStalePatches(userId: string): Promise<PatchWithProject[]> {
   const rows = await sql`
-    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
       AND pa.status IN ('open', 'in_progress')
       AND NOT pa.archived
+      AND NOT p.archived
       AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
     ORDER BY pa.updated_at ASC
   `;
@@ -663,6 +726,7 @@ export async function getStaleCount(userId: string): Promise<number> {
     WHERE p.user_id = ${userId}
       AND pa.status IN ('open', 'in_progress')
       AND NOT pa.archived
+      AND NOT p.archived
       AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
   `;
   return (rows[0] as { count: number }).count;
@@ -697,27 +761,27 @@ export async function getDashboardSummary(
   const [inProgress, recentlyCompleted, recentlyAdded, countRows] =
     await Promise.all([
       sql`
-        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'in_progress' AND NOT pa.archived
+        WHERE p.user_id = ${userId} AND pa.status = 'in_progress' AND NOT pa.archived AND NOT p.archived
         ORDER BY pa.started_at DESC NULLS LAST
         LIMIT 5
       `,
       sql`
-        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'done' AND NOT pa.archived
+        WHERE p.user_id = ${userId} AND pa.status = 'done' AND NOT pa.archived AND NOT p.archived
           AND pa.completed_at >= NOW() - INTERVAL '14 days'
         ORDER BY pa.completed_at DESC
         LIMIT 5
       `,
       sql`
-        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId} AND pa.status = 'open' AND NOT pa.archived
+        WHERE p.user_id = ${userId} AND pa.status = 'open' AND NOT pa.archived AND NOT p.archived
           AND pa.created_at >= NOW() - INTERVAL '7 days'
         ORDER BY pa.created_at DESC
         LIMIT 5
@@ -728,7 +792,7 @@ export async function getDashboardSummary(
           COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
-        WHERE p.user_id = ${userId}
+        WHERE p.user_id = ${userId} AND NOT p.archived
       `,
     ]);
 
@@ -824,7 +888,7 @@ export async function getVelocity(
   includeArchived = false
 ): Promise<VelocityResult> {
   const rows = await sql`
-    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
@@ -854,11 +918,11 @@ export async function searchPatches(
   const slugFilter = projectSlug ?? null;
   const statusFilter = status ?? null;
   const rows = await sql`
-    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color
+    SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
-      AND (${includeArchived}::boolean OR NOT pa.archived)
+      AND (${includeArchived}::boolean OR (NOT pa.archived AND NOT p.archived))
       AND (${slugFilter}::text IS NULL OR p.slug = ${slugFilter}::text)
       AND (${statusFilter}::text IS NULL OR pa.status = ${statusFilter}::text)
       AND (

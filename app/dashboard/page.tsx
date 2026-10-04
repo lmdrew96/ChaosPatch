@@ -20,7 +20,8 @@ export default async function DashboardPage() {
   }
 
   const [projects, patches, summary, dashboardSummary, stale] = await Promise.all([
-    getProjects(userId),
+    // Archived projects come along for the collapsed "Archived" section.
+    getProjects(userId, true),
     getAllPatches(userId),
     getProjectSummary(userId),
     getDashboardSummary(userId),

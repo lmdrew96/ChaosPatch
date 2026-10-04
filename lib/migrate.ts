@@ -30,6 +30,15 @@ void (async () => {
     ALTER TABLE patches
     ADD COLUMN IF NOT EXISTS spec TEXT
   `;
+  // Archived projects are hidden from the board but keep their history.
+  await sql`
+    ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+  await sql`
+    ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS patch_attachments (
       id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -76,6 +85,6 @@ void (async () => {
     FOR EACH ROW EXECUTE FUNCTION patches_touch_updated_at()
   `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at columns ensured."
+    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at and projects.archived + archived_at columns ensured."
   );
 })();

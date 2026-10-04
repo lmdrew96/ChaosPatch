@@ -106,6 +106,8 @@ Once connected, Claude Code can use these tools in any session:
 | `cp_add_project` | Create a new project |
 | `cp_update_project` | Rename or recolor a project |
 | `cp_delete_project` | Delete a project and all its patches |
+| `cp_archive_project` | Archive a project — hidden from default lists, history kept (`force` if patches are in progress) |
+| `cp_unarchive_project` | Unarchive a project |
 | `cp_list_patches` | Get patches for a project (filter by status/priority) |
 | `cp_list_all_patches` | Get patches across every project |
 | `cp_add_patch` | Add a new patch with optional initial notes |
