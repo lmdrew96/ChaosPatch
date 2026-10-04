@@ -6,8 +6,8 @@ const MAX_ROWS = 5;
 
 // Patches that need a decision: started but not finished after a week, and the
 // oldest open high/medium work. Expects active (non-archived) patches only.
-export function StuckList({ patches }: { patches: PatchWithProject[] }) {
-  const cutoff = Date.now() - STUCK_AFTER_MS;
+export function StuckList({ patches, now }: { patches: PatchWithProject[]; now: number }) {
+  const cutoff = now - STUCK_AFTER_MS;
   const age = (iso: string | null) => (iso ? new Date(iso).getTime() : Infinity);
 
   const stalled = patches

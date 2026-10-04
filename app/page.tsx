@@ -27,7 +27,7 @@ export default function LandingPage() {
         <div className="text-center max-w-3xl space-y-8">
           <div className="space-y-4">
             <p className="font-mono text-xs tracking-[0.35em] uppercase text-muted-foreground animate-fade-in">
-              // patch_tracker.sys
+              {"// patch_tracker.sys"}
             </p>
             <h1
               className="font-mono text-6xl md:text-7xl font-black tracking-tight bg-clip-text text-transparent animate-fade-in leading-[1.15] pb-2"

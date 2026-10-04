@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useEffect } from "react";
+import { useId, useState } from "react";
 import { PRESET_COLORS } from "@/lib/colors";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -18,10 +18,11 @@ export function ColorPicker({
 }) {
   const pickerId = useId();
   const [hexInput, setHexInput] = useState(value);
-
-  useEffect(() => {
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     setHexInput(value);
-  }, [value]);
+  }
 
   function commitHex(raw: string) {
     const next = normalize(raw.trim()).toLowerCase();

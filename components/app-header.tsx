@@ -4,15 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Hourglass, Keyboard } from "lucide-react";
 import { SHORTCUTS_HELP_EVENT } from "@/components/keyboard-shortcuts";
 import { STALE_CHANGED_EVENT } from "@/components/dashboard/stale-card";
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // false during SSR/hydration, true on the client — avoids a theme mismatch flash.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) return <div className="w-3.5 h-3.5" />;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { ProjectSummary, PatchWithProject } from "@/lib/queries";
@@ -37,7 +38,7 @@ export function InsightsContent({
   // Daily rate tri-score: completions ÷ days in each window. When the account
   // is younger than a window, divide by the days actually elapsed.
   const DAY_MS = 86_400_000;
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const earliestCreated = patches.reduce<number | null>((min, p) => {
     const t = new Date(p.created_at).getTime();
     return min === null || t < min ? t : min;
@@ -154,7 +155,7 @@ export function InsightsContent({
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Stuck
         </h2>
-        <StuckList patches={activePatches} />
+        <StuckList patches={activePatches} now={now} />
       </div>
 
       {/* Completion momentum — daily volume stacked by project + 7-day avg */}
