@@ -14,7 +14,7 @@ type ProjectGroup = {
 /**
  * "Shipped this week": the last 7 days of completed patches, grouped by
  * project. Deliberately calm — just what got done, no streaks or comparisons.
- * Renders nothing when the week is empty so the backlog leads instead.
+ * Renders nothing when nothing shipped in the last 7 days.
  */
 export function ShippedWall({ patches }: { patches: PatchWithProject[] }) {
   if (patches.length === 0) return null;

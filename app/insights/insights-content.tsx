@@ -10,6 +10,7 @@ import { StuckList } from "@/components/insights/stuck-list";
 import { ActiveBars } from "@/components/insights/active-bars";
 import { MomentumTrend } from "@/components/insights/momentum-trend";
 import { CompletionHeatmap } from "@/components/insights/completion-heatmap";
+import { ShippedWall } from "@/components/insights/shipped-wall";
 
 export function InsightsContent({
   summary,
@@ -65,6 +66,10 @@ export function InsightsContent({
   const addedWeek = patches.filter((p) => new Date(p.created_at).getTime() >= weekAgo).length;
   const doneWeek = completed.filter((p) => new Date(p.completed_at!).getTime() >= weekAgo).length;
   const netFlow = addedWeek - doneWeek;
+  // This week's wins, newest first; archived work still counts.
+  const shippedWeek = completed
+    .filter((p) => new Date(p.completed_at!).getTime() >= weekAgo)
+    .sort((a, b) => b.completed_at!.localeCompare(a.completed_at!));
   const netFlowDisplay = netFlow > 0 ? `+${netFlow}` : netFlow < 0 ? `−${-netFlow}` : "0";
   const netFlowTrend = netFlow > 0 ? "growing" : netFlow < 0 ? "shrinking" : "holding steady";
 
@@ -144,6 +149,8 @@ export function InsightsContent({
           delay={240}
         />
       </div>
+
+      <ShippedWall patches={shippedWeek} />
 
       {/* Active patches — load per project, segmented by priority */}
       <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">

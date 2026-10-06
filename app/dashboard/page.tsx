@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { NewProjectButton } from '@/app/new-project-button';
 import { HomeContent } from '@/app/home-content';
 import { DashboardSummary } from '@/components/dashboard/dashboard-summary';
-import { ShippedWall } from '@/components/dashboard/shipped-wall';
 import { StaleCard } from '@/components/dashboard/stale-card';
 import {
   getAllPatches,
@@ -11,13 +10,8 @@ import {
   getProjects,
   getProjectSummary,
   getStalePatches,
-  getVelocity,
   STALE_DAYS,
 } from '@/lib/queries';
-
-/** Start of the rolling 7-day "shipped this week" window. */
-const weekAgo = (): string =>
-  new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -25,15 +19,13 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  const [projects, patches, summary, dashboardSummary, stale, shipped] = await Promise.all([
+  const [projects, patches, summary, dashboardSummary, stale] = await Promise.all([
     // Archived projects come along for the collapsed "Archived" section.
     getProjects(userId, true),
     getAllPatches(userId),
     getProjectSummary(userId),
     getDashboardSummary(userId),
     getStalePatches(userId),
-    // Wins count even if the patch or its project was archived since.
-    getVelocity(userId, weekAgo(), true),
   ]);
 
   return (
@@ -42,7 +34,6 @@ export default async function DashboardPage() {
         <NewProjectButton />
       </div>
       <div className="w-full max-w-5xl space-y-8">
-        <ShippedWall patches={shipped.patches} />
         <StaleCard patches={stale} staleDays={STALE_DAYS} />
         <DashboardSummary data={dashboardSummary} />
         <HomeContent projects={projects} patches={patches} summary={summary} />
