@@ -577,7 +577,7 @@ const TOOLS = [
   {
     name: "cp_batch_update",
     description:
-      "Bulk-apply one action to many patches. 'start' sets in_progress + started_at; 'complete' sets done + completed_at; 'reopen' reverts to open, clears timestamps, and unarchives; 'archive' archives; 'delete' permanently deletes the patches and their image attachments; 'set_priority' sets `priority` (required for this action); 'add_tags' appends `tags` (required for this action), skipping tags a patch already has. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] } — for 'delete', `updated` lists the deleted patches.",
+      "Bulk-apply one action to many patches. 'start' sets in_progress + started_at; 'review' sets review (awaiting Nae's check; keeps started_at, clears completed_at); 'complete' sets done + completed_at; 'reopen' reverts to open, clears timestamps, and unarchives; 'archive' archives; 'delete' permanently deletes the patches and their image attachments; 'set_priority' sets `priority` (required for this action); 'add_tags' appends `tags` (required for this action), skipping tags a patch already has. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] } — for 'delete', `updated` lists the deleted patches.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -590,6 +590,7 @@ const TOOLS = [
           type: "string",
           enum: [
             "start",
+            "review",
             "complete",
             "reopen",
             "archive",

@@ -254,6 +254,11 @@ function PatchRow({
     await mutate(patchBody({ reopen: "open" }));
   }
 
+  // Finished, but needs a look before it counts as done (UI twin of cp_request_review).
+  async function requestReview() {
+    await mutate(patchBody({ status: "review" }));
+  }
+
   // Review didn't pass: back to in progress so Cody picks it up again.
   async function sendBack() {
     await mutate(patchBody({ reopen: "in_progress" }));
@@ -436,6 +441,15 @@ function PatchRow({
               </button>
             ) : nextStatus ? (
               <>
+                {patch.status === "in_progress" && (
+                  <button
+                    onClick={requestReview}
+                    disabled={isPending}
+                    className="text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 disabled:opacity-40 transition-colors"
+                  >
+                    Review
+                  </button>
+                )}
                 {patch.status === "review" && (
                   <button
                     onClick={sendBack}

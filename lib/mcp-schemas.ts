@@ -167,6 +167,7 @@ export const MCP_SCHEMAS = {
       patch_ids: z.array(z.string().min(1)).min(1),
       action: z.enum([
         "start",
+        "review",
         "complete",
         "reopen",
         "archive",

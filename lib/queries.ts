@@ -576,6 +576,7 @@ export async function reopenPatch(
 
 export const BATCH_ACTIONS = [
   "start",
+  "review",
   "complete",
   "reopen",
   "archive",
@@ -662,6 +663,17 @@ export async function batchUpdatePatches(
     rows = await sql`
       UPDATE patches pa
       SET status = 'in_progress', started_at = NOW()
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "review") {
+    // Same semantics as updatePatchStatus(..., "review"), minus the note.
+    rows = await sql`
+      UPDATE patches pa
+      SET status = 'review', started_at = COALESCE(pa.started_at, NOW()), completed_at = NULL
       FROM projects p
       WHERE pa.project_id = p.id
         AND p.user_id = ${userId}

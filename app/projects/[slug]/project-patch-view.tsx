@@ -469,6 +469,13 @@ export function ProjectPatchView({
           Start
         </button>
         <button
+          onClick={() => bulkAction("review")}
+          disabled={busy || selectedIds.size === 0}
+          className="text-xs text-cyan-600 dark:text-cyan-400 hover:opacity-80 disabled:opacity-40 transition-colors"
+        >
+          Review
+        </button>
+        <button
           onClick={() => bulkAction("complete")}
           disabled={busy || selectedIds.size === 0}
           className="text-xs text-emerald-500 dark:text-emerald-400 hover:opacity-80 disabled:opacity-40 transition-colors"
