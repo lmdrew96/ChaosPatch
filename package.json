@@ -1,6 +1,6 @@
 {
   "name": "chaospatch",
-  "version": "0.50.0",
+  "version": "0.50.1",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {
@@ -13,6 +13,7 @@
     "db:clean": "node --env-file=.env.local -r esbuild-register lib/clean.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@aws-sdk/client-s3": "^3.1101.0",
     "@aws-sdk/s3-request-presigner": "^3.1101.0",
     "@clerk/nextjs": "^7.0.7",

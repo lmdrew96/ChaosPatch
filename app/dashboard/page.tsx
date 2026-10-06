@@ -15,13 +15,16 @@ import {
   STALE_DAYS,
 } from '@/lib/queries';
 
+/** Start of the rolling 7-day "shipped this week" window. */
+const weekAgo = (): string =>
+  new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) {
     redirect('/sign-in');
   }
 
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const [projects, patches, summary, dashboardSummary, stale, shipped] = await Promise.all([
     // Archived projects come along for the collapsed "Archived" section.
     getProjects(userId, true),
@@ -30,7 +33,7 @@ export default async function DashboardPage() {
     getDashboardSummary(userId),
     getStalePatches(userId),
     // Wins count even if the patch or its project was archived since.
-    getVelocity(userId, weekAgo, true),
+    getVelocity(userId, weekAgo(), true),
   ]);
 
   return (
