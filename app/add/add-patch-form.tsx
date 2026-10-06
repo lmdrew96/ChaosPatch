@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/queries";
+import { ProjectCombobox } from "@/components/project-combobox";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import {
   PatchImageAttachments,
@@ -22,7 +23,12 @@ export function AddPatchForm({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [slug, setSlug] = useState(defaultSlug ?? projects[0]?.slug ?? "");
+  // Projects arrive most-recently-used first, so [0] is the fallback default.
+  const [slug, setSlug] = useState(
+    projects.some((p) => p.slug === defaultSlug)
+      ? defaultSlug!
+      : projects[0]?.slug ?? ""
+  );
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -91,17 +97,7 @@ export function AddPatchForm({
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Project
         </label>
-        <select
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.slug}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <ProjectCombobox projects={projects} value={slug} onChange={setSlug} />
       </div>
 
       <div className="space-y-1.5">

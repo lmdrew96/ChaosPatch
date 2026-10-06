@@ -140,6 +140,23 @@ export async function getProjects(
   return rows as Project[];
 }
 
+/**
+ * Unarchived projects for the Add Patch picker, most recently used first
+ * (by newest patch), then never-used projects alphabetically. The first row
+ * is the default when the user isn't viewing a specific project.
+ */
+export async function getProjectsByRecentUse(userId: string): Promise<Project[]> {
+  const rows = await sql`
+    SELECT p.*
+    FROM projects p
+    LEFT JOIN patches pa ON pa.project_id = p.id
+    WHERE p.user_id = ${userId} AND NOT p.archived
+    GROUP BY p.id
+    ORDER BY MAX(pa.created_at) DESC NULLS LAST, lower(p.name) ASC
+  `;
+  return rows as Project[];
+}
+
 export async function getProjectBySlug(
   userId: string,
   slug: string

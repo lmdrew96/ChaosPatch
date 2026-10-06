@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getProjects, getDistinctTags } from "@/lib/queries";
+import { getProjectsByRecentUse, getDistinctTags } from "@/lib/queries";
 import { AddPatchForm } from "./add-patch-form";
 
 export default async function AddPage({
@@ -13,7 +13,7 @@ export default async function AddPage({
 
   const { project: defaultSlug } = await searchParams;
   const [projects, existingTags] = await Promise.all([
-    getProjects(userId),
+    getProjectsByRecentUse(userId),
     getDistinctTags(userId),
   ]);
 

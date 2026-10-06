@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export const NEW_PROJECT_EVENT = "chaospatch:new-project";
 export const SHORTCUTS_HELP_EVENT = "chaospatch:shortcuts-help";
@@ -27,6 +27,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function KeyboardShortcuts() {
   const router = useRouter();
+  const pathname = usePathname();
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
@@ -38,7 +39,10 @@ export function KeyboardShortcuts() {
         const key = e.key.toLowerCase();
         if (key === "n") {
           e.preventDefault();
-          router.push("/add");
+          // Preselect the project being viewed; /add falls back to the most
+          // recently used one.
+          const slug = /^\/projects\/([^/]+)/.exec(pathname)?.[1];
+          router.push(slug ? `/add?project=${slug}` : "/add");
         } else if (key === "p") {
           e.preventDefault();
           window.dispatchEvent(new CustomEvent(NEW_PROJECT_EVENT));
@@ -70,7 +74,7 @@ export function KeyboardShortcuts() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener(SHORTCUTS_HELP_EVENT, onOpenHelp);
     };
-  }, [router]);
+  }, [router, pathname]);
 
   if (!helpOpen) return null;
 
