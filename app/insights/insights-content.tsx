@@ -69,7 +69,9 @@ export function InsightsContent({
   // This week's wins, newest first; archived work still counts.
   const shippedWeek = completed
     .filter((p) => new Date(p.completed_at!).getTime() >= weekAgo)
-    .sort((a, b) => b.completed_at!.localeCompare(a.completed_at!));
+    .sort(
+      (a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime()
+    );
   const netFlowDisplay = netFlow > 0 ? `+${netFlow}` : netFlow < 0 ? `−${-netFlow}` : "0";
   const netFlowTrend = netFlow > 0 ? "growing" : netFlow < 0 ? "shrinking" : "holding steady";
 
