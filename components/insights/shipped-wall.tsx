@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { PartyPopper } from "lucide-react";
 import type { PatchWithProject } from "@/lib/queries";
@@ -61,19 +64,32 @@ export function ShippedWall({ patches }: { patches: PatchWithProject[] }) {
                 {g.patches.length}
               </span>
             </Link>
-            <TitleList slug={g.slug} patches={g.patches.slice(0, TITLES_SHOWN)} />
-            {g.patches.length > TITLES_SHOWN && (
-              <details className="group">
-                <summary className="cursor-pointer list-none pl-4 text-[11px] text-muted-foreground/60 hover:text-muted-foreground group-open:hidden">
-                  +{g.patches.length - TITLES_SHOWN} more
-                </summary>
-                <TitleList slug={g.slug} patches={g.patches.slice(TITLES_SHOWN)} />
-              </details>
-            )}
+            <GroupTitles slug={g.slug} patches={g.patches} />
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/** First few titles, with a +N more / − less toggle for the rest. */
+function GroupTitles({ slug, patches }: { slug: string; patches: PatchWithProject[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = patches.length - TITLES_SHOWN;
+  return (
+    <>
+      <TitleList slug={slug} patches={expanded ? patches : patches.slice(0, TITLES_SHOWN)} />
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="pl-4 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+        >
+          {expanded ? "− less" : `+${hidden} more`}
+        </button>
+      )}
+    </>
   );
 }
 
