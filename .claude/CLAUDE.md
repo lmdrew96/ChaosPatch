@@ -43,13 +43,14 @@ The MCP server is the primary integration point — Claude Code and Claude Deskt
 - `cp_add_patch` — Create a new patch
 - `cp_add_note` — Append a note to a patch
 - `cp_start_patch` — Mark as in_progress
+- `cp_request_review` — Mark as review (finished, awaiting Nae's check; optional note)
 - `cp_complete_patch` — Mark as done
 - `cp_add_project` / `cp_delete_project` / `cp_delete_patch` — CRUD
 - `cp_archive_project` / `cp_unarchive_project` — Hide a project (and its patches) from default lists without deleting; refuses with in-progress patches unless `force`. Adding a patch auto-unarchives.
 - `cp_search_patches` — Cross-project text search
 - `cp_update_patch` — Update title/priority
-- `cp_reopen_patch` — Revert done/in_progress to open
-- `cp_get_project_summary` — Open/in_progress/done counts per project
+- `cp_reopen_patch` — Revert done/review/in_progress to open (or in_progress)
+- `cp_get_project_summary` — Open/in_progress/review/done counts per project
 - `cp_get_patch` — Fetch a single patch (includes its `attachments`)
 - `cp_get_patch_images` — Return a patch's attached images as viewable image content (for visual context) + their URLs
 - `cp_request_image_upload` / `cp_confirm_image_upload` — Attach an image to a patch: get a 10-min presigned R2 PUT URL, upload, then confirm to record the attachment

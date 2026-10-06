@@ -29,7 +29,7 @@ export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
   // Aggregate active patches per project, by priority
   const byProject = new Map<string, ProjectRow>();
   for (const p of patches) {
-    if (p.status !== "open" && p.status !== "in_progress") continue;
+    if (p.status === "done") continue;
     const row = byProject.get(p.project_name) ?? {
       name: p.project_name,
       color: p.project_color,

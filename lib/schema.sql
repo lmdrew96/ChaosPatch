@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS patches (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id   UUID REFERENCES projects(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,
-  status       TEXT DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'done')),
+  status       TEXT DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'review', 'done')),
   priority     TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
   notes        TEXT,
   spec         TEXT,

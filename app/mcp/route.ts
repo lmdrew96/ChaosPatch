@@ -56,7 +56,7 @@ const TOOLS = [
   {
     name: "cp_list_projects",
     description:
-      "Get all ChaosPatch projects for the authenticated user. Each project includes open_count, in_progress_count, and done_count (all exclude archived patches), so a dashboard view can be built from one call. Archived projects are hidden unless include_archived is true; each project carries an `archived` flag.",
+      "Get all ChaosPatch projects for the authenticated user. Each project includes open_count, in_progress_count, review_count, and done_count (all exclude archived patches), so a dashboard view can be built from one call. Archived projects are hidden unless include_archived is true; each project carries an `archived` flag.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -114,14 +114,14 @@ const TOOLS = [
   {
     name: "cp_list_patches",
     description:
-      "Get patches for a project, optionally filtered by status (open | in_progress | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive — patches due on or before this date). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
+      "Get patches for a project, optionally filtered by status (open | in_progress | review | done), priority (low | medium | high), and/or tags (returns patches with at least one matching tag). Supports sort_by (priority | created_at — default created_at), pagination via limit (max 500) and offset, and due_before (YYYY-MM-DD, inclusive — patches due on or before this date). Each patch carries notes_preview (first ~200 chars) + notes_length, not full notes — call cp_get_patch for a patch's complete notes.",
     inputSchema: {
       type: "object" as const,
       properties: {
         project_slug: { type: "string" },
         status: {
           type: "string",
-          enum: ["open", "in_progress", "done"],
+          enum: ["open", "in_progress", "review", "done"],
           description: "Filter by status (optional)",
         },
         priority: {
@@ -172,7 +172,7 @@ const TOOLS = [
       properties: {
         status: {
           type: "string",
-          enum: ["open", "in_progress", "done"],
+          enum: ["open", "in_progress", "review", "done"],
           description: "Filter by status (optional)",
         },
         priority: {
@@ -311,6 +311,23 @@ const TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: { patch_id: { type: "string", description: "Patch UUID" } },
+      required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_request_review",
+    description:
+      "Mark a patch as finished but awaiting review (status 'review', between in_progress and done). Use this when implementation is done and Nae needs to check it; she approves it to done (or cp_complete_patch after she confirms). Keeps started_at (sets it if unset) and clears completed_at. Optionally append a note in the same call — say what shipped and exactly what to check.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        note: {
+          type: "string",
+          description:
+            "Optional review note appended to the patch's notes field (what shipped, what to check)",
+        },
+      },
       required: ["patch_id"],
     },
   },
@@ -456,7 +473,7 @@ const TOOLS = [
   {
     name: "cp_reopen_patch",
     description:
-      "Reopen a done or in_progress patch. Reverts to open (clears started_at and completed_at) or in_progress (clears completed_at).",
+      "Reopen a done, review, or in_progress patch. Reverts to open (clears started_at and completed_at) or in_progress (clears completed_at).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -473,7 +490,7 @@ const TOOLS = [
   {
     name: "cp_get_project_summary",
     description:
-      "Get open/in_progress/done/archived/total counts for each project. open, in_progress, done, and total all exclude archived patches; archived is a separate count. Archived projects are omitted unless include_archived is true (each row carries project_archived).",
+      "Get open/in_progress/review/done/archived/total counts for each project. open, in_progress, review, done, and total all exclude archived patches; archived is a separate count. Archived projects are omitted unless include_archived is true (each row carries project_archived).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -498,7 +515,7 @@ const TOOLS = [
         },
         status: {
           type: "string",
-          enum: ["open", "in_progress", "done"],
+          enum: ["open", "in_progress", "review", "done"],
           description: "If set, only return patches in this status (optional)",
         },
         include_archived: {
@@ -651,7 +668,7 @@ async function handleTool(
       } catch (err) {
         if (err instanceof ProjectHasActiveWorkError) {
           throw new Error(
-            `Not archived: '${a.project_slug}' has ${err.inProgressCount} in-progress ${err.inProgressCount === 1 ? "patch" : "patches"}. Complete or reopen ${err.inProgressCount === 1 ? "it" : "them"}, or call again with force: true.`
+            `Not archived: '${a.project_slug}' has ${err.inProgressCount} in-progress or in-review ${err.inProgressCount === 1 ? "patch" : "patches"}. Complete or reopen ${err.inProgressCount === 1 ? "it" : "them"}, or call again with force: true.`
           );
         }
         throw err;
@@ -800,6 +817,13 @@ async function handleTool(
     case "cp_start_patch": {
       const a = args as ParsedArgs<"cp_start_patch">;
       const patch = await updatePatchStatus(userId, a.patch_id, "in_progress");
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_request_review": {
+      const a = args as ParsedArgs<"cp_request_review">;
+      const patch = await updatePatchStatus(userId, a.patch_id, "review", a.note);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }

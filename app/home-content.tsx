@@ -15,7 +15,7 @@ import { FOCUS_SEARCH_EVENT } from "@/components/keyboard-shortcuts";
 // ── Types ──────────────────────────────────────────────────────────────────
 
 const VIEW_MODES = ["projects", "patches"] as const;
-const STATUS_FILTERS = ["all", "open", "in_progress", "done"] as const;
+const STATUS_FILTERS = ["all", "open", "in_progress", "review", "done"] as const;
 const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
 const PROJECT_SORT_FIELDS = ["name", "open_count", "created"] as const;
 const SORT_FIELDS = ["created", "priority", "status", "project"] as const;
@@ -27,7 +27,8 @@ type ProjectSortField = (typeof PROJECT_SORT_FIELDS)[number];
 type SortField = (typeof SORT_FIELDS)[number];
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
-const STATUS_ORDER = { in_progress: 0, open: 1, done: 2 };
+// Review first: those are waiting on Nae.
+const STATUS_ORDER = { review: 0, in_progress: 1, open: 2, done: 3 };
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ export function HomeContent({
   // ── Counts for filter badges ───────────────────────────────────────────
 
   const statusCounts = useMemo(() => {
-    const counts = { open: 0, in_progress: 0, done: 0 };
+    const counts = { open: 0, in_progress: 0, review: 0, done: 0 };
     patches.forEach((p) => counts[p.status]++);
     return counts;
   }, [patches]);
@@ -271,6 +272,7 @@ export function HomeContent({
                 { value: "all", label: "All" },
                 { value: "open", label: "Open", count: statusCounts.open },
                 { value: "in_progress", label: "In Progress", count: statusCounts.in_progress },
+                { value: "review", label: "Review", count: statusCounts.review },
                 { value: "done", label: "Done", count: statusCounts.done },
               ]}
             />
@@ -477,12 +479,14 @@ function ArchivedProjects({ projects }: { projects: Project[] }) {
 const STATUS_STYLES: Record<string, string> = {
   open: "text-blue-500 dark:text-blue-400",
   in_progress: "text-amber-500 dark:text-amber-400",
+  review: "text-cyan-600 dark:text-cyan-400",
   done: "text-emerald-500 dark:text-emerald-400",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Open",
   in_progress: "In progress",
+  review: "Needs review",
   done: "Done",
 };
 

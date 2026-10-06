@@ -5,6 +5,7 @@ import {
   getPatches,
   getProjectBySlug,
   unarchiveProject,
+  type Patch,
 } from "@/lib/queries";
 
 export async function GET(req: Request) {
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("project");
-  const status = searchParams.get("status") as "open" | "in_progress" | "done" | null;
+  const status = searchParams.get("status") as Patch["status"] | null;
 
   if (!slug) {
     return Response.json({ error: "project slug is required" }, { status: 400 });

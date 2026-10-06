@@ -9,7 +9,7 @@ export const MCP_IMAGE_TYPES = [
 ] as const;
 
 const priority = z.enum(["low", "medium", "high"]);
-const status = z.enum(["open", "in_progress", "done"]);
+const status = z.enum(["open", "in_progress", "review", "done"]);
 const tags = z.array(z.string());
 const sortBy = z.enum(["priority", "created_at"]);
 const limit = z.number().int().positive().max(500);
@@ -85,6 +85,10 @@ export const MCP_SCHEMAS = {
   }),
   cp_start_patch: z.object({
     patch_id: z.string().min(1),
+  }),
+  cp_request_review: z.object({
+    patch_id: z.string().min(1),
+    note: z.string().min(1).optional(),
   }),
   cp_complete_patch: z.object({
     patch_id: z.string().min(1),

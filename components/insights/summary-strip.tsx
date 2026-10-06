@@ -8,7 +8,8 @@ export function SummaryStrip({ summary }: { summary: ProjectSummary[] }) {
   const totals = summary.reduce(
     (acc, p) => ({
       open: acc.open + p.open,
-      in_progress: acc.in_progress + p.in_progress,
+      // Review is started-but-not-done, so it counts as Active here.
+      in_progress: acc.in_progress + p.in_progress + p.review,
       done: acc.done + p.done,
       total: acc.total + p.total,
     }),

@@ -17,6 +17,7 @@ export type Project = {
   created_at: string;
   open_count?: number;
   in_progress_count?: number;
+  review_count?: number;
   done_count?: number;
 };
 
@@ -24,7 +25,8 @@ export type Patch = {
   id: string;
   project_id: string;
   title: string;
-  status: "open" | "in_progress" | "done";
+  // review = finished by Cody, awaiting Nae's sign-off before done.
+  status: "open" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high";
   notes: string | null;
   // Long-form spec/brainstorm. Kept out of list/search payloads (see toListRow
@@ -131,6 +133,7 @@ export async function getProjects(
     SELECT p.*,
       COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open_count,
       COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress_count,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'review' AND NOT pa.archived)::int AS review_count,
       COUNT(pa.id) FILTER (WHERE pa.status = 'done' AND NOT pa.archived)::int AS done_count
     FROM projects p
     LEFT JOIN patches pa ON pa.project_id = p.id
@@ -199,7 +202,7 @@ export async function deleteProject(
 export class ProjectHasActiveWorkError extends Error {
   constructor(public inProgressCount: number) {
     super(
-      `Project has ${inProgressCount} in-progress ${inProgressCount === 1 ? "patch" : "patches"}. Finish or reopen ${inProgressCount === 1 ? "it" : "them"} first, or archive anyway with force.`
+      `Project has ${inProgressCount} in-progress or in-review ${inProgressCount === 1 ? "patch" : "patches"}. Finish or reopen ${inProgressCount === 1 ? "it" : "them"} first, or archive anyway with force.`
     );
   }
 }
@@ -215,7 +218,7 @@ export async function archiveProject(
       FROM patches pa
       JOIN projects p ON p.id = pa.project_id
       WHERE p.user_id = ${userId} AND p.slug = ${slug}
-        AND pa.status = 'in_progress' AND NOT pa.archived
+        AND pa.status IN ('in_progress', 'review') AND NOT pa.archived
     `;
     const count = (rows[0] as { count: number }).count;
     if (count > 0) throw new ProjectHasActiveWorkError(count);
@@ -329,6 +332,27 @@ export async function updatePatchStatus(
   if (status === "in_progress") {
     const rows = await sql`
       UPDATE patches pa SET status = ${status}, started_at = ${now}
+      FROM projects p
+      WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+      RETURNING pa.*
+    `;
+    return (rows[0] as Patch) ?? null;
+  }
+  // review and done both accept an optional note (appended, like addNote).
+  // review keeps started_at (or sets it if the patch was never started) and
+  // clears completed_at, since it isn't done until approved.
+  if (status === "review") {
+    const noteParam = note ?? null;
+    const rows = await sql`
+      UPDATE patches pa
+      SET status = ${status},
+          started_at = COALESCE(pa.started_at, ${now}),
+          completed_at = NULL,
+          notes = CASE
+            WHEN ${noteParam}::text IS NULL THEN pa.notes
+            WHEN pa.notes IS NULL THEN ${noteParam}::text
+            ELSE pa.notes || E'\n\n' || ${noteParam}::text
+          END
       FROM projects p
       WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
       RETURNING pa.*
@@ -683,6 +707,7 @@ export type ProjectSummary = {
   project_color: string;
   open: number;
   in_progress: number;
+  review: number;
   done: number;
   total: number;
 };
@@ -696,7 +721,7 @@ export async function getProjectSummary(
   userId: string,
   includeArchivedProjects = false
 ): Promise<ProjectSummaryWithArchive[]> {
-  // open / in_progress / done / total exclude archived; archived is its own column.
+  // open / in_progress / review / done / total exclude archived; archived is its own column.
   const rows = await sql`
     SELECT
       p.name AS project_name,
@@ -705,6 +730,7 @@ export async function getProjectSummary(
       p.archived AS project_archived,
       COUNT(pa.id) FILTER (WHERE pa.status = 'open' AND NOT pa.archived)::int AS open,
       COUNT(pa.id) FILTER (WHERE pa.status = 'in_progress' AND NOT pa.archived)::int AS in_progress,
+      COUNT(pa.id) FILTER (WHERE pa.status = 'review' AND NOT pa.archived)::int AS review,
       COUNT(pa.id) FILTER (WHERE pa.status = 'done' AND NOT pa.archived)::int AS done,
       COUNT(pa.id) FILTER (WHERE pa.archived)::int AS archived,
       COUNT(pa.id) FILTER (WHERE NOT pa.archived)::int AS total
@@ -729,7 +755,7 @@ export async function getStalePatches(userId: string): Promise<PatchWithProject[
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
-      AND pa.status IN ('open', 'in_progress')
+      AND pa.status IN ('open', 'in_progress', 'review')
       AND NOT pa.archived
       AND NOT p.archived
       AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
@@ -744,7 +770,7 @@ export async function getStaleCount(userId: string): Promise<number> {
     FROM patches pa
     JOIN projects p ON p.id = pa.project_id
     WHERE p.user_id = ${userId}
-      AND pa.status IN ('open', 'in_progress')
+      AND pa.status IN ('open', 'in_progress', 'review')
       AND NOT pa.archived
       AND NOT p.archived
       AND pa.updated_at < NOW() - make_interval(days => ${STALE_DAYS})
@@ -766,6 +792,7 @@ export async function touchPatch(userId: string, patchId: string): Promise<Patch
 // ── Dashboard Summary Strip ───────────────────────────────────────────────
 
 export type DashboardSummaryData = {
+  needsReview: PatchWithProject[];
   inProgress: PatchWithProject[];
   recentlyCompleted: PatchWithProject[];
   recentlyAdded: PatchWithProject[];
@@ -778,8 +805,16 @@ export type DashboardSummaryData = {
 export async function getDashboardSummary(
   userId: string
 ): Promise<DashboardSummaryData> {
-  const [inProgress, recentlyCompleted, recentlyAdded, countRows] =
+  const [needsReview, inProgress, recentlyCompleted, recentlyAdded, countRows] =
     await Promise.all([
+      // Oldest first: the longest-waiting review is the one to look at next.
+      sql`
+        SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
+        FROM patches pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.user_id = ${userId} AND pa.status = 'review' AND NOT pa.archived AND NOT p.archived
+        ORDER BY pa.updated_at ASC
+      `,
       sql`
         SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived
         FROM patches pa
@@ -822,6 +857,7 @@ export async function getDashboardSummary(
   };
 
   return {
+    needsReview: needsReview as PatchWithProject[],
     inProgress: inProgress as PatchWithProject[],
     recentlyCompleted: recentlyCompleted as PatchWithProject[],
     recentlyAdded: recentlyAdded as PatchWithProject[],

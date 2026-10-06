@@ -66,7 +66,7 @@ function CollapsibleSection({
   );
 }
 
-const STATUS_FILTERS = ["all", "open", "in_progress", "done"] as const;
+const STATUS_FILTERS = ["all", "open", "in_progress", "review", "done"] as const;
 const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
 const SORT_FIELDS = ["created", "priority", "status"] as const;
 const SORT_DIRS = ["asc", "desc"] as const;
@@ -74,7 +74,8 @@ const SORT_DIRS = ["asc", "desc"] as const;
 type SortField = (typeof SORT_FIELDS)[number];
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
-const STATUS_ORDER: Record<string, number> = { in_progress: 0, open: 1, done: 2 };
+// Review first: those are waiting on Nae.
+const STATUS_ORDER: Record<string, number> = { review: 0, in_progress: 1, open: 2, done: 3 };
 
 export function ProjectPatchView({
   slug,
@@ -111,7 +112,7 @@ export function ProjectPatchView({
   const [bulkTag, setBulkTag] = useState("");
 
   const statusCounts = useMemo(() => {
-    const counts = { open: 0, in_progress: 0, done: 0 };
+    const counts = { open: 0, in_progress: 0, review: 0, done: 0 };
     patches.forEach((p) => counts[p.status]++);
     return counts;
   }, [patches]);
@@ -266,6 +267,7 @@ export function ProjectPatchView({
               { value: "all", label: "All", count: patches.length },
               { value: "open", label: "Open", count: statusCounts.open },
               { value: "in_progress", label: "In Progress", count: statusCounts.in_progress },
+              { value: "review", label: "Review", count: statusCounts.review },
               { value: "done", label: "Done", count: statusCounts.done },
             ] as const
           ).map((opt) => (

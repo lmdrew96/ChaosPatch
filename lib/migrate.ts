@@ -100,7 +100,15 @@ void (async () => {
     BEFORE UPDATE ON patches
     FOR EACH ROW EXECUTE FUNCTION patches_touch_updated_at()
   `;
+  // 'review' sits between in_progress and done: finished, awaiting Nae's look.
+  await sql`
+    ALTER TABLE patches DROP CONSTRAINT IF EXISTS patches_status_check
+  `;
+  await sql`
+    ALTER TABLE patches ADD CONSTRAINT patches_status_check
+    CHECK (status IN ('open', 'in_progress', 'review', 'done'))
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();

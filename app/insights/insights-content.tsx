@@ -24,7 +24,7 @@ export function InsightsContent({
     (p) =>
       !p.archived &&
       !p.project_archived &&
-      (p.status === "open" || p.status === "in_progress")
+      (p.status === "open" || p.status === "in_progress" || p.status === "review")
   );
   const activeCount = activePatches.length;
   const highCount = activePatches.filter((p) => p.priority === "high").length;
@@ -77,9 +77,9 @@ export function InsightsContent({
 
   // Busiest = most active load right now, not all-time volume.
   const busiest = summary.reduce<ProjectSummary | null>((max, p) => {
-    const load = p.open + p.in_progress;
+    const load = p.open + p.in_progress + p.review;
     if (load === 0) return max;
-    return max === null || load > max.open + max.in_progress ? p : max;
+    return max === null || load > max.open + max.in_progress + max.review ? p : max;
   }, null);
 
   return (
@@ -143,7 +143,7 @@ export function InsightsContent({
           value={summary.length}
           sub={
             busiest
-              ? `busiest: ${busiest.project_name} (${busiest.open + busiest.in_progress} active)`
+              ? `busiest: ${busiest.project_name} (${busiest.open + busiest.in_progress + busiest.review} active)`
               : undefined
           }
           accent="#4E3459"

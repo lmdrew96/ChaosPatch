@@ -12,18 +12,21 @@ import { PRIORITY_STYLES } from "@/lib/priority-styles";
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
   open: "in_progress",
   in_progress: "done",
+  review: "done",
   done: null,
 };
 
 const STATUS_LABEL: Record<Patch["status"], string> = {
   open: "Start",
   in_progress: "Complete",
+  review: "Approve",
   done: "Done",
 };
 
 const STATUS_TEXT: Record<Patch["status"], string> = {
   open: "Open",
   in_progress: "In progress",
+  review: "Needs review",
   done: "Done",
 };
 
@@ -251,6 +254,11 @@ function PatchRow({
     await mutate(patchBody({ reopen: "open" }));
   }
 
+  // Review didn't pass: back to in progress so Cody picks it up again.
+  async function sendBack() {
+    await mutate(patchBody({ reopen: "in_progress" }));
+  }
+
   async function addNote() {
     if (!noteText.trim()) return;
     const ok = await mutate(patchBody({ note: noteText.trim() }));
@@ -427,13 +435,24 @@ function PatchRow({
                 Unarchive
               </button>
             ) : nextStatus ? (
-              <button
-                onClick={advance}
-                disabled={isPending}
-                className="text-xs text-primary hover:text-primary/80 disabled:opacity-40 transition-colors"
-              >
-                {STATUS_LABEL[patch.status]}
-              </button>
+              <>
+                {patch.status === "review" && (
+                  <button
+                    onClick={sendBack}
+                    disabled={isPending}
+                    className="text-xs text-amber-500 dark:text-amber-400 hover:text-amber-400 dark:hover:text-amber-300 disabled:opacity-40 transition-colors"
+                  >
+                    Send back
+                  </button>
+                )}
+                <button
+                  onClick={advance}
+                  disabled={isPending}
+                  className="text-xs text-primary hover:text-primary/80 disabled:opacity-40 transition-colors"
+                >
+                  {STATUS_LABEL[patch.status]}
+                </button>
+              </>
             ) : (
               <>
                 <button

@@ -1,5 +1,5 @@
 import type { DashboardSummaryData } from "@/lib/queries";
-import { Zap, Target, CircleCheck, Sparkles, ArrowDown } from "lucide-react";
+import { Zap, Target, CircleCheck, Sparkles, ArrowDown, Eye } from "lucide-react";
 import { PatchListItem } from "./patch-list-item";
 
 export function DashboardSummary({
@@ -7,9 +7,10 @@ export function DashboardSummary({
 }: {
   data: DashboardSummaryData;
 }) {
-  const { inProgress, recentlyCompleted, recentlyAdded, counts } = data;
+  const { needsReview, inProgress, recentlyCompleted, recentlyAdded, counts } = data;
 
   if (
+    needsReview.length === 0 &&
     counts.open === 0 &&
     counts.inProgress === 0 &&
     recentlyCompleted.length === 0 &&
@@ -20,6 +21,22 @@ export function DashboardSummary({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
+      {/* Only shown when something's waiting — it's a to-do, not a stat. */}
+      {needsReview.length > 0 && (
+        <Card className="md:col-span-2">
+          <CardHeader
+            icon={<Eye className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+            title="Needs Review"
+            count={needsReview.length}
+          />
+          <ul className="space-y-1.5">
+            {needsReview.map((p) => (
+              <PatchListItem key={p.id} patch={p} timestamp={p.updated_at} />
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <Card className="md:col-span-2">
         <CardHeader
           icon={<Zap className="h-4 w-4 text-primary" />}
