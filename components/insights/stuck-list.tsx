@@ -37,7 +37,7 @@ export function StuckList({ patches, now }: { patches: PatchWithProject[]; now: 
           </h3>
           <ul className="space-y-1.5">
             {stalled.map((p) => (
-              <PatchListItem key={p.id} patch={p} timestamp={p.started_at} />
+              <PatchListItem key={p.id} patch={p} timestamp={p.started_at} daysOnly />
             ))}
           </ul>
         </section>

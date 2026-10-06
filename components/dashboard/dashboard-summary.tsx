@@ -42,7 +42,7 @@ export function DashboardSummary({
         ) : (
           <ul className="space-y-1.5">
             {inProgress.map((p) => (
-              <PatchListItem key={p.id} patch={p} timestamp={p.started_at} />
+              <PatchListItem key={p.id} patch={p} timestamp={p.started_at} daysOnly />
             ))}
           </ul>
         )}

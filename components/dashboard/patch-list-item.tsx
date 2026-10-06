@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { PatchWithProject } from "@/lib/queries";
 
-function timeAgo(iso: string | null | undefined): string {
+/**
+ * Compact relative time. daysOnly skips the week/month rollup so long-running
+ * in-progress work reads as "52d ago" rather than an understated "1mo ago".
+ */
+function timeAgo(iso: string | null | undefined, daysOnly = false): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 0) return "just now";
@@ -12,7 +16,7 @@ function timeAgo(iso: string | null | undefined): string {
   if (diff < hour) return `${Math.floor(diff / minute)}m ago`;
   if (diff < day) return `${Math.floor(diff / hour)}h ago`;
   const days = Math.floor(diff / day);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7 || daysOnly) return `${days}d ago`;
   if (days < 30) return `${Math.floor(days / 7)}w ago`;
   return `${Math.floor(days / 30)}mo ago`;
 }
@@ -20,9 +24,11 @@ function timeAgo(iso: string | null | undefined): string {
 export function PatchListItem({
   patch,
   timestamp,
+  daysOnly = false,
 }: {
   patch: PatchWithProject;
   timestamp: string | null;
+  daysOnly?: boolean;
 }) {
   return (
     <li className="list-none">
@@ -54,7 +60,7 @@ export function PatchListItem({
           {patch.project_slug}
         </span>
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 shrink-0 tabular-nums">
-          {timeAgo(timestamp)}
+          {timeAgo(timestamp, daysOnly)}
         </span>
       </Link>
     </li>
