@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import type { PatchAttachment } from "@/lib/queries";
@@ -105,6 +105,10 @@ type Props =
       // Functional updater (a React state setter fits) so adds that land
       // mid-batch never overwrite removals made in the meantime.
       onChange: (update: (prev: PendingImage[]) => PendingImage[]) => void;
+      // Called after each image lands (e.g. to draft a patch from it).
+      onUploaded?: (image: PendingImage) => void;
+      // Accept images pasted anywhere on the page.
+      acceptPaste?: boolean;
     }
   | {
       // Existing patch: upload → POST attachment → refresh server data.
@@ -151,7 +155,7 @@ export function PatchImageAttachments(props: Props) {
   const viewUrl = (pathname: string) =>
     `/api/blob/view?pathname=${encodeURIComponent(pathname)}`;
 
-  async function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     setError("");
 
@@ -183,6 +187,7 @@ export function PatchImageAttachments(props: Props) {
             router.refresh();
           } else {
             props.onChange((prev) => [...prev, meta]);
+            props.onUploaded?.(meta);
           }
         } catch (err) {
           // Keep going with the rest of the batch; name the file that failed.
@@ -195,6 +200,27 @@ export function PatchImageAttachments(props: Props) {
       if (fileRef.current) fileRef.current.value = "";
     }
   }
+
+  // Latest handler for the paste listener, without re-subscribing each render.
+  const handleFilesRef = useRef(handleFiles);
+  useEffect(() => {
+    handleFilesRef.current = handleFiles;
+  });
+  const acceptPaste = props.mode === "pending" && props.acceptPaste;
+
+  useEffect(() => {
+    if (!acceptPaste) return;
+    function onPaste(e: ClipboardEvent) {
+      const images = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+        f.type.startsWith("image/")
+      );
+      if (images.length === 0) return; // plain text paste — leave it alone
+      e.preventDefault();
+      handleFilesRef.current(images);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [acceptPaste]);
 
   function removePending(url: string) {
     if (props.mode !== "pending") return;
@@ -218,7 +244,17 @@ export function PatchImageAttachments(props: Props) {
   const hasItems = items.length > 0;
 
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2"
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        if (e.dataTransfer.files.length === 0) return;
+        e.preventDefault();
+        handleFiles(e.dataTransfer.files);
+      }}
+    >
       {hasItems && (
         <div className="flex flex-wrap gap-2">
           {items.map((item) => (
@@ -262,6 +298,11 @@ export function PatchImageAttachments(props: Props) {
         >
           {hasItems ? "+ Add image" : "+ Attach image"}
         </button>
+        {acceptPaste && !hasItems && !progress && (
+          <span className="text-[10px] text-muted-foreground/40">
+            or paste / drop a screenshot
+          </span>
+        )}
         {progress && (
           <span aria-live="polite" className="text-[10px] tabular-nums text-muted-foreground">
             {progress.total > 1

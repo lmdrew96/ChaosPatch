@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/queries";
 import { ProjectCombobox } from "@/components/project-combobox";
@@ -36,6 +37,34 @@ export function AddPatchForm({
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState("");
+
+  async function draftFromScreenshot(image: PendingImage, overwrite: boolean) {
+    setDrafting(true);
+    setDraftError("");
+    try {
+      const res = await fetch("/api/patches/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pathname: image.pathname, project_slug: slug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Drafting failed");
+      // Never clobber what the user typed while the draft was in flight.
+      setTitle((prev) => (overwrite || !prev.trim() ? data.title : prev));
+      setNotes((prev) => (overwrite || !prev.trim() ? data.notes : prev));
+    } catch (err) {
+      setDraftError(err instanceof Error ? err.message : "Drafting failed");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  function handleUploaded(image: PendingImage) {
+    // Auto-draft only into a blank form — one paste files the patch.
+    if (!title.trim() && !notes.trim()) draftFromScreenshot(image, false);
+  }
 
   const parsedTags = tagsInput
     .split(",")
@@ -135,7 +164,23 @@ export function AddPatchForm({
           mode="pending"
           images={pendingImages}
           onChange={setPendingImages}
+          onUploaded={handleUploaded}
+          acceptPaste
         />
+        {pendingImages.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => draftFromScreenshot(pendingImages[0], true)}
+              disabled={drafting}
+              className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary disabled:opacity-50 transition-colors"
+            >
+              <Sparkles aria-hidden className="h-3 w-3" />
+              {drafting ? "Drafting from screenshot…" : "Draft title & notes from screenshot"}
+            </button>
+            {draftError && <span className="text-[10px] text-red-400">{draftError}</span>}
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">
