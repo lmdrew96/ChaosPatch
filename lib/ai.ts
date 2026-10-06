@@ -111,3 +111,49 @@ export const draftPatchFromScreenshot = async (
     ],
   });
 };
+
+// ── Changelog ─────────────────────────────────────────────────────────────
+
+const ChangelogSchema = z.object({
+  features: z.array(z.string()),
+  fixes: z.array(z.string()),
+  polish: z.array(z.string()),
+});
+
+export type ChangelogSections = z.infer<typeof ChangelogSchema>;
+
+const CHANGELOG_SYSTEM = `You write release notes for a small software project from its completed dev tickets ("patches").
+
+Sort every patch into exactly one group:
+- features: something new a user can now do or see
+- fixes: something that was broken and now works
+- polish: refinements, performance, copy, visual tweaks, internal cleanup a user might notice
+
+Write each entry as one plain-language sentence for the people who use the app, not the developer: describe the effect, not the implementation. Drop ticket shorthand, version numbers, file names, and internal tool names unless a user would recognize them. Merge patches that describe the same change into one entry. Leave out patches with no user-visible effect (pure refactors, test-only or tooling changes) unless that would leave every group empty. Start each entry with a capital letter and end it with a period. No markdown inside entries except inline code for things a user types.`;
+
+const NOTES_EXCERPT = 600;
+
+export const draftChangelog = async (
+  projectName: string,
+  patches: { title: string; notes: string | null; tags: string[] }[]
+): Promise<ChangelogSections> => {
+  const list = patches
+    .map((p, i) => {
+      const notes = p.notes?.trim()
+        ? `\n   Notes: ${p.notes.trim().slice(0, NOTES_EXCERPT).replace(/\s+/g, " ")}`
+        : "";
+      const tags = p.tags.length ? ` [${p.tags.join(", ")}]` : "";
+      return `${i + 1}. ${p.title}${tags}${notes}`;
+    })
+    .join("\n");
+  return parseStructured(ChangelogSchema, {
+    system: CHANGELOG_SYSTEM,
+    maxTokens: 16000,
+    content: [
+      {
+        type: "text",
+        text: `Project: ${projectName}\n\nCompleted patches:\n${list}`,
+      },
+    ],
+  });
+};

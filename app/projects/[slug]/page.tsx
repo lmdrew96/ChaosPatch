@@ -12,6 +12,7 @@ import {
   type PatchAttachment,
 } from "@/lib/queries";
 import { ArchiveProjectButton } from "./archive-project-button";
+import { ChangelogPanel } from "./changelog-panel";
 import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
@@ -110,8 +111,16 @@ export default async function ProjectPage({
           existingTags={existingTags}
         />
 
+        <div className="border-t border-border pt-8 mt-12">
+          <ChangelogPanel
+            slug={slug}
+            createdAt={project.created_at}
+            lastChangelogAt={project.last_changelog_at}
+          />
+        </div>
+
         {/* Archive */}
-        <div className="border-t border-border pt-8 mt-12 space-y-2">
+        <div className="border-t border-border pt-8 space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {project.archived ? "Archived" : "Archive"}
           </h3>

@@ -12,6 +12,8 @@ export type Project = {
   // toward velocity and insights history.
   archived: boolean;
   archived_at: string | null;
+  // End of the range the last generated changelog covered.
+  last_changelog_at: string | null;
   created_at: string;
   open_count?: number;
   in_progress_count?: number;
@@ -890,6 +892,41 @@ export async function getArchivedPatches(
     ORDER BY pa.completed_at DESC NULLS LAST, pa.created_at DESC
   `;
   return rows as Patch[];
+}
+
+// ── Changelog ─────────────────────────────────────────────────────────────
+
+/**
+ * A project's completed patches in [since, until), oldest first. Archived
+ * patches are included — archiving tidies the board, it doesn't unship work.
+ */
+export async function getCompletedPatchesInRange(
+  userId: string,
+  slug: string,
+  since: string,
+  until: string
+): Promise<Patch[]> {
+  const rows = await sql`
+    SELECT pa.*
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    WHERE p.user_id = ${userId} AND p.slug = ${slug}
+      AND pa.status = 'done'
+      AND pa.completed_at >= ${since} AND pa.completed_at < ${until}
+    ORDER BY pa.completed_at ASC
+  `;
+  return rows as Patch[];
+}
+
+export async function setLastChangelogAt(
+  userId: string,
+  slug: string,
+  at: string
+): Promise<void> {
+  await sql`
+    UPDATE projects SET last_changelog_at = ${at}
+    WHERE user_id = ${userId} AND slug = ${slug}
+  `;
 }
 
 // ── Velocity ──────────────────────────────────────────────────────────────
