@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -21,6 +22,9 @@ const client = new S3Client({
 });
 
 const BUCKET = process.env.R2_BUCKET_NAME ?? "";
+
+/** Max image attachment size, shared by the in-app and MCP upload flows. */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /**
  * Canonical (non-signed) object URL, stored alongside the pathname key for
@@ -65,6 +69,32 @@ export async function presignGetUrl(
   return getSignedUrl(client, command, {
     expiresIn: Math.round(validForMs / 1000),
   });
+}
+
+/**
+ * Look up an uploaded object's type and size, or null if it doesn't exist
+ * (never uploaded, or the presigned PUT expired before the client used it).
+ */
+export async function headObject(
+  key: string
+): Promise<{ contentType: string | null; size: number | null } | null> {
+  try {
+    const res = await client.send(
+      new HeadObjectCommand({ Bucket: BUCKET, Key: key })
+    );
+    return {
+      contentType: res.ContentType ?? null,
+      size: res.ContentLength ?? null,
+    };
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.name === "NotFound" || err.name === "NoSuchKey")
+    ) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 export async function deleteObject(key: string): Promise<void> {

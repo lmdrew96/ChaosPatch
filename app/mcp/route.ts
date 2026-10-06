@@ -18,6 +18,7 @@ import {
   deleteProject,
   getPatchById,
   getPatchAttachments,
+  addPatchAttachment,
   addPatchTags,
   removePatchTags,
   updatePatch,
@@ -36,7 +37,15 @@ import {
   ProjectHasActiveWorkError,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
-import { deleteObjects, presignGetUrl } from "@/lib/r2";
+import { randomUUID } from "crypto";
+import {
+  MAX_UPLOAD_BYTES,
+  deleteObjects,
+  headObject,
+  objectUrl,
+  presignGetUrl,
+  presignPutUrl,
+} from "@/lib/r2";
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import type { z } from "zod";
@@ -207,7 +216,7 @@ const TOOLS = [
   {
     name: "cp_add_patch",
     description:
-      "Add a new patch to a project, optionally with initial notes, a long-form spec, tags, and a due date. If the project is archived it is unarchived automatically (the response includes project_unarchived: true). Keep `notes` terse (a triage summary + acceptance criteria); put long-form specs/brainstorms in `spec`, which is excluded from list/search payloads so the board stays scannable.",
+      "Add a new patch to a project, optionally with initial notes, a long-form spec, tags, and a due date. If the project is archived it is unarchived automatically (the response includes project_unarchived: true). Keep `notes` terse (a triage summary + acceptance criteria); put long-form specs/brainstorms in `spec`, which is excluded from list/search payloads so the board stays scannable. To attach a screenshot afterwards, use cp_request_image_upload.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -260,6 +269,40 @@ const TOOLS = [
       type: "object" as const,
       properties: { patch_id: { type: "string", description: "Patch UUID" } },
       required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_request_image_upload",
+    description:
+      "Step 1 of 2 for attaching an image (e.g. a screenshot) to an existing patch. Returns { upload_url, upload_id, expires_at }. Then PUT the raw file bytes to upload_url within 10 minutes, sending the same Content-Type and exact byte size you declared here — e.g. `curl -X PUT --data-binary @shot.png -H \"Content-Type: image/png\" \"<upload_url>\"`. Then call cp_confirm_image_upload with the upload_id to attach it. Allowed types: png, jpeg, webp, gif; max 10MB. The image then shows in the web app and in cp_get_patch_images.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID to attach the image to" },
+        filename: { type: "string", description: "Original file name, e.g. 'bug.png'" },
+        content_type: {
+          type: "string",
+          enum: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+          description: "MIME type of the file — the PUT must send this exact Content-Type",
+        },
+        size_bytes: {
+          type: "integer",
+          description: "Exact file size in bytes (e.g. from `wc -c < file`) — the PUT must match it",
+        },
+      },
+      required: ["patch_id", "filename", "content_type", "size_bytes"],
+    },
+  },
+  {
+    name: "cp_confirm_image_upload",
+    description:
+      "Step 2 of 2: after PUTting the file to the upload_url from cp_request_image_upload, call this with its upload_id to attach the image to the patch. Fails clearly if nothing was uploaded (e.g. the URL expired). Returns the attachment plus a view_url valid for 1 hour.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        upload_id: { type: "string", description: "upload_id returned by cp_request_image_upload" },
+      },
+      required: ["upload_id"],
     },
   },
   {
@@ -695,6 +738,64 @@ async function handleTool(
       // Returns image content blocks, not text — handled directly in the
       // CallTool request handler. This case keeps the switch exhaustive.
       throw new Error("cp_get_patch_images is handled separately");
+
+    case "cp_request_image_upload": {
+      const a = args as ParsedArgs<"cp_request_image_upload">;
+      const patch = await getPatchById(userId, a.patch_id);
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      const safeName = a.filename.replace(/[^\w.-]+/g, "-");
+      // Patch id lives in the key so confirm needs only the upload_id.
+      const key = `attachments/${patch.id}/${randomUUID()}-${safeName}`;
+      const validForMs = 10 * 60 * 1000;
+      const uploadUrl = await presignPutUrl(key, a.content_type, a.size_bytes, validForMs);
+      return JSON.stringify(
+        {
+          upload_url: uploadUrl,
+          upload_id: key,
+          expires_at: new Date(Date.now() + validForMs).toISOString(),
+          next: `PUT the file to upload_url with header "Content-Type: ${a.content_type}" (exactly ${a.size_bytes} bytes), then call cp_confirm_image_upload with this upload_id.`,
+        },
+        null,
+        2
+      );
+    }
+
+    case "cp_confirm_image_upload": {
+      const a = args as ParsedArgs<"cp_confirm_image_upload">;
+      const match = /^attachments\/([0-9a-f-]{36})\/[0-9a-f-]{36}-.+$/.exec(a.upload_id);
+      if (!match) throw new Error("Invalid upload_id — pass the value returned by cp_request_image_upload.");
+      const patchId = match[1];
+      const patch = await getPatchById(userId, patchId);
+      if (!patch) throw new Error(`Patch '${patchId}' not found`);
+      const existing = await getPatchAttachments(userId, patchId);
+      const already = existing.find((att) => att.pathname === a.upload_id);
+      if (already) {
+        return JSON.stringify({ ...already, already_attached: true }, null, 2);
+      }
+      const head = await headObject(a.upload_id);
+      if (!head) {
+        throw new Error(
+          "No uploaded file found for this upload_id. The PUT may have failed or the 10-minute upload URL expired — call cp_request_image_upload again."
+        );
+      }
+      if (!head.contentType?.startsWith("image/") || (head.size ?? 0) > MAX_UPLOAD_BYTES) {
+        await deleteObjects([a.upload_id]);
+        throw new Error("Uploaded file isn't an image under 10MB; it was discarded.");
+      }
+      const attachment = await addPatchAttachment(userId, patchId, {
+        url: objectUrl(a.upload_id),
+        pathname: a.upload_id,
+        contentType: head.contentType,
+        size: head.size,
+      });
+      if (!attachment) throw new Error(`Patch '${patchId}' not found`);
+      const viewUrl = await presignGetUrl(a.upload_id);
+      return JSON.stringify(
+        { ...attachment, patch_title: patch.title, view_url: viewUrl },
+        null,
+        2
+      );
+    }
 
     case "cp_start_patch": {
       const a = args as ParsedArgs<"cp_start_patch">;

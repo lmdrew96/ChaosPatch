@@ -52,6 +52,7 @@ The MCP server is the primary integration point — Claude Code and Claude Deskt
 - `cp_get_project_summary` — Open/in_progress/done counts per project
 - `cp_get_patch` — Fetch a single patch (includes its `attachments`)
 - `cp_get_patch_images` — Return a patch's attached images as viewable image content (for visual context) + their URLs
+- `cp_request_image_upload` / `cp_confirm_image_upload` — Attach an image to a patch: get a 10-min presigned R2 PUT URL, upload, then confirm to record the attachment
 
 **MCP route:** `app/mcp/route.ts` — Streamable HTTP transport with bearer-token auth
 

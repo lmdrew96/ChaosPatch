@@ -1,9 +1,7 @@
 import { randomUUID } from "crypto";
 import { auth } from "@clerk/nextjs/server";
 import { getPatchById } from "@/lib/queries";
-import { objectUrl, presignPutUrl } from "@/lib/r2";
-
-const MAX_BYTES = 10 * 1024 * 1024;
+import { MAX_UPLOAD_BYTES, objectUrl, presignPutUrl } from "@/lib/r2";
 
 /**
  * Mint a presigned PUT URL for a direct-to-R2 browser upload. Validates the
@@ -35,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 }
     );
   }
-  if (size > MAX_BYTES) {
+  if (size > MAX_UPLOAD_BYTES) {
     return Response.json(
       { error: "Image exceeds the 10MB limit" },
       { status: 400 }

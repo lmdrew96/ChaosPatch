@@ -1,4 +1,12 @@
 import { z } from "zod";
+import { MAX_UPLOAD_BYTES } from "@/lib/r2";
+
+export const MCP_IMAGE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+] as const;
 
 const priority = z.enum(["low", "medium", "high"]);
 const status = z.enum(["open", "in_progress", "done"]);
@@ -57,6 +65,23 @@ export const MCP_SCHEMAS = {
   }),
   cp_get_patch_images: z.object({
     patch_id: z.string().min(1),
+  }),
+  cp_request_image_upload: z.object({
+    patch_id: z.string().min(1),
+    filename: z.string().trim().min(1).max(200),
+    content_type: z.enum(MCP_IMAGE_TYPES, {
+      message: `content_type must be one of: ${MCP_IMAGE_TYPES.join(", ")}`,
+    }),
+    size_bytes: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_UPLOAD_BYTES, {
+        message: `size_bytes exceeds the ${MAX_UPLOAD_BYTES / 1048576}MB image limit`,
+      }),
+  }),
+  cp_confirm_image_upload: z.object({
+    upload_id: z.string().min(1),
   }),
   cp_start_patch: z.object({
     patch_id: z.string().min(1),
