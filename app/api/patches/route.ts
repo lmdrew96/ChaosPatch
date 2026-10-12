@@ -7,6 +7,7 @@ import {
   unarchiveProject,
   type Patch,
 } from "@/lib/queries";
+import { verifyUploadedImage } from "@/lib/r2";
 
 export async function GET(req: Request) {
   const { userId } = await auth();
@@ -38,6 +39,23 @@ export async function POST(req: Request) {
   if (!project) {
     return Response.json({ error: "Project not found" }, { status: 404 });
   }
+  // Attachments were uploaded to R2 client-side before submit. Verify them
+  // before creating anything, so a bad file can't leave a half-made patch.
+  // Only the pathname is trusted; type/size come from the stored object.
+  const verifiedAttachments = [];
+  if (Array.isArray(attachments)) {
+    for (const att of attachments) {
+      if (!att || typeof att.pathname !== "string") {
+        return Response.json({ error: "Invalid attachment" }, { status: 400 });
+      }
+      const verified = await verifyUploadedImage(att.pathname);
+      if (!verified.ok) {
+        return Response.json({ error: verified.error }, { status: 400 });
+      }
+      verifiedAttachments.push(verified);
+    }
+  }
+
   // New work means the project is active again (same rule as cp_add_patch).
   if (project.archived) await unarchiveProject(userId, project.slug);
 
@@ -60,23 +78,13 @@ export async function POST(req: Request) {
     cleanDueDate
   );
 
-  // Attachments were uploaded to Blob client-side before submit; persist the
-  // rows now that the patch (and its id) exist.
-  if (Array.isArray(attachments)) {
-    for (const att of attachments) {
-      if (
-        att &&
-        typeof att.url === "string" &&
-        typeof att.pathname === "string"
-      ) {
-        await addPatchAttachment(userId, patch.id, {
-          url: att.url,
-          pathname: att.pathname,
-          contentType: typeof att.contentType === "string" ? att.contentType : null,
-          size: typeof att.size === "number" ? att.size : null,
-        });
-      }
-    }
+  for (const att of verifiedAttachments) {
+    await addPatchAttachment(userId, patch.id, {
+      url: att.url,
+      pathname: att.pathname,
+      contentType: att.contentType,
+      size: att.size,
+    });
   }
 
   return Response.json(patch, { status: 201 });

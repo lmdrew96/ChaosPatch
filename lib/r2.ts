@@ -97,6 +97,39 @@ export async function headObject(
   }
 }
 
+/**
+ * Verify a browser-uploaded object before recording it as an attachment.
+ * Presigned PUTs enforce the signed size but not the signed Content-Type, so
+ * the stored type/size come from a HEAD, never from the client. Objects that
+ * aren't an image under MAX_UPLOAD_BYTES are deleted. Returns the attachment
+ * fields on success, or an error message to send back.
+ */
+export async function verifyUploadedImage(
+  key: string
+): Promise<
+  | { ok: true; url: string; pathname: string; contentType: string; size: number | null }
+  | { ok: false; error: string }
+> {
+  if (!key.startsWith("attachments/")) {
+    return { ok: false, error: "Invalid attachment path" };
+  }
+  const head = await headObject(key);
+  if (!head) {
+    return { ok: false, error: "Uploaded file not found — try uploading it again" };
+  }
+  if (!head.contentType?.startsWith("image/") || (head.size ?? 0) > MAX_UPLOAD_BYTES) {
+    await deleteObjects([key]);
+    return { ok: false, error: "Uploaded file isn't an image under 10MB; it was discarded" };
+  }
+  return {
+    ok: true,
+    url: objectUrl(key),
+    pathname: key,
+    contentType: head.contentType,
+    size: head.size,
+  };
+}
+
 export async function deleteObject(key: string): Promise<void> {
   await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }

@@ -183,7 +183,10 @@ export function PatchImageAttachments(props: Props) {
                 body: JSON.stringify(meta),
               }
             );
-            if (!res.ok) throw new Error("Failed to attach image");
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data.error ?? "Failed to attach image");
+            }
             router.refresh();
           } else {
             props.onChange((prev) => [...prev, meta]);

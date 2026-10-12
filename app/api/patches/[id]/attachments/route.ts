@@ -1,10 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import { addPatchAttachment } from "@/lib/queries";
+import { addPatchAttachment, getPatchById } from "@/lib/queries";
+import { verifyUploadedImage } from "@/lib/r2";
 
 /**
- * Attach an already-uploaded blob to an existing patch. The browser uploads to
- * Vercel Blob first, then POSTs the resulting { url, pathname, contentType, size }
- * here. Ownership is enforced in addPatchAttachment.
+ * Attach an already-uploaded image to an existing patch. The browser uploads to
+ * R2 first, then POSTs the resulting { pathname, ... } here. Only the pathname
+ * is trusted; type/size are verified against the stored object. Ownership is
+ * enforced in addPatchAttachment.
  */
 export async function POST(
   req: Request,
@@ -14,19 +16,25 @@ export async function POST(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { url, pathname, contentType, size } = await req.json();
-  if (typeof url !== "string" || typeof pathname !== "string") {
-    return Response.json(
-      { error: "url and pathname are required" },
-      { status: 400 }
-    );
+  const { pathname } = await req.json();
+  if (typeof pathname !== "string") {
+    return Response.json({ error: "pathname is required" }, { status: 400 });
+  }
+
+  // Check ownership before the HEAD so a bad patch id can't delete objects.
+  if (!(await getPatchById(userId, id))) {
+    return Response.json({ error: "Patch not found" }, { status: 404 });
+  }
+  const verified = await verifyUploadedImage(pathname);
+  if (!verified.ok) {
+    return Response.json({ error: verified.error }, { status: 400 });
   }
 
   const attachment = await addPatchAttachment(userId, id, {
-    url,
-    pathname,
-    contentType: typeof contentType === "string" ? contentType : null,
-    size: typeof size === "number" ? size : null,
+    url: verified.url,
+    pathname: verified.pathname,
+    contentType: verified.contentType,
+    size: verified.size,
   });
   if (!attachment) {
     return Response.json({ error: "Patch not found" }, { status: 404 });
