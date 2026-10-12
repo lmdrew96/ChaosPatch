@@ -169,7 +169,7 @@ export function HomeContent({
       {/* View toggle + filters bar */}
       <div className="flex flex-col gap-4 mb-6">
         {/* Top row: toggle + sort */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex bg-card rounded-lg p-0.5 border border-border">
             <button
               onClick={() => setView("projects")}
@@ -223,7 +223,7 @@ export function HomeContent({
           )}
 
           {view === "patches" && (
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
               <input
                 ref={searchRef}
                 data-search-input
@@ -232,7 +232,7 @@ export function HomeContent({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search patches… ( / )"
                 aria-label="Search patches"
-                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring min-w-0 flex-1 sm:w-44 sm:flex-none"
               />
               <select
                 value={sortField}
@@ -277,7 +277,7 @@ export function HomeContent({
               ]}
             />
 
-            <div className="w-px bg-border mx-1 self-stretch" />
+            <div className="hidden sm:block w-px bg-border mx-1 self-stretch" />
 
             {/* Priority filters */}
             <FilterChipGroup
@@ -295,7 +295,7 @@ export function HomeContent({
             {/* Project filter */}
             {activeProjects.length > 1 && (
               <>
-                <div className="w-px bg-border mx-1 self-stretch" />
+                <div className="hidden sm:block w-px bg-border mx-1 self-stretch" />
                 <select
                   value={projectFilter}
                   onChange={(e) => setProjectFilter(e.target.value)}
@@ -379,7 +379,7 @@ function FilterChipGroup({
   options: { value: string; label: string; count?: number }[];
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
         {label}
       </span>
@@ -387,7 +387,7 @@ function FilterChipGroup({
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+          className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs transition-colors ${
             value === opt.value
               ? "bg-primary/15 text-primary border border-primary/30"
               : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"

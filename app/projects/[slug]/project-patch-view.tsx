@@ -258,7 +258,7 @@ export function ProjectPatchView({
       {/* Controls row */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Status filter chips */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
             Status
           </span>
@@ -274,7 +274,7 @@ export function ProjectPatchView({
             <button
               key={opt.value}
               onClick={() => setStatusFilter(opt.value)}
-              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+              className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 statusFilter === opt.value
                   ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
@@ -286,10 +286,10 @@ export function ProjectPatchView({
           ))}
         </div>
 
-        <div className="w-px h-5 bg-border" />
+        <div className="hidden sm:block w-px h-5 bg-border" />
 
         {/* Priority filter chips */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mr-1">
             Priority
           </span>
@@ -304,7 +304,7 @@ export function ProjectPatchView({
             <button
               key={opt.value}
               onClick={() => setPriorityFilter(opt.value)}
-              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+              className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 priorityFilter === opt.value
                   ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-card text-muted-foreground border border-border hover:border-muted-foreground/40 hover:text-foreground/70"
@@ -360,7 +360,7 @@ export function ProjectPatchView({
         </div>
 
         {/* Search + sort controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <input
             data-search-input
             type="text"
@@ -368,7 +368,7 @@ export function ProjectPatchView({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search patches… ( / )"
             aria-label="Search patches"
-            className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring w-44"
+            className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring min-w-0 flex-1 sm:w-44 sm:flex-none"
           />
           <select
             value={sortField}
