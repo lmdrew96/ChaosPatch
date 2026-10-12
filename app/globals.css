@@ -164,6 +164,17 @@ pre {
   font-family: var(--font-geist-mono, ui-monospace, monospace);
 }
 
+/* iOS Safari zooms the page when a focused field's text is under 16px.
+   Unlayered, so it beats Tailwind's text-xs/text-sm utilities on phones
+   without disabling pinch-zoom via maximum-scale. */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* ── HUD panel chrome ──
    Console-panel silhouette (angular cut top-right corner) plus a pair of
    glowing targeting-bracket corners — the signature shape from the
