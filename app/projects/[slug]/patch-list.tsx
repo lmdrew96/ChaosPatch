@@ -392,7 +392,7 @@ function PatchRow({
           {/* Title + notes */}
           <div className="flex-1 min-w-0">
             <button
-              className="text-left text-sm text-foreground/90 hover:text-foreground w-full truncate"
+              className={`text-left text-sm text-foreground/90 hover:text-foreground w-full ${expanded ? "break-words" : "truncate"}`}
               onClick={() => setExpanded((v) => !v)}
               title={patch.title}
             >
