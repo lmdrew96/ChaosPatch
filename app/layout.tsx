@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AppHeader } from "@/components/app-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
+import { AutoRefresh } from "@/components/auto-refresh";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({
         <body>
           <ThemeProvider>
             <KeyboardShortcuts />
+            <AutoRefresh />
             <AppHeader />
             {children}
           </ThemeProvider>
