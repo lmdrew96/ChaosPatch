@@ -89,6 +89,16 @@ export const MCP_SCHEMAS = {
   cp_request_review: z.object({
     patch_id: z.string().min(1),
     note: z.string().min(1).optional(),
+    review_steps: z.array(z.string().trim().min(1)).min(1).optional(),
+  }),
+  cp_set_review_steps: z.object({
+    patch_id: z.string().min(1),
+    steps: z.array(
+      z.object({
+        text: z.string().trim().min(1),
+        done: z.boolean().optional(),
+      })
+    ),
   }),
   cp_complete_patch: z.object({
     patch_id: z.string().min(1),

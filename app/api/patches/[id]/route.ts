@@ -5,6 +5,8 @@ import {
   getPatchAttachments,
   reopenPatch,
   setPatchArchived,
+  setReviewSteps,
+  type ReviewStep,
   touchPatch,
   updatePatch,
   updatePatchStatus,
@@ -29,6 +31,22 @@ export async function PATCH(
 
   if (body.status) {
     const patch = await updatePatchStatus(userId, id, body.status);
+    if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(patch);
+  }
+
+  // Full checklist replace from the Review section (tick, add, edit, remove).
+  if (Array.isArray(body.review_steps)) {
+    const steps: ReviewStep[] = [];
+    for (const s of body.review_steps as unknown[]) {
+      const text = (s as { text?: unknown })?.text;
+      const done = (s as { done?: unknown })?.done;
+      if (typeof text !== "string" || text.trim() === "") {
+        return Response.json({ error: "Each review step needs text" }, { status: 400 });
+      }
+      steps.push({ text: text.trim(), done: done === true });
+    }
+    const patch = await setReviewSteps(userId, id, steps);
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
   }

@@ -42,8 +42,16 @@ export type Patch = {
   // Last touched — bumped by a DB trigger when status/title/notes/spec change,
   // or set explicitly by touchPatch. Tags/priority/due_date don't count (see lib/migrate.ts).
   updated_at: string;
+  // Checklist for reviewing the patch. Set when it's sent to review; Nae ticks
+  // steps off in the UI. Empty array when there are none.
+  review_steps: ReviewStep[];
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];
+};
+
+export type ReviewStep = {
+  text: string;
+  done: boolean;
 };
 
 export type PatchAttachment = {
@@ -326,7 +334,9 @@ export async function updatePatchStatus(
   userId: string,
   patchId: string,
   status: Patch["status"],
-  note?: string
+  note?: string,
+  // review only: replaces the checklist (all unticked). Omit to keep the current one.
+  reviewSteps?: string[]
 ): Promise<Patch | null> {
   const now = new Date().toISOString();
   if (status === "in_progress") {
@@ -343,11 +353,15 @@ export async function updatePatchStatus(
   // clears completed_at, since it isn't done until approved.
   if (status === "review") {
     const noteParam = note ?? null;
+    const stepsParam = reviewSteps
+      ? JSON.stringify(reviewSteps.map((text) => ({ text, done: false })))
+      : null;
     const rows = await sql`
       UPDATE patches pa
       SET status = ${status},
           started_at = COALESCE(pa.started_at, ${now}),
           completed_at = NULL,
+          review_steps = COALESCE(${stepsParam}::jsonb, pa.review_steps),
           notes = CASE
             WHEN ${noteParam}::text IS NULL THEN pa.notes
             WHEN pa.notes IS NULL THEN ${noteParam}::text
@@ -396,6 +410,22 @@ export async function addNote(
       WHEN pa.notes IS NULL THEN ${note}
       ELSE pa.notes || E'\n\n' || ${note}
     END
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
+// Replaces the whole review checklist (add, edit, remove, tick — one write).
+export async function setReviewSteps(
+  userId: string,
+  patchId: string,
+  steps: ReviewStep[]
+): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa
+    SET review_steps = ${JSON.stringify(steps)}::jsonb
     FROM projects p
     WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
     RETURNING pa.*

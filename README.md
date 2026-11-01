@@ -113,7 +113,8 @@ Once connected, Claude Code can use these tools in any session:
 | `cp_add_patch` | Add a new patch with optional initial notes |
 | `cp_update_patch` | Update a patch's title and/or priority |
 | `cp_start_patch` | Mark a patch as in progress |
-| `cp_request_review` | Mark a patch as finished but awaiting review |
+| `cp_request_review` | Mark a patch as finished but awaiting review, optionally with a checklist of review steps |
+| `cp_set_review_steps` | Replace a patch's review checklist (add, edit, remove, tick steps) |
 | `cp_complete_patch` | Mark a patch as done |
 | `cp_reopen_patch` | Revert a done/in-progress patch back to open |
 | `cp_delete_patch` | Delete a patch |

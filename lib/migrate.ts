@@ -108,7 +108,13 @@ void (async () => {
     ALTER TABLE patches ADD CONSTRAINT patches_status_check
     CHECK (status IN ('open', 'in_progress', 'review', 'done'))
   `;
+  // Checklist Nae ticks off while reviewing: [{ "text": string, "done": boolean }].
+  // Not in the updated_at trigger — ticking steps is review, not work.
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS review_steps JSONB NOT NULL DEFAULT '[]'::jsonb
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();

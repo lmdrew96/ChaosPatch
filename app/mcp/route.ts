@@ -13,6 +13,7 @@ import {
   getProjectBySlug,
   createPatch,
   updatePatchStatus,
+  setReviewSteps,
   addNote,
   deletePatch,
   deleteProject,
@@ -35,6 +36,7 @@ import {
   archiveProject,
   unarchiveProject,
   ProjectHasActiveWorkError,
+  type ReviewStep,
 } from "@/lib/queries";
 import { getBaseUrl } from "@/lib/oauth";
 import { randomUUID } from "crypto";
@@ -317,7 +319,7 @@ const TOOLS = [
   {
     name: "cp_request_review",
     description:
-      "Mark a patch as finished but awaiting review (status 'review', between in_progress and done). Use this when implementation is done and Nae needs to check it; she approves it to done (or cp_complete_patch after she confirms). Keeps started_at (sets it if unset) and clears completed_at. Optionally append a note in the same call — say what shipped and exactly what to check.",
+      "Mark a patch as finished but awaiting review (status 'review', between in_progress and done). Use this when implementation is done and Nae needs to check it; she approves it to done (or cp_complete_patch after she confirms). Keeps started_at (sets it if unset) and clears completed_at. Optionally append a note in the same call (what shipped), and pass review_steps — the concrete things Nae should check — which become a checklist she ticks off on the patch.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -327,8 +329,38 @@ const TOOLS = [
           description:
             "Optional review note appended to the patch's notes field (what shipped, what to check)",
         },
+        review_steps: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional checklist of review steps, one action per item (markdown allowed). Replaces any existing checklist, all unticked. Omit to keep the current one.",
+        },
       },
       required: ["patch_id"],
+    },
+  },
+  {
+    name: "cp_set_review_steps",
+    description:
+      "Replace a patch's review checklist. Use it to add, reword, remove, or tick steps: pass the full list you want, in order. Pass [] to clear it. Doesn't change the patch's status.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        patch_id: { type: "string", description: "Patch UUID" },
+        steps: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string", description: "The step (markdown allowed)" },
+              done: { type: "boolean", description: "Ticked off (default false)" },
+            },
+            required: ["text"],
+          },
+          description: "The complete checklist, in order",
+        },
+      },
+      required: ["patch_id", "steps"],
     },
   },
   {
@@ -625,14 +657,18 @@ const NOTES_PREVIEW_LEN = 200;
  * Done HERE at the MCP boundary (not in lib/queries) so the web dashboard +
  * insights page keep rendering full notes — see patches 4e9a9b62 / 7bfbcac9.
  */
-function toListRow<T extends { notes: string | null; spec: string | null }>(
+function toListRow<
+  T extends { notes: string | null; spec: string | null; review_steps: ReviewStep[] },
+>(
   patch: T
-): Omit<T, "notes" | "spec"> & {
+): Omit<T, "notes" | "spec" | "review_steps"> & {
   notes_preview: string | null;
   notes_length: number;
   spec_length: number;
+  review_steps_done: number;
+  review_steps_total: number;
 } {
-  const { notes, spec, ...rest } = patch;
+  const { notes, spec, review_steps, ...rest } = patch;
   const length = notes?.length ?? 0;
   const notes_preview =
     notes === null || notes === undefined
@@ -645,6 +681,9 @@ function toListRow<T extends { notes: string | null; spec: string | null }>(
     notes_preview,
     notes_length: length,
     spec_length: spec?.length ?? 0,
+    // Full checklist is in cp_get_patch; lists just show progress.
+    review_steps_done: review_steps.filter((s) => s.done).length,
+    review_steps_total: review_steps.length,
   };
 }
 
@@ -824,7 +863,24 @@ async function handleTool(
 
     case "cp_request_review": {
       const a = args as ParsedArgs<"cp_request_review">;
-      const patch = await updatePatchStatus(userId, a.patch_id, "review", a.note);
+      const patch = await updatePatchStatus(
+        userId,
+        a.patch_id,
+        "review",
+        a.note,
+        a.review_steps
+      );
+      if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
+      return JSON.stringify(patch, null, 2);
+    }
+
+    case "cp_set_review_steps": {
+      const a = args as ParsedArgs<"cp_set_review_steps">;
+      const patch = await setReviewSteps(
+        userId,
+        a.patch_id,
+        a.steps.map((s) => ({ text: s.text, done: s.done ?? false }))
+      );
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
       return JSON.stringify(patch, null, 2);
     }

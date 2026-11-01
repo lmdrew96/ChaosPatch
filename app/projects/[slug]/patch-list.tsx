@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef } from "react";
-import type { Patch } from "@/lib/queries";
+import type { Patch, ReviewStep } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Link2, Paperclip, X, type LucideIcon } from "lucide-react";
+import { Check, Copy, Link2, Paperclip, Pencil, Plus, X, type LucideIcon } from "lucide-react";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { Markdown } from "@/components/markdown";
@@ -139,6 +139,169 @@ function CopyChip({
         <Icon aria-hidden className="h-2.5 w-2.5" />
       )}
     </button>
+  );
+}
+
+// Review checklist (UI twin of cp_request_review's review_steps and
+// cp_set_review_steps). Every change saves the whole list. Changes show
+// immediately and roll back if the save fails (the row shows the error).
+function ReviewChecklist({
+  steps,
+  busy,
+  onSave,
+}: {
+  steps: ReviewStep[];
+  busy: boolean;
+  onSave: (steps: ReviewStep[]) => Promise<boolean>;
+}) {
+  // Optimistic copy, dropped once fresh server data arrives (new `steps` prop).
+  const [draft, setDraft] = useState<ReviewStep[] | null>(null);
+  const [seenSteps, setSeenSteps] = useState(steps);
+  if (seenSteps !== steps) {
+    setSeenSteps(steps);
+    setDraft(null);
+  }
+  const shown = draft ?? steps;
+
+  const [newText, setNewText] = useState("");
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+
+  async function save(next: ReviewStep[]): Promise<boolean> {
+    setDraft(next);
+    const ok = await onSave(next);
+    if (!ok) setDraft(null);
+    return ok;
+  }
+
+  async function toggle(i: number) {
+    await save(shown.map((s, j) => (j === i ? { ...s, done: !s.done } : s)));
+  }
+
+  async function remove(i: number) {
+    await save(shown.filter((_, j) => j !== i));
+  }
+
+  async function add() {
+    const text = newText.trim();
+    if (!text) return;
+    if (await save([...shown, { text, done: false }])) setNewText("");
+  }
+
+  function startEdit(i: number) {
+    setEditIndex(i);
+    setEditText(shown[i].text);
+  }
+
+  async function saveEdit() {
+    if (editIndex === null) return;
+    const text = editText.trim();
+    if (!text) return;
+    const i = editIndex;
+    if (await save(shown.map((s, j) => (j === i ? { ...s, text } : s)))) setEditIndex(null);
+  }
+
+  const doneCount = shown.filter((s) => s.done).length;
+
+  return (
+    <div className="rounded bg-input p-2">
+      <div className="mb-1.5 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+        <span>Review</span>
+        {shown.length > 0 && (
+          <span
+            className={`font-mono normal-case tracking-normal ${
+              doneCount === shown.length ? "text-primary" : ""
+            }`}
+          >
+            {doneCount}/{shown.length}
+          </span>
+        )}
+      </div>
+      {shown.length > 0 && (
+        <ul className="space-y-1">
+          {shown.map((step, i) => (
+            <li key={i} className="group flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={step.done}
+                disabled={busy}
+                onChange={() => toggle(i)}
+                aria-label={`Mark step ${i + 1} ${step.done ? "not done" : "done"}`}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary"
+              />
+              {editIndex === i ? (
+                <input
+                  autoFocus
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit();
+                    if (e.key === "Escape") setEditIndex(null);
+                  }}
+                  onBlur={() => setEditIndex(null)}
+                  aria-label={`Edit step ${i + 1}`}
+                  className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              ) : (
+                <Markdown
+                  className={`min-w-0 flex-1 text-xs ${
+                    step.done ? "text-muted-foreground/50 line-through" : "text-muted-foreground"
+                  }`}
+                >
+                  {step.text}
+                </Markdown>
+              )}
+              {editIndex !== i && (
+                <div className="flex shrink-0 gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(i)}
+                    disabled={busy}
+                    aria-label={`Edit step ${i + 1}`}
+                    title="Edit step"
+                    className="text-muted-foreground/60 hover:text-foreground"
+                  >
+                    <Pencil aria-hidden className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(i)}
+                    disabled={busy}
+                    aria-label={`Remove step ${i + 1}`}
+                    title="Remove step"
+                    className="text-muted-foreground/60 hover:text-red-400"
+                  >
+                    <X aria-hidden className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={`flex items-center gap-1.5 ${shown.length > 0 ? "mt-2" : ""}`}>
+        <input
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add();
+          }}
+          placeholder="Add a review step…"
+          aria-label="New review step"
+          className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={busy || !newText.trim()}
+          aria-label="Add review step"
+          title="Add step"
+          className="rounded border border-border p-1 text-muted-foreground hover:text-foreground disabled:opacity-40"
+        >
+          <Plus aria-hidden className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -534,6 +697,13 @@ function PatchRow({
                   {patch.spec}
                 </Markdown>
               </div>
+            )}
+            {(patch.status === "review" || patch.review_steps.length > 0) && (
+              <ReviewChecklist
+                steps={patch.review_steps}
+                busy={isPending}
+                onSave={(review_steps) => mutate(patchBody({ review_steps }))}
+              />
             )}
             <PatchImageAttachments
               mode="saved"
