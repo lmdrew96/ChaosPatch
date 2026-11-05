@@ -181,13 +181,8 @@ export function InsightsContent({
         <ActiveBars patches={activePatches} />
       </div>
 
-      {/* Stuck — started-but-stalled and oldest open work */}
-      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
-        <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
-          Stuck
-        </h2>
-        <StuckList patches={activePatches} now={now} />
-      </div>
+      {/* Stuck — stalled in-progress work and never-started backlog; hides when empty */}
+      <StuckList patches={activePatches} now={now} />
 
       {/* Completion momentum — daily volume stacked by project + 7-day avg */}
       <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
