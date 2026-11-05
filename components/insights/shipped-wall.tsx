@@ -38,7 +38,7 @@ export function ShippedWall({ patches }: { patches: PatchWithProject[] }) {
   );
 
   return (
-    <section className="hud-panel rounded-lg border border-border bg-card/60 backdrop-blur p-4 animate-fade-in">
+    <section className="hud-panel rounded-lg border border-border bg-card/60 backdrop-blur p-4">
       <div className="mb-4 flex items-baseline gap-2">
         <PartyPopper aria-hidden className="h-4 w-4 shrink-0 self-center text-success" />
         <h2 className="text-sm font-medium text-foreground/90">Shipped this week</h2>

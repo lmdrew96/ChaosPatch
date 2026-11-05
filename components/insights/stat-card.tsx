@@ -7,7 +7,6 @@ export function StatCard({
   sub2,
   accent,
   glow,
-  delay = 0,
   href,
 }: {
   label: string;
@@ -16,7 +15,6 @@ export function StatCard({
   sub2?: string;
   accent?: string;
   glow?: string;
-  delay?: number;
   // In-page anchor (e.g. "#waiting-on-you"): the whole card becomes a link.
   href?: string;
 }) {
@@ -24,11 +22,10 @@ export function StatCard({
   return (
     <Tag
       href={href}
-      className={`hud-panel relative block rounded-lg border border-border bg-card p-4 overflow-hidden animate-fade-in${
+      className={`hud-panel relative block rounded-lg border border-border bg-card p-4 overflow-hidden${
         href ? " hover:border-muted-foreground/40 transition-colors" : ""
       }`}
       style={{
-        animationDelay: `${delay}ms`,
         borderLeftWidth: 3,
         borderLeftColor: accent,
       }}

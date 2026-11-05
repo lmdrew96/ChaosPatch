@@ -63,7 +63,8 @@ export function InsightsContent({
     };
   };
 
-  // Net flow: is the backlog growing or shrinking this week?
+  // Net flow this week: added minus done. Shown as plain numbers, not a
+  // verdict — it rises when specs are filed in batches, which is healthy.
   const weekAgo = now - 7 * DAY_MS;
   const addedWeek = patches.filter((p) => new Date(p.created_at).getTime() >= weekAgo).length;
   const doneWeek = completed.filter((p) => new Date(p.completed_at!).getTime() >= weekAgo).length;
@@ -75,7 +76,6 @@ export function InsightsContent({
       (a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime()
     );
   const netFlowDisplay = netFlow > 0 ? `+${netFlow}` : netFlow < 0 ? `−${-netFlow}` : "0";
-  const netFlowTrend = netFlow > 0 ? "growing" : netFlow < 0 ? "shrinking" : "holding steady";
 
   // Waiting on you: oldest wait among review patches, in days.
   const oldestWait = reviewPatches.reduce<{ days: number; approximate: boolean } | null>(
@@ -90,7 +90,7 @@ export function InsightsContent({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
+      <div className="flex items-center justify-between">
         <div>
           <h1
             className="text-xl font-bold tracking-tight"
@@ -124,16 +124,14 @@ export function InsightsContent({
           sub={prioritySub}
           accent="#9F8DEF"
           glow="rgba(159, 141, 239, 0.4)"
-          delay={0}
         />
         <StatCard
           label="Backlog · 7d"
           value={netFlowDisplay}
-          sub={`${addedWeek} added · ${doneWeek} done · ${netFlowTrend}`}
+          sub={`${addedWeek} added · ${doneWeek} done`}
           sub2={`${completedCount} done all-time`}
           accent="#3A5874"
           glow="rgba(58, 88, 116, 0.4)"
-          delay={80}
         />
         <RateCard
           week={rateOver(7)}
@@ -141,7 +139,6 @@ export function InsightsContent({
           allTime={rateOver(null)}
           accent="#AFCEFD"
           glow="rgba(175, 206, 253, 0.4)"
-          delay={160}
         />
         <StatCard
           label="Waiting on you"
@@ -153,7 +150,6 @@ export function InsightsContent({
           }
           accent="#4E3459"
           glow="rgba(78, 52, 89, 0.4)"
-          delay={240}
           href={reviewPatches.length > 0 ? "#waiting-on-you" : undefined}
         />
       </div>
@@ -162,7 +158,7 @@ export function InsightsContent({
       {reviewPatches.length > 0 && (
         <div
           id="waiting-on-you"
-          className="hud-panel scroll-mt-24 rounded-lg border border-border bg-card p-6 animate-fade-in"
+          className="hud-panel scroll-mt-24 rounded-lg border border-border bg-card p-6"
         >
           <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
             Waiting on you
@@ -174,7 +170,7 @@ export function InsightsContent({
       <ShippedWall patches={shippedWeek} />
 
       {/* Active patches — load per project, segmented by priority */}
-      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-5">
           Active Patches
         </h2>
@@ -185,7 +181,7 @@ export function InsightsContent({
       <StuckList patches={activePatches} now={now} />
 
       {/* Completion momentum — daily volume stacked by project + 7-day avg */}
-      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Completion Momentum
         </h2>
@@ -193,7 +189,7 @@ export function InsightsContent({
       </div>
 
       {/* Completion heatmap — day of week × hour of day */}
-      <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-400">
+      <div className="hud-panel rounded-lg border border-border bg-card p-6">
         <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
           Completion Rhythm
         </h2>

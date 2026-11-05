@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { PatchWithProject } from "@/lib/queries";
 import { useContainerWidth } from "@/hooks/use-container-width";
 
 type Priority = "high" | "medium" | "low";
+
+// Busiest projects shown before the "+N more" toggle.
+const ROWS_SHOWN = 8;
 
 const PRIORITY_ORDER: Priority[] = ["high", "medium", "low"];
 const PRIORITY_LABELS: Record<Priority, string> = {
@@ -26,6 +30,7 @@ type ProjectRow = {
 
 export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
   const { ref, width } = useContainerWidth();
+  const [expanded, setExpanded] = useState(false);
   // Aggregate active patches per project, by priority
   const byProject = new Map<string, ProjectRow>();
   for (const p of patches) {
@@ -41,9 +46,11 @@ export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
     byProject.set(p.project_name, row);
   }
 
-  const rows = Array.from(byProject.values()).sort((a, b) => b.total - a.total);
+  const allRows = Array.from(byProject.values()).sort((a, b) => b.total - a.total);
+  const hiddenRows = allRows.length - ROWS_SHOWN;
+  const rows = expanded ? allRows : allRows.slice(0, ROWS_SHOWN);
 
-  if (rows.length === 0) {
+  if (allRows.length === 0) {
     return (
       <div
         ref={ref}
@@ -67,7 +74,8 @@ export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
   };
   const H = PAD.top + rows.length * rowH + PAD.bottom;
   const innerW = W - PAD.left - PAD.right;
-  const maxTotal = Math.max(...rows.map((r) => r.total));
+  // Scale against the busiest project so bars keep their length when expanding.
+  const maxTotal = Math.max(...allRows.map((r) => r.total));
 
   return (
     <div ref={ref} className="w-full overflow-x-hidden">
@@ -188,6 +196,19 @@ export function ActiveBars({ patches }: { patches: PatchWithProject[] }) {
           {isMobile ? "LOAD · SEGMENTS = PRIORITY" : "ACTIVE PATCHES (BAR LENGTH = LOAD, SEGMENTS = PRIORITY MIX)"}
         </text>
       </svg>
+
+      {hiddenRows > 0 && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            {expanded ? "− less" : `+${hiddenRows} more`}
+          </button>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-1 justify-center text-[10px] text-muted-foreground/60 font-mono">

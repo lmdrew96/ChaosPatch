@@ -43,7 +43,7 @@ export function StuckList({ patches, now }: { patches: PatchWithProject[]; now: 
   const neverShown = showAll ? neverStarted : neverStarted.slice(0, NEVER_STARTED_SHOWN);
 
   return (
-    <div className="hud-panel rounded-lg border border-border bg-card p-6 animate-fade-in animation-delay-200">
+    <div className="hud-panel rounded-lg border border-border bg-card p-6">
       <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
         Stuck
       </h2>

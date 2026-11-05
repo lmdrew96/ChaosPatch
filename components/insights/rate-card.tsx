@@ -17,20 +17,17 @@ export function RateCard({
   allTime,
   accent,
   glow,
-  delay = 0,
 }: {
   week: RateWindow | null;
   month: RateWindow | null;
   allTime: RateWindow | null;
   accent?: string;
   glow?: string;
-  delay?: number;
 }) {
   return (
     <div
-      className="hud-panel relative rounded-lg border border-border bg-card p-4 overflow-hidden animate-fade-in"
+      className="hud-panel relative rounded-lg border border-border bg-card p-4 overflow-hidden"
       style={{
-        animationDelay: `${delay}ms`,
         borderLeftWidth: 3,
         borderLeftColor: accent,
       }}

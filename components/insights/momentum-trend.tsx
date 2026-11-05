@@ -141,7 +141,7 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
   const PAD = {
     top: 22,
     right: isMobile ? 10 : 14,
-    bottom: isMobile ? 52 : 44,
+    bottom: isMobile ? 38 : 30,
     left: isMobile ? 26 : 32,
   };
   const innerW = W - PAD.left - PAD.right;
@@ -166,8 +166,15 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
 
   return (
     <div ref={ref} className="w-full overflow-x-hidden">
-      {/* Range toggle */}
-      <div className="flex justify-end gap-1 mb-2">
+      {/* Peak callout + range toggle. The callout lives here, outside the SVG,
+          so it can never collide with the x-axis date labels. */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[10px] font-mono text-muted-foreground/50 truncate">
+          {windowTotal > 0
+            ? `peak: ${fmtDay(cells[peakIdx].date)} · ${peakVal} patch${peakVal === 1 ? "" : "es"}`
+            : ""}
+        </span>
+        <div className="flex gap-1 shrink-0">
         {RANGES.map((r, i) => (
           <button
             key={r.label}
@@ -182,6 +189,7 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
             {r.days ? "d" : ""}
           </button>
         ))}
+        </div>
       </div>
 
       {windowTotal === 0 ? (
@@ -300,22 +308,10 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
           ) : null
         )}
 
-        {/* Peak callout — mirrors the heatmap footer style */}
-        <text
-          x={PAD.left}
-          y={H - (isMobile ? 30 : 22)}
-          className="fill-muted-foreground/45"
-          fontSize={isMobile ? 10 : 9}
-          fontFamily="var(--font-geist-mono, monospace)"
-        >
-          peak: {fmtDay(cells[peakIdx].date)} · {peakVal} patch
-          {peakVal === 1 ? "" : "es"}
-        </text>
-
         {/* X-axis caption */}
         <text
           x={PAD.left + innerW / 2}
-          y={H - (isMobile ? 14 : 6)}
+          y={H - (isMobile ? 8 : 6)}
           textAnchor="middle"
           className="fill-muted-foreground/30"
           fontSize={8}
@@ -333,16 +329,14 @@ export function MomentumTrend({ patches }: { patches: PatchWithProject[] }) {
         {stackOrder.map((key) => (
           <div key={key} className="flex items-center gap-1.5">
             <span
-              className="w-2.5 h-2.5 rounded-sm"
+              className="w-2.5 h-2.5 shrink-0 rounded-sm"
               style={{
                 backgroundColor: colorFor(key),
                 opacity: 0.8,
                 boxShadow: `0 0 5px ${colorFor(key)}`,
               }}
             />
-            <span>
-              {key.length > 14 ? key.slice(0, 13) + "…" : key}
-            </span>
+            <span>{key}</span>
           </div>
         ))}
         <div className="flex items-center gap-1.5">

@@ -234,6 +234,12 @@ pre {
   animation: fade-in 0.8s ease-out both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
+}
+
 .animation-delay-200 {
   animation-delay: 200ms;
 }
