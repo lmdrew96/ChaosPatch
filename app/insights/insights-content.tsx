@@ -11,6 +11,7 @@ import { ActiveBars } from "@/components/insights/active-bars";
 import { MomentumTrend } from "@/components/insights/momentum-trend";
 import { CompletionHeatmap } from "@/components/insights/completion-heatmap";
 import { ShippedWall } from "@/components/insights/shipped-wall";
+import { WaitingList, reviewSince, daysSince } from "@/components/insights/waiting-list";
 
 export function InsightsContent({
   summary,
@@ -19,13 +20,14 @@ export function InsightsContent({
   summary: ProjectSummary[];
   patches: PatchWithProject[];
 }) {
-  // Active = on the board now; archived patches and projects are hidden, so leave them out.
-  const activePatches = patches.filter(
-    (p) =>
-      !p.archived &&
-      !p.project_archived &&
-      (p.status === "open" || p.status === "in_progress" || p.status === "review")
+  // Active = work still to do (open + in progress). Review is finished work
+  // waiting on Nae, so it gets its own card. Archived patches/projects are
+  // hidden from the board, so leave them out.
+  const onBoard = patches.filter((p) => !p.archived && !p.project_archived);
+  const activePatches = onBoard.filter(
+    (p) => p.status === "open" || p.status === "in_progress"
   );
+  const reviewPatches = onBoard.filter((p) => p.status === "review");
   const activeCount = activePatches.length;
   const highCount = activePatches.filter((p) => p.priority === "high").length;
   const medCount = activePatches.filter((p) => p.priority === "medium").length;
@@ -75,12 +77,15 @@ export function InsightsContent({
   const netFlowDisplay = netFlow > 0 ? `+${netFlow}` : netFlow < 0 ? `−${-netFlow}` : "0";
   const netFlowTrend = netFlow > 0 ? "growing" : netFlow < 0 ? "shrinking" : "holding steady";
 
-  // Busiest = most active load right now, not all-time volume.
-  const busiest = summary.reduce<ProjectSummary | null>((max, p) => {
-    const load = p.open + p.in_progress + p.review;
-    if (load === 0) return max;
-    return max === null || load > max.open + max.in_progress + max.review ? p : max;
-  }, null);
+  // Waiting on you: oldest wait among review patches, in days.
+  const oldestWait = reviewPatches.reduce<{ days: number; approximate: boolean } | null>(
+    (oldest, p) => {
+      const { since, approximate } = reviewSince(p);
+      const days = daysSince(since, now);
+      return oldest === null || days > oldest.days ? { days, approximate } : oldest;
+    },
+    null
+  );
 
   return (
     <div className="space-y-8">
@@ -139,18 +144,32 @@ export function InsightsContent({
           delay={160}
         />
         <StatCard
-          label="Projects"
-          value={summary.length}
+          label="Waiting on you"
+          value={reviewPatches.length}
           sub={
-            busiest
-              ? `busiest: ${busiest.project_name} (${busiest.open + busiest.in_progress + busiest.review} active)`
-              : undefined
+            oldestWait
+              ? `oldest: ${oldestWait.approximate ? "~" : ""}${oldestWait.days}d in review`
+              : "nothing in review"
           }
           accent="#4E3459"
           glow="rgba(78, 52, 89, 0.4)"
           delay={240}
+          href={reviewPatches.length > 0 ? "#waiting-on-you" : undefined}
         />
       </div>
+
+      {/* Waiting on you — finished patches awaiting review */}
+      {reviewPatches.length > 0 && (
+        <div
+          id="waiting-on-you"
+          className="hud-panel scroll-mt-24 rounded-lg border border-border bg-card p-6 animate-fade-in"
+        >
+          <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-4">
+            Waiting on you
+          </h2>
+          <WaitingList patches={reviewPatches} now={now} />
+        </div>
+      )}
 
       <ShippedWall patches={shippedWeek} />
 

@@ -45,6 +45,9 @@ export type Patch = {
   // Checklist for reviewing the patch. Set when it's sent to review; Nae ticks
   // steps off in the UI. Empty array when there are none.
   review_steps: ReviewStep[];
+  // When the patch last entered review (DB trigger, see lib/migrate.ts). Kept
+  // through done; NULL if it never hit review or did so before the column existed.
+  reviewed_at: string | null;
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];
 };

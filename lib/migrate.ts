@@ -114,7 +114,34 @@ void (async () => {
     ALTER TABLE patches
     ADD COLUMN IF NOT EXISTS review_steps JSONB NOT NULL DEFAULT '[]'::jsonb
   `;
+  // When the patch last entered review. Insights uses it for "days waiting"
+  // and wait-vs-work phases. Set by a trigger so every write path (web, MCP,
+  // batch) counts. Kept through review → done; cleared when work resumes
+  // (back to open/in_progress). No backfill: rows reviewed before this column
+  // existed stay NULL and Insights falls back to updated_at, marked approximate.
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ
+  `;
+  await sql`
+    CREATE OR REPLACE FUNCTION patches_set_reviewed_at() RETURNS trigger AS $$
+    BEGIN
+      IF NEW.status = 'review'
+         AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'review') THEN
+        NEW.reviewed_at = now();
+      ELSIF NEW.status IN ('open', 'in_progress') THEN
+        NEW.reviewed_at = NULL;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `;
+  await sql`
+    CREATE OR REPLACE TRIGGER patches_set_reviewed_at
+    BEFORE INSERT OR UPDATE OF status ON patches
+    FOR EACH ROW EXECUTE FUNCTION patches_set_reviewed_at()
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();
