@@ -11,6 +11,7 @@ import { ActiveBars } from "@/components/insights/active-bars";
 import { MomentumTrend } from "@/components/insights/momentum-trend";
 import { CompletionHeatmap } from "@/components/insights/completion-heatmap";
 import { ShippedWall } from "@/components/insights/shipped-wall";
+import { WaitVsWork } from "@/components/insights/wait-vs-work";
 import { WaitingList, reviewSince, daysSince } from "@/components/insights/waiting-list";
 
 export function InsightsContent({
@@ -179,6 +180,15 @@ export function InsightsContent({
 
       {/* Stuck — stalled in-progress work and never-started backlog; hides when empty */}
       <StuckList patches={activePatches} now={now} />
+
+      {/* Wait vs. work — median time per phase of a finished patch */}
+      <div className="hud-panel rounded-lg border border-border bg-card p-6">
+        <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">
+          Wait vs. Work
+        </h2>
+        <p className="text-xs text-muted-foreground/50">Where a finished patch&apos;s time goes</p>
+        <WaitVsWork patches={patches} now={now} />
+      </div>
 
       {/* Completion momentum — daily volume stacked by project + 7-day avg */}
       <div className="hud-panel rounded-lg border border-border bg-card p-6">
