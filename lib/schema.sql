@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS spec_revisions (
 );
 
 -- patches.spec_section_id (added by lib/migrate.ts): UUID REFERENCES spec_sections(id) ON DELETE SET NULL
+-- patches.spec_changed_at (added by lib/migrate.ts): TIMESTAMPTZ, "spec changed since written" marker
 
 CREATE TABLE IF NOT EXISTS patch_attachments (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

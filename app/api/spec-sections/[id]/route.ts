@@ -1,7 +1,22 @@
 import { auth } from "@clerk/nextjs/server";
-import { deleteSpecSection, updateSpecSection } from "@/lib/specs";
+import { deleteSpecSection, getSectionThenAndNow, updateSpecSection } from "@/lib/specs";
 
 type Params = { params: Promise<{ id: string }> };
+
+// ?at=<ISO>: the section as it read then (e.g. when a patch was filed) and now.
+export async function GET(req: Request, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const at = new URL(req.url).searchParams.get("at");
+  if (!at || Number.isNaN(Date.parse(at))) {
+    return Response.json({ error: "at must be an ISO timestamp" }, { status: 400 });
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ error: "Section not found" }, { status: 404 });
+  const result = await getSectionThenAndNow(userId, id, at);
+  if (!result) return Response.json({ error: "Section not found" }, { status: 404 });
+  return Response.json(result);
+}
 
 // Autosave target for the spec editor: { heading?, body? }, attributed to Nae.
 export async function PATCH(req: Request, { params }: Params) {

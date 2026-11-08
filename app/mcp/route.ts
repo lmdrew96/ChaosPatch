@@ -35,6 +35,7 @@ import {
   unarchivePatch,
   archiveProject,
   unarchiveProject,
+  dismissSpecChange,
   ProjectHasActiveWorkError,
   type ReviewStep,
 } from "@/lib/queries";
@@ -51,7 +52,7 @@ import {
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
 import { SPEC_TOOLS, handleSpecTool, isSpecToolName, type SpecToolName } from "./spec-tools";
-import { assertSectionInProject, setPatchSpecSection } from "@/lib/specs";
+import { assertSectionInProject, setPatchSpecSection, withSpecRefs } from "@/lib/specs";
 import type { z } from "zod";
 
 type ParsedArgs<T extends McpToolName> = z.infer<(typeof MCP_SCHEMAS)[T]>;
@@ -457,6 +458,12 @@ const TOOLS = [
           description:
             "Link to a spec section (UUID from cp_get_spec; its spec must be attached to this patch's project), null to unlink, omit to leave unchanged.",
         },
+        dismiss_spec_change: {
+          type: "boolean",
+          enum: [true],
+          description:
+            "Clear the patch's spec_changed_at marker (its spec section changed after it was written). Editing title/notes/spec also clears it.",
+        },
       },
       required: ["patch_id"],
     },
@@ -621,7 +628,7 @@ const TOOLS = [
   {
     name: "cp_batch_update",
     description:
-      "Bulk-apply one action to many patches. 'start' sets in_progress + started_at; 'review' sets review (awaiting Nae's check; keeps started_at, clears completed_at); 'complete' sets done + completed_at; 'reopen' reverts to open, clears timestamps, and unarchives; 'archive' archives; 'delete' permanently deletes the patches and their image attachments; 'set_priority' sets `priority` (required for this action); 'add_tags' appends `tags` (required for this action), skipping tags a patch already has. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] } — for 'delete', `updated` lists the deleted patches.",
+      "Bulk-apply one action to many patches. 'start' sets in_progress + started_at; 'review' sets review (awaiting Nae's check; keeps started_at, clears completed_at); 'complete' sets done + completed_at; 'reopen' reverts to open, clears timestamps, and unarchives; 'archive' archives; 'delete' permanently deletes the patches and their image attachments; 'set_priority' sets `priority` (required for this action); 'add_tags' appends `tags` (required for this action), skipping tags a patch already has; 'dismiss_spec_change' clears the 'spec changed since this was written' marker. Only patches owned by the authenticated user are affected. Returns { updated: Patch[], errors: { patch_id, reason }[] } — for 'delete', `updated` lists the deleted patches.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -641,6 +648,7 @@ const TOOLS = [
             "delete",
             "set_priority",
             "add_tags",
+            "dismiss_spec_change",
           ],
           description: "Action to apply to every patch_id",
         },
@@ -805,8 +813,11 @@ async function handleTool(
       const a = args as ParsedArgs<"cp_get_patch">;
       const patch = await getPatchById(userId, a.patch_id);
       if (!patch) throw new Error(`Patch '${a.patch_id}' not found`);
-      const attachments = await getPatchAttachments(userId, a.patch_id);
-      return JSON.stringify({ ...patch, attachments }, null, 2);
+      const [attachments, [withRef]] = await Promise.all([
+        getPatchAttachments(userId, a.patch_id),
+        withSpecRefs(userId, [patch]),
+      ]);
+      return JSON.stringify({ ...withRef, attachments }, null, 2);
     }
 
     case "cp_get_patch_images":
@@ -945,6 +956,7 @@ async function handleTool(
       if (a.spec_section_id !== undefined) {
         await setPatchSpecSection(userId, a.patch_id, a.spec_section_id);
       }
+      if (a.dismiss_spec_change) await dismissSpecChange(userId, a.patch_id);
       const patch = await updatePatch(
         userId,
         a.patch_id,

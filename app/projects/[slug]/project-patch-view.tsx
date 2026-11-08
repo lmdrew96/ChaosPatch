@@ -118,6 +118,11 @@ export function ProjectPatchView({
   }, [patches]);
 
   const completedCount = statusCounts.done;
+  // Only offer the bulk dismiss when something is actually flagged.
+  const hasSpecChanges = useMemo(
+    () => [...patches, ...archivedPatches].some((p) => p.spec_changed_at),
+    [patches, archivedPatches]
+  );
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -496,6 +501,16 @@ export function ProjectPatchView({
         >
           Archive
         </button>
+        {hasSpecChanges && (
+          <button
+            onClick={() => bulkAction("dismiss_spec_change")}
+            disabled={busy || selectedIds.size === 0}
+            title="Clear the 'Spec changed' marker on the selected patches"
+            className="text-xs text-amber-600 dark:text-amber-400 hover:opacity-80 disabled:opacity-40 transition-colors"
+          >
+            Dismiss spec change
+          </button>
+        )}
         <div className="h-4 w-px bg-border" />
         <select
           value=""

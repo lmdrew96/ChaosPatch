@@ -51,8 +51,20 @@ export type Patch = {
   // The spec section this patch came from (lib/specs.ts). NULL if none, or
   // if that section was deleted.
   spec_section_id: string | null;
+  // Set when that section's body changed after this patch was linked; cleared
+  // on dismiss or when the patch's title/notes/spec is edited (DB trigger).
+  spec_changed_at: string | null;
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];
+  spec_ref?: SpecSectionRef | null;
+};
+
+/** Where a patch's spec section lives, for the "From spec" link. */
+export type SpecSectionRef = {
+  section_id: string;
+  heading: string;
+  spec_id: string;
+  spec_title: string;
 };
 
 export type ReviewStep = {
@@ -584,6 +596,20 @@ export async function updateProject(
   }
 }
 
+// Clear the "spec changed since this was written" marker.
+export async function dismissSpecChange(
+  userId: string,
+  patchId: string
+): Promise<Patch | null> {
+  const rows = await sql`
+    UPDATE patches pa SET spec_changed_at = NULL
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}
+
 // ── Reopen Patch ──────────────────────────────────────────────────────────
 
 export async function reopenPatch(
@@ -622,6 +648,7 @@ export const BATCH_ACTIONS = [
   "delete",
   "set_priority",
   "add_tags",
+  "dismiss_spec_change",
 ] as const;
 
 export type BatchUpdateAction = (typeof BATCH_ACTIONS)[number];
@@ -692,6 +719,16 @@ export async function batchUpdatePatches(
         FROM unnest(${tags}::text[]) t
         WHERE NOT (t = ANY(pa.tags))
       ), '{}'::text[])
+      FROM projects p
+      WHERE pa.project_id = p.id
+        AND p.user_id = ${userId}
+        AND pa.id = ANY(${patchIds}::uuid[])
+      RETURNING pa.*
+    `;
+  } else if (action === "dismiss_spec_change") {
+    rows = await sql`
+      UPDATE patches pa
+      SET spec_changed_at = NULL
       FROM projects p
       WHERE pa.project_id = p.id
         AND p.user_id = ${userId}

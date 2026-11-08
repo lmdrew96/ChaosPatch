@@ -8,6 +8,7 @@ import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { PatchImageAttachments } from "@/components/patch-image-attachments";
 import { Markdown } from "@/components/markdown";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
+import { SpecOrigin } from "@/components/specs/spec-origin";
 
 const STATUS_NEXT: Record<Patch["status"], Patch["status"] | null> = {
   open: "in_progress",
@@ -563,8 +564,18 @@ function PatchRow({
             </button>
             {(patch.tags.length > 0 ||
               patch.due_date ||
-              (patch.attachments?.length ?? 0) > 0) && (
+              (patch.attachments?.length ?? 0) > 0 ||
+              (patch.spec_changed_at && patch.status !== "done")) && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
+                {/* Loud only while the work is live; done patches get a quiet line when expanded. */}
+                {patch.spec_changed_at && patch.status !== "done" && (
+                  <span
+                    className="text-[9px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-full px-1.5 py-0.5"
+                    title="Its spec section changed since this patch was written"
+                  >
+                    Spec changed
+                  </span>
+                )}
                 {patch.due_date && <DueDateChip dueDate={patch.due_date} />}
                 {(patch.attachments?.length ?? 0) > 0 && (
                   <span className="inline-flex items-center gap-1 text-[9px] font-medium uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border rounded-full px-1.5 py-0.5">
@@ -683,6 +694,11 @@ function PatchRow({
             the title column and got squeezed beside the action buttons. */}
         {expanded && (
           <div className="mt-2 space-y-2">
+            <SpecOrigin
+              patch={patch}
+              busy={isPending}
+              onDismiss={() => void mutate(patchBody({ dismiss_spec_change: true }))}
+            />
             {patch.notes && (
               <Markdown className="text-xs text-muted-foreground bg-input rounded p-2">
                 {patch.notes}

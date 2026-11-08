@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import {
   addNote,
   deletePatch,
+  dismissSpecChange,
   getPatchAttachments,
   reopenPatch,
   setPatchArchived,
@@ -53,6 +54,12 @@ export async function PATCH(
 
   if (body.note) {
     const patch = await addNote(userId, id, body.note);
+    if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(patch);
+  }
+
+  if (body.dismiss_spec_change === true) {
+    const patch = await dismissSpecChange(userId, id);
     if (!patch) return Response.json({ error: "Not found" }, { status: 404 });
     return Response.json(patch);
   }

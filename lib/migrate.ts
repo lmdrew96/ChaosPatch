@@ -216,7 +216,34 @@ void (async () => {
     CREATE INDEX IF NOT EXISTS patches_spec_section_id_idx
       ON patches(spec_section_id) WHERE spec_section_id IS NOT NULL
   `;
+  // Specs 5/5: when a linked section's body changes, its patches get stamped
+  // (in updateSpecSection). The stamp clears when Nae dismisses it or the
+  // patch itself is edited (title/notes/spec) by any path — this trigger.
+  // Status changes don't clear it: starting a patch is exactly when the
+  // warning matters. Not in patches_touch_updated_at: a spec edit isn't
+  // work on the patch.
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS spec_changed_at TIMESTAMPTZ
+  `;
+  await sql`
+    CREATE OR REPLACE FUNCTION patches_clear_spec_changed() RETURNS trigger AS $$
+    BEGIN
+      IF NEW.spec_changed_at IS NOT DISTINCT FROM OLD.spec_changed_at
+         AND (NEW.title, NEW.notes, NEW.spec)
+             IS DISTINCT FROM (OLD.title, OLD.notes, OLD.spec) THEN
+        NEW.spec_changed_at = NULL;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `;
+  await sql`
+    CREATE OR REPLACE TRIGGER patches_clear_spec_changed
+    BEFORE UPDATE ON patches
+    FOR EACH ROW EXECUTE FUNCTION patches_clear_spec_changed()
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments + specs + spec_sections + spec_revisions tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at + spec_section_id (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments + specs + spec_sections + spec_revisions tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at + spec_section_id + spec_changed_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();

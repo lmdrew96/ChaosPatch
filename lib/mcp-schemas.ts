@@ -132,6 +132,7 @@ export const MCP_SCHEMAS = {
     spec: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     spec_section_id: uuid.nullable().optional(),
+    dismiss_spec_change: z.literal(true).optional(),
   }),
   cp_add_tags: z.object({
     patch_id: z.string().min(1),
@@ -194,6 +195,7 @@ export const MCP_SCHEMAS = {
         "delete",
         "set_priority",
         "add_tags",
+        "dismiss_spec_change",
       ]),
       priority: z.enum(["low", "medium", "high"]).optional(),
       tags: z.array(z.string().trim().min(1)).optional(),

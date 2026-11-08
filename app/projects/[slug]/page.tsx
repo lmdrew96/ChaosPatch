@@ -17,7 +17,7 @@ import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
 import { ProjectSpecs } from "./project-specs";
-import { listSpecs } from "@/lib/specs";
+import { listSpecs, withSpecRefs } from "@/lib/specs";
 
 export default async function ProjectPage({
   params,
@@ -57,8 +57,11 @@ export default async function ProjectPage({
   const withImages = (list: Patch[]): Patch[] =>
     list.map((p) => ({ ...p, attachments: byPatch.get(p.id) ?? [] }));
 
-  const patchesWithImages = withImages(patches);
-  const archivedWithImages = withImages(archivedPatches);
+  // spec_ref powers the "From spec" link on patches made from a spec section.
+  const [patchesWithImages, archivedWithImages] = await Promise.all([
+    withSpecRefs(userId, withImages(patches)),
+    withSpecRefs(userId, withImages(archivedPatches)),
+  ]);
   // Deleting a project cascades to archived patches too.
   const totalPatches = patches.length + archivedPatches.length;
 

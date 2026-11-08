@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Pencil, Sparkles, Star, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, History, Pencil, Sparkles, Star, Trash2, X } from "lucide-react";
 import type {
   SkippedSection,
   SpecDetail,
@@ -15,6 +15,7 @@ import type { ProposedPatch } from "@/lib/ai";
 import type { Patch } from "@/lib/queries";
 import { Markdown } from "@/components/markdown";
 import { AUTHOR_LABELS } from "@/components/specs/spec-list";
+import { SpecHistory } from "@/components/specs/spec-history";
 import { timeAgo } from "@/components/dashboard/patch-list-item";
 import { PRESET_COLORS } from "@/lib/colors";
 
@@ -155,6 +156,7 @@ export function SpecEditor({
         {spec.sections.map((section, i) => (
           <SectionCard
             key={section.id}
+            specId={spec.id}
             section={section}
             projectSlug={spec.project_slug}
             isFirst={i === 0}
@@ -198,6 +200,21 @@ export function SpecEditor({
           }
         />
       )}
+
+      <details className="rounded-lg border border-border bg-card/40 p-4">
+        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          All changes
+        </summary>
+        <div className="mt-3">
+          {/* Refetch after any section save, add, or remove. */}
+          <SpecHistory
+            specId={spec.id}
+            refreshKey={`${spec.sections.length}:${
+              spec.sections.map((x) => x.last_edited_at ?? "").sort().at(-1) ?? ""
+            }`}
+          />
+        </div>
+      </details>
 
       <DeleteSpec specId={spec.id} hasProject={spec.project_slug} />
     </div>
@@ -353,6 +370,7 @@ function LinkPanel({
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function SectionCard({
+  specId,
   section,
   projectSlug,
   isFirst,
@@ -362,6 +380,7 @@ function SectionCard({
   onDelete,
   onSaved,
 }: {
+  specId: string;
   section: SpecSectionWithPatches;
   projectSlug: string | null;
   isFirst: boolean;
@@ -377,6 +396,7 @@ function SectionCard({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Refs so the debounced save and the unmount flush see current values.
   const draft = useRef({ heading: section.heading, body: section.body });
@@ -434,7 +454,7 @@ function SectionCard({
   const lineCount = body.split("\n").length;
 
   return (
-    <li className="list-none rounded-lg border border-border bg-card/60 p-4">
+    <li id={`section-${section.id}`} className="list-none rounded-lg border border-border bg-card/60 p-4 scroll-mt-24 target:ring-2 target:ring-primary/40">
       <div className="flex items-start gap-2">
         <label htmlFor={`heading-${section.id}`} className="sr-only">
           Section heading
@@ -532,7 +552,22 @@ function SectionCard({
           {saveState === "saved" && "Saved"}
           {saveState === "error" && saveError}
         </span>
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          aria-expanded={showHistory}
+          className="ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          <History aria-hidden className="h-3 w-3" />
+          {showHistory ? "Hide history" : "History"}
+        </button>
       </div>
+
+      {showHistory && (
+        <div className="mt-3 border-t border-border/60 pt-3">
+          <SpecHistory specId={specId} sectionId={section.id} refreshKey={section.last_edited_at} />
+        </div>
+      )}
 
       {section.patches.length > 0 && (
         <div className="mt-3 border-t border-border/60 pt-2">

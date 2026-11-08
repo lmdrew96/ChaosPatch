@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { createPatch, unarchiveProject, type Patch } from "./queries";
+import { createPatch, unarchiveProject, type Patch, type SpecSectionRef } from "./queries";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -397,6 +397,14 @@ export async function updateSpecSection(
     touch AS (
       UPDATE specs SET updated_at = now()
       WHERE id IN (SELECT spec_id FROM upd) AND EXISTS (SELECT 1 FROM rev)
+    ),
+    -- Living doc (Specs 5/5): a body change flags the patches built from it.
+    flag AS (
+      UPDATE patches SET spec_changed_at = now()
+      WHERE spec_section_id IN (
+        SELECT upd.id FROM old JOIN upd ON upd.id = old.id
+        WHERE old.body IS DISTINCT FROM upd.body
+      )
     )
     SELECT upd.*,
       COALESCE((SELECT author FROM rev), last.author) AS last_author,
@@ -629,4 +637,73 @@ export async function fileSpecPatches(
     );
   }
   return filed;
+}
+
+// ── Living doc (Specs 5/5) ─────────────────────────────────────────────────
+
+/** Spec + heading for each section id, for "From spec" links on patches. */
+export async function getSectionRefs(
+  userId: string,
+  sectionIds: string[]
+): Promise<Map<string, SpecSectionRef>> {
+  if (sectionIds.length === 0) return new Map();
+  const rows = await sql`
+    SELECT ss.id AS section_id, ss.heading, s.id AS spec_id, s.title AS spec_title
+    FROM spec_sections ss
+    JOIN specs s ON s.id = ss.spec_id
+    WHERE s.user_id = ${userId} AND ss.id = ANY(${sectionIds}::uuid[])
+  `;
+  return new Map((rows as SpecSectionRef[]).map((r) => [r.section_id, r]));
+}
+
+/** Attach spec_ref to each patch that links to a section (one query). */
+export async function withSpecRefs<T extends Patch>(userId: string, patches: T[]): Promise<T[]> {
+  const ids = [...new Set(patches.map((p) => p.spec_section_id).filter((x): x is string => !!x))];
+  const refs = await getSectionRefs(userId, ids);
+  return patches.map((p) => ({
+    ...p,
+    spec_ref: p.spec_section_id ? (refs.get(p.spec_section_id) ?? null) : null,
+  }));
+}
+
+export type SectionSnapshot = {
+  heading: string;
+  body: string;
+  author: SpecAuthor | null;
+  at: string | null;
+};
+
+/**
+ * A section as it read at `at` (the newest create/edit revision at or before
+ * it) next to how it reads now. `then` is null if no revision is that old.
+ */
+export async function getSectionThenAndNow(
+  userId: string,
+  sectionId: string,
+  at: string
+): Promise<{ then: SectionSnapshot | null; now: SectionSnapshot } | null> {
+  const [nowRows, thenRows] = await Promise.all([
+    sql`
+      SELECT ss.heading, ss.body, r.author, r.created_at AS at
+      FROM spec_sections ss
+      JOIN specs s ON s.id = ss.spec_id
+      LEFT JOIN LATERAL (
+        SELECT author, created_at FROM spec_revisions
+        WHERE section_id = ss.id ORDER BY created_at DESC LIMIT 1
+      ) r ON TRUE
+      WHERE ss.id = ${sectionId} AND s.user_id = ${userId}
+    `,
+    sql`
+      SELECT r.after_heading AS heading, r.after_body AS body, r.author, r.created_at AS at
+      FROM spec_revisions r
+      JOIN specs s ON s.id = r.spec_id
+      WHERE r.section_id = ${sectionId} AND s.user_id = ${userId}
+        AND r.kind IN ('create', 'edit') AND r.created_at <= ${at}
+      ORDER BY r.created_at DESC
+      LIMIT 1
+    `,
+  ]);
+  const now = nowRows[0] as SectionSnapshot | undefined;
+  if (!now) return null;
+  return { then: (thenRows[0] as SectionSnapshot | undefined) ?? null, now };
 }
