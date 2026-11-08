@@ -864,7 +864,7 @@ export async function getDashboardSummary(
         FROM patches pa
         JOIN projects p ON p.id = pa.project_id
         WHERE p.user_id = ${userId} AND pa.status = 'review' AND NOT pa.archived AND NOT p.archived
-        ORDER BY pa.updated_at ASC
+        ORDER BY COALESCE(pa.reviewed_at, pa.updated_at) ASC
       `,
       sql`
         SELECT pa.*, p.name AS project_name, p.slug AS project_slug, p.color AS project_color, p.archived AS project_archived

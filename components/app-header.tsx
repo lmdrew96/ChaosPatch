@@ -73,7 +73,7 @@ function StaleBadge() {
 
   return (
     <Link
-      href="/dashboard#stale"
+      href="/dashboard?stale=1"
       className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
       title={`${count} patch${count === 1 ? "" : "es"} untouched for a week`}
       aria-label={`${count} stale patch${count === 1 ? "" : "es"}`}

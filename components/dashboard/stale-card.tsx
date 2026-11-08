@@ -15,19 +15,28 @@ const daysSince = (iso: string): number =>
 export function StaleCard({
   patches,
   staleDays,
+  defaultOpen = false,
 }: {
   patches: PatchWithProject[];
   staleDays: number;
+  // Opened from the header ⌛ chip, so show the list straight away.
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Collapsed by default so the dashboard leads with current work, not a nag list.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const visible = patches.filter((p) => !hidden.has(p.id));
-  if (visible.length === 0) return null;
+  if (visible.length === 0) {
+    // Reached via the chip but everything's been touched since.
+    return defaultOpen ? (
+      <p className="text-xs text-muted-foreground/60 text-center">
+        Nothing&apos;s going stale. Every active patch was touched in the last {staleDays} days.
+      </p>
+    ) : null;
+  }
 
   const keep = async (id: string) => {
     setPending(id);

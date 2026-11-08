@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Archive, ChevronRight } from "lucide-react";
-import type { Project, PatchWithProject, ProjectSummary } from "@/lib/queries";
-import { SummaryStrip } from "@/components/insights/summary-strip";
+import type { Project, PatchWithProject } from "@/lib/queries";
+import { SPECS_UI_ENABLED } from "@/lib/flags";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 import { DueDateChip } from "@/app/projects/[slug]/patch-list";
@@ -14,7 +14,8 @@ import { FOCUS_SEARCH_EVENT } from "@/components/keyboard-shortcuts";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-const VIEW_MODES = ["projects", "patches"] as const;
+// "specs" only shows when SPECS_UI_ENABLED (Specs 2/5).
+const VIEW_MODES = ["projects", "specs", "patches"] as const;
 const STATUS_FILTERS = ["all", "open", "in_progress", "review", "done"] as const;
 const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
 const PROJECT_SORT_FIELDS = ["name", "open_count", "created"] as const;
@@ -35,14 +36,14 @@ const STATUS_ORDER = { review: 0, in_progress: 1, open: 2, done: 3 };
 export function HomeContent({
   projects,
   patches,
-  summary,
 }: {
   projects: Project[];
   patches: PatchWithProject[];
-  summary: ProjectSummary[];
 }) {
   // View, filter, and sort state lives in the URL so it survives back-nav and refresh.
-  const [view, setView] = useUrlParam("view", "projects", VIEW_MODES);
+  const [viewParam, setView] = useUrlParam("view", "projects", VIEW_MODES);
+  // An old ?view=specs link falls back to Projects while the tab is off.
+  const view = !SPECS_UI_ENABLED && viewParam === "specs" ? "projects" : viewParam;
   const [statusFilter, setStatusFilter] = useUrlParam("status", "all", STATUS_FILTERS);
   const [priorityFilter, setPriorityFilter] = useUrlParam("priority", "all", PRIORITY_FILTERS);
   const [tagParam, setTagParam] = useUrlParam<string>("tags", "");
@@ -163,9 +164,6 @@ export function HomeContent({
 
   return (
     <>
-      {/* Summary strip */}
-      {summary.length > 0 && <SummaryStrip summary={summary} />}
-
       {/* View toggle + filters bar */}
       <div className="flex flex-col gap-4 mb-6">
         {/* Top row: toggle + sort */}
@@ -181,6 +179,18 @@ export function HomeContent({
             >
               Projects
             </button>
+            {SPECS_UI_ENABLED && (
+              <button
+                onClick={() => setView("specs")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  view === "specs"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70"
+                }`}
+              >
+                Specs
+              </button>
+            )}
             <button
               onClick={() => setView("patches")}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${

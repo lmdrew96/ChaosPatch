@@ -5,7 +5,7 @@ import type { PatchWithProject } from "@/lib/queries";
  * Compact relative time. daysOnly skips the week/month rollup so long-running
  * in-progress work reads as "52d ago" rather than an understated "1mo ago".
  */
-function timeAgo(iso: string | null | undefined, daysOnly = false): string {
+export function timeAgo(iso: string | null | undefined, daysOnly = false): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 0) return "just now";
