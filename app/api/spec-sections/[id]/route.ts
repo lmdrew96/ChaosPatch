@@ -1,10 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import {
-  deleteSpecSection,
-  getSectionThenAndNow,
-  setSectionReferenceOnly,
-  updateSpecSection,
-} from "@/lib/specs";
+import { deleteSpecSection, getSectionThenAndNow, updateSpecSection } from "@/lib/specs";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,31 +18,29 @@ export async function GET(req: Request, { params }: Params) {
   return Response.json(result);
 }
 
-// Autosave target for the spec editor: { heading?, body? }, attributed to Nae.
+// Autosave + "Reference only" toggle target for the spec editor:
+// { heading?, body?, reference_only? }, attributed to Nae.
 export async function PATCH(req: Request, { params }: Params) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const { heading, body, reference_only } = await req.json();
-  // The "Reference only" toggle: a planning flag, not a content edit.
-  if (typeof reference_only === "boolean") {
-    const section = await setSectionReferenceOnly(userId, id, reference_only);
-    if (!section) return Response.json({ error: "Section not found" }, { status: 404 });
-    return Response.json(section);
-  }
   if (heading !== undefined && (typeof heading !== "string" || !heading.trim())) {
     return Response.json({ error: "Heading can't be empty" }, { status: 400 });
   }
   if (body !== undefined && typeof body !== "string") {
     return Response.json({ error: "body must be text" }, { status: 400 });
   }
-  if (heading === undefined && body === undefined) {
+  if (reference_only !== undefined && typeof reference_only !== "boolean") {
+    return Response.json({ error: "reference_only must be true or false" }, { status: 400 });
+  }
+  if (heading === undefined && body === undefined && reference_only === undefined) {
     return Response.json({ error: "Nothing to update" }, { status: 400 });
   }
   const section = await updateSpecSection(
     userId,
     id,
-    { heading: heading?.trim(), body },
+    { heading: heading?.trim(), body, referenceOnly: reference_only },
     "nae"
   );
   if (!section) return Response.json({ error: "Section not found" }, { status: 404 });

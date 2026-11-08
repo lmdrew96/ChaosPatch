@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS spec_revisions (
   after_heading  TEXT,
   before_body    TEXT,
   after_body     TEXT,
+  -- NULL on revisions written before flag changes were tracked.
+  before_reference_only BOOLEAN,
+  after_reference_only  BOOLEAN,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

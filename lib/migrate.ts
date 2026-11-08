@@ -198,6 +198,12 @@ void (async () => {
       created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
+  // Reference-only flag changes are revisions too (v0.68.1); NULL on older rows.
+  await sql`
+    ALTER TABLE spec_revisions
+    ADD COLUMN IF NOT EXISTS before_reference_only BOOLEAN,
+    ADD COLUMN IF NOT EXISTS after_reference_only BOOLEAN
+  `;
   await sql`
     CREATE INDEX IF NOT EXISTS spec_revisions_section_idx
       ON spec_revisions(section_id, created_at)

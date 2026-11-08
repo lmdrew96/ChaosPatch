@@ -67,6 +67,9 @@ export type SpecRevision = {
   after_heading: string | null;
   before_body: string | null;
   after_body: string | null;
+  // NULL on revisions written before the flag was tracked (v0.68.1).
+  before_reference_only: boolean | null;
+  after_reference_only: boolean | null;
   created_at: string;
 };
 
@@ -222,8 +225,9 @@ export async function createSpec(
       VALUES (${sectionId}, ${specId}, ${index}, ${section.heading}, ${body}, ${referenceOnly})
     `);
     queries.push(sql`
-      INSERT INTO spec_revisions (spec_id, section_id, kind, author, after_heading, after_body)
-      VALUES (${specId}, ${sectionId}, 'create', ${input.author}, ${section.heading}, ${body})
+      INSERT INTO spec_revisions
+        (spec_id, section_id, kind, author, after_heading, after_body, after_reference_only)
+      VALUES (${specId}, ${sectionId}, 'create', ${input.author}, ${section.heading}, ${body}, ${referenceOnly})
     `);
   });
   await sql.transaction(queries);
@@ -345,8 +349,9 @@ export async function addSpecSection(
       RETURNING *
     ),
     rev AS (
-      INSERT INTO spec_revisions (spec_id, section_id, kind, author, after_heading, after_body)
-      SELECT spec_id, id, 'create', ${author}, heading, body FROM ins
+      INSERT INTO spec_revisions
+        (spec_id, section_id, kind, author, after_heading, after_body, after_reference_only)
+      SELECT spec_id, id, 'create', ${author}, heading, body, reference_only FROM ins
       RETURNING created_at
     ),
     touch AS (
@@ -359,17 +364,20 @@ export async function addSpecSection(
 }
 
 /**
- * Change a section's heading and/or body (omit a field to keep it). A write
+ * Change a section's heading, body, and/or reference-only flag (omit a field
+ * to keep it). One revision covers the whole write, flag included. A write
  * that changes nothing records no revision, so autosave can't flood history.
+ * Only a body change flags linked patches; updated_at tracks content only.
  */
 export async function updateSpecSection(
   userId: string,
   sectionId: string,
-  changes: { heading?: string; body?: string },
+  changes: { heading?: string; body?: string; referenceOnly?: boolean },
   author: SpecAuthor
 ): Promise<SpecSection | null> {
   const heading = changes.heading ?? null;
   const body = changes.body ?? null;
+  const referenceOnly = changes.referenceOnly ?? null;
   const rows = await sql`
     WITH old AS (
       SELECT ss.* FROM spec_sections ss
@@ -381,6 +389,7 @@ export async function updateSpecSection(
       UPDATE spec_sections ss
       SET heading = COALESCE(${heading}::text, ss.heading),
           body = COALESCE(${body}::text, ss.body),
+          reference_only = COALESCE(${referenceOnly}::boolean, ss.reference_only),
           updated_at = CASE
             WHEN (COALESCE(${heading}::text, ss.heading), COALESCE(${body}::text, ss.body))
                  IS DISTINCT FROM (ss.heading, ss.body) THEN now()
@@ -392,11 +401,14 @@ export async function updateSpecSection(
     ),
     rev AS (
       INSERT INTO spec_revisions
-        (spec_id, section_id, kind, author, before_heading, after_heading, before_body, after_body)
+        (spec_id, section_id, kind, author, before_heading, after_heading, before_body, after_body,
+         before_reference_only, after_reference_only)
       SELECT old.spec_id, old.id, 'edit', ${author},
-        old.heading, upd.heading, old.body, upd.body
+        old.heading, upd.heading, old.body, upd.body,
+        old.reference_only, upd.reference_only
       FROM old JOIN upd ON upd.id = old.id
-      WHERE (old.heading, old.body) IS DISTINCT FROM (upd.heading, upd.body)
+      WHERE (old.heading, old.body, old.reference_only)
+        IS DISTINCT FROM (upd.heading, upd.body, upd.reference_only)
       RETURNING author, created_at
     ),
     touch AS (
@@ -454,24 +466,6 @@ export async function deleteSpecSection(
     SELECT id FROM del
   `;
   return rows.length > 0;
-}
-
-/**
- * Mark a section reference-only (or not). A planning flag, not content, so
- * no revision is recorded and linked patches aren't flagged.
- */
-export async function setSectionReferenceOnly(
-  userId: string,
-  sectionId: string,
-  referenceOnly: boolean
-): Promise<SpecSection | null> {
-  const rows = await sql`
-    UPDATE spec_sections ss SET reference_only = ${referenceOnly}
-    FROM specs s
-    WHERE ss.spec_id = s.id AND s.user_id = ${userId} AND ss.id = ${sectionId}
-    RETURNING ss.*
-  `;
-  return (rows[0] as SpecSection) ?? null;
 }
 
 /** Set section order. orderedIds must list every section of the spec once. */

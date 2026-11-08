@@ -8,13 +8,11 @@ import {
   deleteSpec,
   deleteSpecSection,
   detachSpec,
-  getSectionRefs,
   getSpec,
   getSpecHistory,
   listSpecs,
   reorderSpecSections,
   runSpecProposal,
-  setSectionReferenceOnly,
   setSpecPrimary,
   updateSpecSection,
   updateSpecTitle,
@@ -44,6 +42,9 @@ export function isSpecToolName(name: string): name is SpecToolName {
 }
 
 type Args<T extends SpecToolName> = z.infer<(typeof MCP_SCHEMAS)[T]>;
+
+const REFERENCE_ONLY_DESC =
+  "Reference-only = context only (summary, build order, principles). Default and whole-spec cp_propose_patches_from_spec runs (and the in-app Generate button) skip it as a target, but it's still sent to the model as context; naming its section_id in section_ids breaks it down anyway. Changing it is recorded in spec history (before/after) under your name.";
 
 const AUTHOR_PROP = {
   type: "string",
@@ -82,7 +83,7 @@ export const SPEC_TOOLS = [
   {
     name: "cp_create_spec",
     description:
-      "Create a spec. No project needed: omit project_slug for a draft. Sections default to the template (Overview / why, Users & goals, Core features, Out of scope, Data model, Design notes, Open questions); pass sections to start with your own. is_primary (linked specs only) makes it the project's big-picture spec and demotes the current one.",
+      "Create a spec. No project needed: omit project_slug for a draft. Sections default to the template (Overview / why, Users & goals, Core features, Out of scope, Data model, Design notes, Open questions); pass sections to start with your own, each optionally reference_only (context only: patch generation skips it as a target but still reads it). is_primary (linked specs only) makes it the project's big-picture spec and demotes the current one.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -97,7 +98,7 @@ export const SPEC_TOOLS = [
             properties: {
               heading: { type: "string" },
               body: { type: "string", description: "Markdown (optional)" },
-              reference_only: { type: "boolean", description: "Context only; default generate runs skip it" },
+              reference_only: { type: "boolean", description: `${REFERENCE_ONLY_DESC} Default false.` },
             },
             required: ["heading"],
           },
@@ -135,14 +136,14 @@ export const SPEC_TOOLS = [
   {
     name: "cp_add_spec_section",
     description:
-      "Append a section (heading + markdown body) to the end of a spec. Use cp_reorder_spec_sections to move it. Recorded in the spec's history under your name.",
+      "Append a section (heading + markdown body) to the end of a spec. Use cp_reorder_spec_sections to move it. Pass reference_only: true for context-only sections (patch generation skips them as targets but still reads them). Recorded in the spec's history under your name.",
     inputSchema: {
       type: "object" as const,
       properties: {
         spec_id: { type: "string" },
         heading: { type: "string" },
         body: { type: "string", description: "Markdown (optional)" },
-        reference_only: { type: "boolean", description: "Context only; default generate runs skip it (default false)" },
+        reference_only: { type: "boolean", description: `${REFERENCE_ONLY_DESC} Default false.` },
         author: AUTHOR_PROP,
       },
       required: ["spec_id", "heading"],
@@ -151,18 +152,14 @@ export const SPEC_TOOLS = [
   {
     name: "cp_update_spec_section",
     description:
-      "Change a section's heading and/or body. body REPLACES the whole section body — read it with cp_get_spec first and send the full new text. Recorded with before/after in the history under your name; a write that changes nothing isn't recorded. Typical Cody writes: implementation notes, deviations (\"spec says A, code does B\"), section status.",
+      "Change a section's heading, body, and/or reference_only flag (pass any of them). body REPLACES the whole section body — read it with cp_get_spec first and send the full new text. reference_only marks the section context only: patch generation skips it as a target but still reads it. Recorded with before/after (flag included) in the history under your name; a write that changes nothing isn't recorded. Typical Cody writes: implementation notes, deviations (\"spec says A, code does B\"), section status.",
     inputSchema: {
       type: "object" as const,
       properties: {
         section_id: { type: "string" },
         heading: { type: "string" },
         body: { type: "string", description: "Full replacement markdown body" },
-        reference_only: {
-          type: "boolean",
-          description:
-            "Mark the section context only (summary, build order, principles): default cp_propose_patches_from_spec runs skip it. A flag change alone needs no author and isn't a revision.",
-        },
+        reference_only: { type: "boolean", description: REFERENCE_ONLY_DESC },
         author: AUTHOR_PROP,
       },
       required: ["section_id"],
@@ -197,7 +194,7 @@ export const SPEC_TOOLS = [
   {
     name: "cp_get_spec_history",
     description:
-      "A spec's section revisions, newest first: kind (create | edit | delete), author (nae | coru | cody | app), before/after heading and body, created_at. Pass section_id to narrow to one section.",
+      "A spec's section revisions, newest first: kind (create | edit | delete), author (nae | coru | cody | app), before/after heading, body, and reference_only (null on revisions from before the flag was tracked), created_at. Pass section_id to narrow to one section.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -259,15 +256,6 @@ async function requireSpec(userId: string, specId: string): Promise<SpecDetail> 
 }
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
-
-/** The section (as cp_get_spec shows it) after a flag-only update. */
-async function listSectionOwner(userId: string, sectionId: string): Promise<unknown> {
-  const refs = await getSectionRefs(userId, [sectionId]);
-  const ref = refs.get(sectionId);
-  if (!ref) throw new Error(`Spec section '${sectionId}' not found`);
-  const spec = await requireSpec(userId, ref.spec_id);
-  return spec.sections.find((x) => x.id === sectionId);
-}
 
 export async function handleSpecTool(
   name: SpecToolName,
@@ -350,21 +338,11 @@ export async function handleSpecTool(
 
     case "cp_update_spec_section": {
       const a = args as Args<"cp_update_spec_section">;
-      if (a.reference_only !== undefined) {
-        if (!(await setSectionReferenceOnly(userId, a.section_id, a.reference_only))) {
-          throw new Error(`Spec section '${a.section_id}' not found`);
-        }
-      }
-      if (a.heading === undefined && a.body === undefined) {
-        // Flag-only change: no content write, so no author needed.
-        const spec = await listSectionOwner(userId, a.section_id);
-        return json(spec);
-      }
       const author = resolveAuthor(identity, a.author);
       const section = await updateSpecSection(
         userId,
         a.section_id,
-        { heading: a.heading, body: a.body },
+        { heading: a.heading, body: a.body, referenceOnly: a.reference_only },
         author
       );
       if (!section) throw new Error(`Spec section '${a.section_id}' not found`);

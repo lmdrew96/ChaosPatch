@@ -72,6 +72,13 @@ export function SpecHistory({
     <ol className="space-y-3">
       {revisions.map((r) => {
         const headingChanged = r.kind === "edit" && r.before_heading !== r.after_heading;
+        const bodyChanged = r.kind === "edit" && r.before_body !== r.after_body;
+        // NULL on revisions from before the flag was tracked.
+        const flagChanged =
+          r.kind === "edit" &&
+          r.before_reference_only !== null &&
+          r.after_reference_only !== null &&
+          r.before_reference_only !== r.after_reference_only;
         const heading = r.after_heading ?? r.before_heading ?? "";
         return (
           <li key={r.id} className="list-none space-y-1.5">
@@ -89,7 +96,14 @@ export function SpecHistory({
                 <span className="text-success">{r.after_heading}</span>
               </p>
             )}
-            {r.kind === "edit" && (r.before_body !== r.after_body || !headingChanged) && (
+            {flagChanged && (
+              <p className="text-[11px] text-muted-foreground">
+                Reference only:{" "}
+                <span className="line-through text-destructive/80">{r.before_reference_only ? "on" : "off"}</span> →{" "}
+                <span className="text-success">{r.after_reference_only ? "on" : "off"}</span>
+              </p>
+            )}
+            {r.kind === "edit" && (bodyChanged || (!headingChanged && !flagChanged)) && (
               <LineDiff before={r.before_body ?? ""} after={r.after_body ?? ""} />
             )}
             {r.kind === "create" && r.after_body?.trim() && (
