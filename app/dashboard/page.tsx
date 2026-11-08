@@ -6,6 +6,8 @@ import { HomeContent } from '@/app/home-content';
 import { ActivityStrip, ReviewQueue } from '@/components/dashboard/dashboard-summary';
 import { StaleCard } from '@/components/dashboard/stale-card';
 import { SPECS_UI_ENABLED } from '@/lib/flags';
+import { NewSpecButton } from '@/components/specs/new-spec-button';
+import { listSpecs } from '@/lib/specs';
 import {
   getAllPatches,
   getDashboardSummary,
@@ -28,25 +30,19 @@ export default async function DashboardPage({
   // opens it here with ?stale=1.
   const showStale = (await searchParams).stale === '1';
 
-  const [projects, patches, dashboardSummary, stale] = await Promise.all([
+  const [projects, patches, dashboardSummary, stale, specs] = await Promise.all([
     // Archived projects come along for the collapsed "Archived" section.
     getProjects(userId, true),
     getAllPatches(userId),
     getDashboardSummary(userId),
     showStale ? getStalePatches(userId) : Promise.resolve([]),
+    SPECS_UI_ENABLED ? listSpecs(userId) : Promise.resolve([]),
   ]);
 
   return (
     <main className="flex min-h-screen flex-col items-center px-4 pt-20 pb-8 gap-6 sm:px-8 sm:pt-24">
       <div className="z-10 flex w-full max-w-5xl flex-wrap justify-end gap-2">
-        {SPECS_UI_ENABLED && (
-          <Link
-            href="/specs/new"
-            className="rounded-md border border-border bg-card hover:bg-muted px-3 py-1.5 text-sm font-medium text-foreground transition-colors"
-          >
-            + New spec
-          </Link>
-        )}
+        {SPECS_UI_ENABLED && <NewSpecButton />}
         <Link
           href="/add"
           title="New patch (⌘N)"
@@ -60,7 +56,7 @@ export default async function DashboardPage({
         {showStale && <StaleCard patches={stale} staleDays={STALE_DAYS} defaultOpen />}
         <ReviewQueue patches={dashboardSummary.needsReview} />
         <div>
-          <HomeContent projects={projects} patches={patches} />
+          <HomeContent projects={projects} patches={patches} specs={specs} />
         </div>
         <ActivityStrip data={dashboardSummary} />
       </div>

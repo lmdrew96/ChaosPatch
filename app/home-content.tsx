@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, Archive, ChevronRight } from "lucide-react";
 import type { Project, PatchWithProject } from "@/lib/queries";
 import { SPECS_UI_ENABLED } from "@/lib/flags";
+import type { SpecListRow } from "@/lib/specs";
+import { SpecGroups } from "@/components/specs/spec-list";
 import { TagFilterBar } from "@/components/tag-filter-bar";
 import { PRIORITY_STYLES } from "@/lib/priority-styles";
 import { DueDateChip } from "@/app/projects/[slug]/patch-list";
@@ -36,9 +38,11 @@ const STATUS_ORDER = { review: 0, in_progress: 1, open: 2, done: 3 };
 export function HomeContent({
   projects,
   patches,
+  specs,
 }: {
   projects: Project[];
   patches: PatchWithProject[];
+  specs: SpecListRow[];
 }) {
   // View, filter, and sort state lives in the URL so it survives back-nav and refresh.
   const [viewParam, setView] = useUrlParam("view", "projects", VIEW_MODES);
@@ -189,6 +193,9 @@ export function HomeContent({
                 }`}
               >
                 Specs
+                <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                  {specs.length}
+                </span>
               </button>
             )}
             <button
@@ -335,7 +342,9 @@ export function HomeContent({
       </div>
 
       {/* Content */}
-      {view === "projects" ? (
+      {view === "specs" ? (
+        <SpecGroups specs={specs} />
+      ) : view === "projects" ? (
         projects.length === 0 ? (
           <EmptyState />
         ) : (

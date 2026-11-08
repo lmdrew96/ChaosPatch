@@ -16,6 +16,8 @@ import { ChangelogPanel } from "./changelog-panel";
 import { DeleteProjectButton } from "./delete-project-button";
 import { EditProjectButton } from "./edit-project-button";
 import { ProjectPatchView } from "./project-patch-view";
+import { ProjectSpecs } from "./project-specs";
+import { listSpecs } from "@/lib/specs";
 
 export default async function ProjectPage({
   params,
@@ -33,11 +35,15 @@ export default async function ProjectPage({
   const project = await getProjectBySlug(userId, slug);
   if (!project) notFound();
 
-  const [patches, archivedPatches, existingTags] = await Promise.all([
+  const [patches, archivedPatches, existingTags, allSpecs] = await Promise.all([
     getPatches(userId, slug),
     getArchivedPatches(userId, slug),
     getDistinctTags(userId),
+    listSpecs(userId),
   ]);
+  // listSpecs orders primary first, then most recently edited.
+  const projectSpecs = allSpecs.filter((s) => s.project_id === project.id);
+  const draftSpecs = allSpecs.filter((s) => s.status === "draft");
 
   // Attach images to each patch in one query (no N+1).
   const allPatchIds = [...patches, ...archivedPatches].map((p) => p.id);
@@ -103,6 +109,7 @@ export default async function ProjectPage({
             its history still counts in Insights. Adding a patch unarchives it.
           </p>
         )}
+        <ProjectSpecs slug={slug} specs={projectSpecs} drafts={draftSpecs} />
         <ProjectPatchView
           slug={slug}
           patches={patchesWithImages}
