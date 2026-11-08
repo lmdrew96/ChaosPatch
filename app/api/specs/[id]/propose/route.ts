@@ -2,6 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { AiNotConfiguredError } from "@/lib/ai";
 import { getSpec, runSpecProposal, SpecError } from "@/lib/specs";
 
+// High-effort Claude call: a fresh breakdown of a big spec took ~3 min in
+// testing. 300s is the Fluid compute default and the Hobby maximum.
+export const maxDuration = 300;
+
 /**
  * "Generate patches": propose patches for a linked spec. Nothing is filed —
  * the editor shows the proposals and Nae approves them (see ../file).

@@ -2,6 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { AiNotConfiguredError, draftPatchFromScreenshot } from "@/lib/ai";
 import { getProjectBySlug } from "@/lib/queries";
 
+// High-effort Claude call: a fresh breakdown of a big spec took ~3 min in
+// testing. 300s is the Fluid compute default and the Hobby maximum.
+export const maxDuration = 300;
+
 /**
  * Draft a patch title + notes from an already-uploaded screenshot. Nothing is
  * saved — the Add Patch form fills its fields and the user decides.

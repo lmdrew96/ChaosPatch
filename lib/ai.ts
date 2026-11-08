@@ -29,27 +29,35 @@ const getClient = (): Anthropic => {
 
 /**
  * Parse a structured response, turning refusals and unparseable output into
- * plain errors the routes can surface.
+ * plain errors the routes can surface. Streams so a large max_tokens (high
+ * effort thinking + long output) doesn't hit the SDK's non-streaming limit.
  */
 const parseStructured = async <T extends z.ZodType>(
   schema: T,
   params: {
     system: string;
     content: Anthropic.ContentBlockParam[];
-    // Thinking tokens count toward this, so leave room at high effort.
+    // Thinking tokens count toward this, so leave plenty of room at high effort.
     maxTokens: number;
     effort: Effort;
   }
 ): Promise<z.infer<T>> => {
-  const response = await getClient().messages.parse({
-    model: AI_MODEL,
-    max_tokens: params.maxTokens,
-    system: params.system,
-    messages: [{ role: "user", content: params.content }],
-    output_config: { effort: params.effort, format: zodOutputFormat(schema) },
-  });
+  const response = await getClient()
+    .messages.stream({
+      model: AI_MODEL,
+      max_tokens: params.maxTokens,
+      system: params.system,
+      messages: [{ role: "user", content: params.content }],
+      output_config: { effort: params.effort, format: zodOutputFormat(schema) },
+    })
+    .finalMessage();
   if (response.stop_reason === "refusal") {
     throw new Error("Claude declined this request.");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      "The answer ran past its length limit. Try fewer sections at a time."
+    );
   }
   if (!response.parsed_output) {
     throw new Error("Claude's response couldn't be read — try again.");
@@ -106,7 +114,7 @@ export const draftPatchFromScreenshot = async (
   const image = await loadImageForClaude(pathname);
   return parseStructured(PatchDraftSchema, {
     system: DRAFT_SYSTEM,
-    maxTokens: 16000,
+    maxTokens: 32000,
     effort: "high",
     content: [
       image,
@@ -156,7 +164,7 @@ export const draftChangelog = async (
     .join("\n");
   return parseStructured(ChangelogSchema, {
     system: CHANGELOG_SYSTEM,
-    maxTokens: 16000,
+    maxTokens: 32000,
     effort: "low",
     content: [
       {
@@ -238,7 +246,8 @@ export const proposePatchesFromSpec = async (input: {
 
   const result = await parseStructured(SpecPatchesSchema, {
     system: SPEC_PATCHES_SYSTEM,
-    maxTokens: 16000,
+    // A fresh breakdown of a big spec can run 20+ detailed patches.
+    maxTokens: 64000,
     effort: "high",
     content: [
       {
