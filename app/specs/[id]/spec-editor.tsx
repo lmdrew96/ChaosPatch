@@ -3,8 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Pencil, Star, Trash2 } from "lucide-react";
-import type { SpecDetail, SpecSection, SpecSectionWithPatches } from "@/lib/specs";
+import { ArrowDown, ArrowUp, Pencil, Sparkles, Star, Trash2, X } from "lucide-react";
+import type {
+  SkippedSection,
+  SpecDetail,
+  SpecLinkedPatch,
+  SpecSection,
+  SpecSectionWithPatches,
+} from "@/lib/specs";
+import type { ProposedPatch } from "@/lib/ai";
+import type { Patch } from "@/lib/queries";
 import { Markdown } from "@/components/markdown";
 import { AUTHOR_LABELS } from "@/components/specs/spec-list";
 import { timeAgo } from "@/components/dashboard/patch-list-item";
@@ -160,6 +168,36 @@ export function SpecEditor({
       </ol>
 
       <AddSectionForm onAdd={addSection} />
+
+      {spec.project_slug && (
+        <GeneratePatches
+          specId={spec.id}
+          projectSlug={spec.project_slug}
+          onFiled={(filed) =>
+            setSpec((s) => ({
+              ...s,
+              sections: s.sections.map((sec) => ({
+                ...sec,
+                patches: [
+                  ...sec.patches,
+                  ...filed
+                    .filter((p) => p.spec_section_id === sec.id)
+                    .map(
+                      (p): SpecLinkedPatch => ({
+                        id: p.id,
+                        title: p.title,
+                        status: p.status,
+                        priority: p.priority,
+                        created_at: p.created_at,
+                        spec_section_id: sec.id,
+                      })
+                    ),
+                ],
+              })),
+            }))
+          }
+        />
+      )}
 
       <DeleteSpec specId={spec.id} hasProject={spec.project_slug} />
     </div>
@@ -634,5 +672,232 @@ function DeleteSpec({ specId, hasProject }: { specId: string; hasProject: string
         {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
       </div>
     </div>
+  );
+}
+
+// ── Generate patches (Specs 4/5) ───────────────────────────────────────────
+
+type Draft = ProposedPatch & { key: string; tagText: string };
+
+function GeneratePatches({
+  specId,
+  projectSlug,
+  onFiled,
+}: {
+  specId: string;
+  projectSlug: string;
+  onFiled: (filed: Patch[]) => void;
+}) {
+  const router = useRouter();
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  const [skipped, setSkipped] = useState<SkippedSection[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filing, setFiling] = useState(false);
+  const [error, setError] = useState("");
+  const [filedCount, setFiledCount] = useState(0);
+
+  const generate = async () => {
+    setLoading(true);
+    setError("");
+    setFiledCount(0);
+    try {
+      const data = (await send(`/api/specs/${specId}/propose`, "POST", {})) as {
+        proposals: ProposedPatch[];
+        skipped: SkippedSection[];
+      };
+      setDrafts(
+        data.proposals.map((p, i) => ({ ...p, key: `${i}-${p.section_id}`, tagText: p.tags.join(", ") }))
+      );
+      setSkipped(data.skipped);
+    } catch (err) {
+      console.error("Generate patches failed", err);
+      setError(err instanceof Error ? err.message : "Couldn't generate patches.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const update = (key: string, changes: Partial<Draft>) =>
+    setDrafts((d) => d?.map((x) => (x.key === key ? { ...x, ...changes } : x)) ?? null);
+
+  const file = async () => {
+    if (!drafts?.length) return;
+    setFiling(true);
+    setError("");
+    try {
+      const data = (await send(`/api/specs/${specId}/file`, "POST", {
+        patches: drafts.map((d) => ({
+          section_id: d.section_id,
+          title: d.title,
+          notes: d.notes,
+          priority: d.priority,
+          tags: d.tagText.split(",").map((t) => t.trim()).filter(Boolean),
+        })),
+      })) as { filed: Patch[] };
+      onFiled(data.filed);
+      setFiledCount(data.filed.length);
+      setDrafts(null);
+      setSkipped([]);
+      router.refresh();
+    } catch (err) {
+      console.error("Filing patches failed", err);
+      setError(err instanceof Error ? err.message : "Couldn't file those patches.");
+    } finally {
+      setFiling(false);
+    }
+  };
+
+  return (
+    <section aria-labelledby="generate-heading" className="rounded-lg border border-border bg-card/40 p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="generate-heading" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Patches from this spec
+        </h2>
+        <button type="button" onClick={generate} disabled={loading || filing} className={SMALL_BTN}>
+          <Sparkles aria-hidden className="h-3 w-3" />
+          {loading ? "Generating…" : drafts ? "Regenerate" : "Generate patches"}
+        </button>
+      </div>
+      {!drafts && !loading && filedCount === 0 && (
+        <p className="text-xs text-muted-foreground/60">
+          Proposes patches for sections that don&apos;t have any yet. Nothing is filed until you approve.
+        </p>
+      )}
+      {filedCount > 0 && (
+        <p className="text-xs text-success">
+          Filed {filedCount} {filedCount === 1 ? "patch" : "patches"} to{" "}
+          <Link href={`/projects/${projectSlug}`} className="underline underline-offset-2">
+            the project
+          </Link>
+          , each linked to its section.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+
+      {drafts && (
+        <>
+          {drafts.length === 0 ? (
+            <p className="text-xs text-muted-foreground/70">No new patches proposed.</p>
+          ) : (
+            <ul className="space-y-3">
+              {drafts.map((d) => (
+                <ProposalCard
+                  key={d.key}
+                  draft={d}
+                  onChange={(changes) => update(d.key, changes)}
+                  onDiscard={() => setDrafts((all) => all?.filter((x) => x.key !== d.key) ?? null)}
+                />
+              ))}
+            </ul>
+          )}
+          {skipped.length > 0 && (
+            <details className="text-[11px] text-muted-foreground/70">
+              <summary className="cursor-pointer">Skipped {skipped.length} sections</summary>
+              <ul className="mt-1 space-y-0.5 pl-4 list-disc">
+                {skipped.map((s) => (
+                  <li key={s.section_id}>
+                    {s.heading}: {s.reason.replace(/; pass its section id to re-run it$/, "")}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {drafts.length > 0 && (
+              <button
+                type="button"
+                onClick={file}
+                disabled={filing || drafts.some((d) => !d.title.trim())}
+                className="rounded-md bg-primary hover:bg-primary/90 disabled:opacity-50 px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
+              >
+                {filing ? "Filing…" : `File ${drafts.length} ${drafts.length === 1 ? "patch" : "patches"}`}
+              </button>
+            )}
+            <button type="button" onClick={() => setDrafts(null)} disabled={filing} className={SMALL_BTN}>
+              Discard all
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ProposalCard({
+  draft,
+  onChange,
+  onDiscard,
+}: {
+  draft: Draft;
+  onChange: (changes: Partial<Draft>) => void;
+  onDiscard: () => void;
+}) {
+  const [editingNotes, setEditingNotes] = useState(false);
+  return (
+    <li className="list-none rounded-md border border-border bg-card p-3 space-y-2">
+      <div className="flex items-start gap-2">
+        <label htmlFor={`proposal-${draft.key}`} className="sr-only">
+          Patch title
+        </label>
+        <input
+          id={`proposal-${draft.key}`}
+          value={draft.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          className={`${FIELD} flex-1 min-w-0 font-medium`}
+        />
+        <IconBtn label={`Discard "${draft.title}"`} onClick={onDiscard}>
+          <X className="h-3.5 w-3.5" />
+        </IconBtn>
+      </div>
+      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
+        From: {draft.section_heading}
+      </p>
+      {editingNotes ? (
+        <textarea
+          aria-label="Patch notes (markdown)"
+          autoFocus
+          value={draft.notes}
+          rows={Math.max(4, draft.notes.split("\n").length + 1)}
+          onChange={(e) => onChange({ notes: e.target.value })}
+          onBlur={() => setEditingNotes(false)}
+          className={`${FIELD} w-full font-mono leading-relaxed`}
+        />
+      ) : (
+        <div>
+          <Markdown className="text-xs text-foreground/80">{draft.notes || "_No notes._"}</Markdown>
+          <button type="button" onClick={() => setEditingNotes(true)} className={`${SMALL_BTN} mt-1.5`}>
+            <Pencil aria-hidden className="h-3 w-3" />
+            Edit notes
+          </button>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          Priority
+          <select
+            value={draft.priority}
+            onChange={(e) => onChange({ priority: e.target.value as Draft["priority"] })}
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs [@media(pointer:coarse)]:text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label className="flex flex-1 min-w-[12rem] items-center gap-1.5 text-[10px] text-muted-foreground">
+          Tags
+          <input
+            value={draft.tagText}
+            onChange={(e) => onChange({ tagText: e.target.value })}
+            placeholder="ui, db, energy:med"
+            className="flex-1 min-w-0 rounded-md border border-border bg-input px-2 py-1 text-xs [@media(pointer:coarse)]:text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </label>
+      </div>
+    </li>
   );
 }

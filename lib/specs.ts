@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import type { Patch } from "./queries";
+import { createPatch, unarchiveProject, type Patch } from "./queries";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -528,4 +528,105 @@ export async function setPatchSpecSection(
     RETURNING pa.*
   `;
   return (rows[0] as Patch) ?? null;
+}
+
+// ── Generating patches from a spec (Specs 4/5) ─────────────────────────────
+
+export type SkippedSection = {
+  section_id: string;
+  heading: string;
+  reason: string;
+};
+
+/**
+ * Which sections to send for breakdown. By default: every non-empty section
+ * with no linked patches yet, so re-running never duplicates work. Passing
+ * sectionIds targets exactly those (covered ones included); the model is
+ * then told what's already filed from each.
+ */
+export function pickProposalTargets(
+  spec: SpecDetail,
+  sectionIds?: string[]
+): {
+  targets: { id: string; existingPatchTitles: string[] }[];
+  skipped: SkippedSection[];
+} {
+  const chosen = sectionIds ? new Set(sectionIds) : null;
+  const targets: { id: string; existingPatchTitles: string[] }[] = [];
+  const skipped: SkippedSection[] = [];
+  for (const s of spec.sections) {
+    if (chosen && !chosen.has(s.id)) continue;
+    const skip = (reason: string): void => {
+      skipped.push({ section_id: s.id, heading: s.heading, reason });
+    };
+    if (!s.body.trim()) {
+      skip("empty");
+    } else if (!chosen && s.patches.length > 0) {
+      skip(
+        `already has ${s.patches.length} ${s.patches.length === 1 ? "patch" : "patches"}; pass its section id to re-run it`
+      );
+    } else {
+      targets.push({ id: s.id, existingPatchTitles: s.patches.map((p) => p.title) });
+    }
+  }
+  if (chosen) {
+    const known = new Set(spec.sections.map((s) => s.id));
+    for (const id of chosen) {
+      if (!known.has(id)) throw new SpecError(`Section '${id}' isn't part of this spec.`);
+    }
+  }
+  return { targets, skipped };
+}
+
+export type PatchToFile = {
+  section_id: string;
+  title: string;
+  notes?: string;
+  tags?: string[];
+  priority?: Patch["priority"];
+};
+
+/**
+ * File approved proposals into the spec's project, each linked to its source
+ * section. Validates everything before creating anything.
+ */
+export async function fileSpecPatches(
+  userId: string,
+  spec: SpecDetail,
+  patches: PatchToFile[]
+): Promise<Patch[]> {
+  if (!spec.project_id || !spec.project_slug) {
+    throw new SpecError("Attach this spec to a project before filing patches from it.");
+  }
+  const sectionIds = new Set(spec.sections.map((s) => s.id));
+  for (const p of patches) {
+    if (!p.title.trim()) throw new SpecError("Every patch needs a title.");
+    if (!sectionIds.has(p.section_id)) {
+      throw new SpecError(`Section '${p.section_id}' isn't part of this spec.`);
+    }
+  }
+  const projectRows = await sql`
+    SELECT archived FROM projects WHERE id = ${spec.project_id} AND user_id = ${userId}
+  `;
+  const project = projectRows[0] as { archived: boolean } | undefined;
+  if (!project) throw new SpecError("The spec's project wasn't found.");
+  // New work means the project is active again (same as cp_add_patch).
+  if (project.archived) await unarchiveProject(userId, spec.project_slug);
+
+  const filed: Patch[] = [];
+  for (const p of patches) {
+    filed.push(
+      await createPatch(
+        spec.project_id,
+        p.title.trim(),
+        p.priority ?? "medium",
+        p.notes?.trim() || undefined,
+        p.tags,
+        null,
+        null,
+        p.section_id
+      )
+    );
+  }
+  return filed;
 }

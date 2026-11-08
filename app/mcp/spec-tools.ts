@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { MCP_SCHEMAS } from "@/lib/mcp-schemas";
 import { getProjectBySlug } from "@/lib/queries";
+import { proposePatchesFromSpec } from "@/lib/ai";
 import {
   addSpecSection,
   attachSpec,
@@ -11,6 +12,7 @@ import {
   getSpec,
   getSpecHistory,
   listSpecs,
+  pickProposalTargets,
   reorderSpecSections,
   setSpecPrimary,
   updateSpecSection,
@@ -32,6 +34,7 @@ export const SPEC_TOOL_NAMES = [
   "cp_delete_spec_section",
   "cp_reorder_spec_sections",
   "cp_get_spec_history",
+  "cp_propose_patches_from_spec",
 ] as const;
 export type SpecToolName = (typeof SPEC_TOOL_NAMES)[number];
 
@@ -197,6 +200,23 @@ export const SPEC_TOOLS = [
       required: ["spec_id"],
     },
   },
+  {
+    name: "cp_propose_patches_from_spec",
+    description:
+      "Propose patches from a spec linked to a project, using the same prompt as the in-app \"Generate patches\" button. Nothing is filed: review the proposals with Nae, then file the ones she approves with cp_add_patch (project_slug, title, notes, tags, priority, and the proposal's spec_section_id). By default only non-empty sections with no linked patches are broken down (so re-runs don't duplicate); `skipped` says which sections were left out and why. Pass section_ids to re-run specific sections; the model is told what's already filed from them.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        spec_id: { type: "string" },
+        section_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Only these sections, covered ones included (optional)",
+        },
+      },
+      required: ["spec_id"],
+    },
+  },
 ];
 
 /**
@@ -326,6 +346,33 @@ export async function handleSpecTool(
         throw new Error(`Spec '${a.spec_id}' not found`);
       }
       return json(await requireSpec(userId, a.spec_id));
+    }
+
+    case "cp_propose_patches_from_spec": {
+      const a = args as Args<"cp_propose_patches_from_spec">;
+      const spec = await requireSpec(userId, a.spec_id);
+      if (!spec.project_slug || !spec.project_name) {
+        throw new Error(
+          "This spec isn't attached to a project, so there's nowhere to file patches. Attach it first with cp_update_spec (project_slug)."
+        );
+      }
+      const { targets, skipped } = pickProposalTargets(spec, a.section_ids);
+      const proposals =
+        targets.length === 0
+          ? []
+          : await proposePatchesFromSpec({
+              projectName: spec.project_name,
+              specTitle: spec.title,
+              sections: spec.sections,
+              targets,
+            });
+      return json({
+        project_slug: spec.project_slug,
+        proposals: proposals.map((p) => ({ ...p, spec_section_id: p.section_id })),
+        skipped,
+        next_step:
+          "Nothing was filed. Review these with Nae; file approved ones with cp_add_patch, passing spec_section_id.",
+      });
     }
 
     case "cp_get_spec_history": {

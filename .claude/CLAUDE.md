@@ -55,7 +55,7 @@ The MCP server is the primary integration point — Claude Code and Claude Deskt
 - `cp_get_patch` — Fetch a single patch (includes its `attachments`)
 - `cp_get_patch_images` — Return a patch's attached images as viewable image content (for visual context) + their URLs
 - `cp_request_image_upload` / `cp_confirm_image_upload` — Attach an image to a patch: get a 10-min presigned R2 PUT URL, upload, then confirm to record the attachment
-- Specs (`app/mcp/spec-tools.ts`, data in `lib/specs.ts`): `cp_list_specs`, `cp_get_spec`, `cp_create_spec`, `cp_update_spec` (title / attach / detach / primary), `cp_delete_spec`, `cp_add_spec_section`, `cp_update_spec_section`, `cp_delete_spec_section`, `cp_reorder_spec_sections`, `cp_get_spec_history`. Writes are attributed from the `X-Claude-Identity` header, else an `author` param (`coru` | `cody`), else refused — never `nae`. `cp_add_patch` / `cp_update_patch` take `spec_section_id`.
+- Specs (`app/mcp/spec-tools.ts`, data in `lib/specs.ts`): `cp_list_specs`, `cp_get_spec`, `cp_create_spec`, `cp_update_spec` (title / attach / detach / primary), `cp_delete_spec`, `cp_add_spec_section`, `cp_update_spec_section`, `cp_delete_spec_section`, `cp_reorder_spec_sections`, `cp_get_spec_history`, `cp_propose_patches_from_spec` (proposes only — same prompt as the in-app "Generate patches" button, `SPEC_PATCHES_SYSTEM` in `lib/ai.ts`). Writes are attributed from the `X-Claude-Identity` header, else an `author` param (`coru` | `cody`), else refused — never `nae`. `cp_add_patch` / `cp_update_patch` take `spec_section_id`.
 
 **MCP route:** `app/mcp/route.ts` — Streamable HTTP transport with bearer-token auth
 

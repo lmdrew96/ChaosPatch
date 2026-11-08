@@ -157,3 +157,84 @@ export const draftChangelog = async (
     ],
   });
 };
+
+// ── Patches from a spec (Specs 4/5) ───────────────────────────────────────
+// ONE prompt for both paths — the in-app "Generate patches" button and
+// cp_propose_patches_from_spec over MCP — so specs break down the same way
+// whichever one Nae uses. Proposals are never filed here.
+
+const SpecPatchesSchema = z.object({
+  patches: z.array(
+    z.object({
+      section_id: z.string(),
+      title: z.string(),
+      notes: z.string(),
+      tags: z.array(z.string()),
+      priority: z.enum(["low", "medium", "high"]),
+    })
+  ),
+});
+
+export type ProposedPatch = z.infer<typeof SpecPatchesSchema>["patches"][number] & {
+  section_heading: string;
+};
+
+export const SPEC_PATCHES_SYSTEM = `You break a software spec into patches (dev tickets) for a solo developer's tracker. A coding agent implements each patch, then the developer reviews it.
+
+You get the whole spec for context, then the sections to break down. Only propose patches for those sections, and set section_id to the id of the section each patch comes from.
+
+Each patch:
+- title: one short imperative line naming the change (e.g. "Add CSV export to the reports page"). No trailing period, no ticket numbers.
+- notes: brief markdown. One or two sentences of context, then "AC:" and a short bullet list of acceptance criteria that can be checked by using the app. Keep the spec's own words for decisions it states; never invent requirements, numbers, or names it doesn't give. If something the patch needs is undecided in the spec, add an "Open question:" line instead of picking an answer.
+- tags: 1–4 short lowercase tags (e.g. "ui", "db", "api", "mcp", "bug"), plus exactly one of "energy:low", "energy:med", "energy:high" for how much focus the work takes.
+- priority: "high" only if other patches depend on it or the spec calls it core; otherwise "medium", or "low" for nice-to-haves.
+
+Sizing: one patch = one reviewable change that ships end to end (backend + UI) in a single sitting. Split a section into several patches when it holds several independent changes; fold trivial bits into a related patch. Data-model or schema work that other patches rely on gets its own patch, listed first. Sections that describe goals, context, or out-of-scope items usually need no patch: propose none for them.
+
+If a section lists patches already filed from it, don't propose anything those already cover. Propose only what is still missing, or nothing.`;
+
+export const proposePatchesFromSpec = async (input: {
+  projectName: string;
+  specTitle: string;
+  // Every section, in order, for context.
+  sections: { id: string; heading: string; body: string }[];
+  // The ones to break down, each with the titles already filed from it.
+  targets: { id: string; existingPatchTitles: string[] }[];
+}): Promise<ProposedPatch[]> => {
+  const byId = new Map(input.sections.map((s) => [s.id, s]));
+  const fullSpec = input.sections
+    .map((s) => `## ${s.heading}\n${s.body.trim() || "(empty)"}`)
+    .join("\n\n");
+  const targetList = input.targets
+    .map((t) => {
+      const s = byId.get(t.id);
+      if (!s) return "";
+      const existing = t.existingPatchTitles.length
+        ? `\nAlready filed from this section:\n${t.existingPatchTitles.map((x) => `- ${x}`).join("\n")}`
+        : "";
+      return `<section id="${s.id}" heading="${s.heading.replace(/"/g, "'")}">\n${s.body.trim()}${existing}\n</section>`;
+    })
+    .join("\n\n");
+
+  const result = await parseStructured(SpecPatchesSchema, {
+    system: SPEC_PATCHES_SYSTEM,
+    maxTokens: 16000,
+    content: [
+      {
+        type: "text",
+        text: `Project: ${input.projectName}\nSpec: ${input.specTitle}\n\n<spec>\n${fullSpec}\n</spec>\n\nBreak down these sections:\n\n${targetList}`,
+      },
+    ],
+  });
+
+  // Keep only proposals pointing at a section we asked about.
+  const allowed = new Set(input.targets.map((t) => t.id));
+  return result.patches
+    .filter((p) => allowed.has(p.section_id) && p.title.trim())
+    .map((p) => ({
+      ...p,
+      title: p.title.trim(),
+      tags: [...new Set(p.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))],
+      section_heading: byId.get(p.section_id)?.heading ?? "",
+    }));
+};
