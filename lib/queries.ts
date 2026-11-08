@@ -48,6 +48,9 @@ export type Patch = {
   // When the patch last entered review (DB trigger, see lib/migrate.ts). Kept
   // through done; NULL if it never hit review or did so before the column existed.
   reviewed_at: string | null;
+  // The spec section this patch came from (lib/specs.ts). NULL if none, or
+  // if that section was deleted.
+  spec_section_id: string | null;
   // Populated server-side for list/detail views — not a column on `patches`.
   attachments?: PatchAttachment[];
 };

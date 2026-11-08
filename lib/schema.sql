@@ -26,6 +26,48 @@ CREATE TABLE IF NOT EXISTS patches (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Specs: see lib/migrate.ts for the reasoning behind each constraint.
+CREATE TABLE IF NOT EXISTS specs (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  status     TEXT GENERATED ALWAYS AS
+               (CASE WHEN project_id IS NULL THEN 'draft' ELSE 'linked' END) STORED,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- At most one primary (big-picture) spec per project.
+CREATE UNIQUE INDEX IF NOT EXISTS specs_one_primary_per_project
+  ON specs(project_id) WHERE is_primary;
+
+CREATE TABLE IF NOT EXISTS spec_sections (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  spec_id    UUID NOT NULL REFERENCES specs(id) ON DELETE CASCADE,
+  position   INTEGER NOT NULL,
+  heading    TEXT NOT NULL,
+  body       TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS spec_revisions (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  spec_id        UUID NOT NULL REFERENCES specs(id) ON DELETE CASCADE,
+  section_id     UUID REFERENCES spec_sections(id) ON DELETE SET NULL,
+  kind           TEXT NOT NULL CHECK (kind IN ('create', 'edit', 'delete')),
+  author         TEXT NOT NULL CHECK (author IN ('nae', 'coru', 'cody', 'app')),
+  before_heading TEXT,
+  after_heading  TEXT,
+  before_body    TEXT,
+  after_body     TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- patches.spec_section_id (added by lib/migrate.ts): UUID REFERENCES spec_sections(id) ON DELETE SET NULL
+
 CREATE TABLE IF NOT EXISTS patch_attachments (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patch_id     UUID NOT NULL REFERENCES patches(id) ON DELETE CASCADE,

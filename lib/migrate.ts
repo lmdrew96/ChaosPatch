@@ -141,7 +141,82 @@ void (async () => {
     BEFORE INSERT OR UPDATE OF status ON patches
     FOR EACH ROW EXECUTE FUNCTION patches_set_reviewed_at()
   `;
+  // ── Specs ──────────────────────────────────────────────────────────────
+  // A spec can exist before any project (draft) and be attached later
+  // (linked). status is generated from project_id so it can't drift.
+  // A project can have many specs (big-picture + feature specs); at most one
+  // is_primary per project (partial unique index below). Deleting a project
+  // detaches its specs instead of deleting them. Detach code also clears
+  // is_primary — no CHECK for it, since ON DELETE SET NULL would trip one.
+  await sql`
+    CREATE TABLE IF NOT EXISTS specs (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    TEXT NOT NULL,
+      title      TEXT NOT NULL,
+      project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+      is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+      status     TEXT GENERATED ALWAYS AS
+                   (CASE WHEN project_id IS NULL THEN 'draft' ELSE 'linked' END) STORED,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS specs_user_id_idx ON specs(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS specs_project_id_idx ON specs(project_id)`;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS specs_one_primary_per_project
+      ON specs(project_id) WHERE is_primary
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS spec_sections (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      spec_id    UUID NOT NULL REFERENCES specs(id) ON DELETE CASCADE,
+      position   INTEGER NOT NULL,
+      heading    TEXT NOT NULL,
+      body       TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS spec_sections_spec_id_idx
+      ON spec_sections(spec_id, position)
+  `;
+  // One row per section write. section_id survives as NULL after a delete so
+  // the history (including the delete itself) stays readable per spec.
+  await sql`
+    CREATE TABLE IF NOT EXISTS spec_revisions (
+      id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      spec_id        UUID NOT NULL REFERENCES specs(id) ON DELETE CASCADE,
+      section_id     UUID REFERENCES spec_sections(id) ON DELETE SET NULL,
+      kind           TEXT NOT NULL CHECK (kind IN ('create', 'edit', 'delete')),
+      author         TEXT NOT NULL CHECK (author IN ('nae', 'coru', 'cody', 'app')),
+      before_heading TEXT,
+      after_heading  TEXT,
+      before_body    TEXT,
+      after_body     TEXT,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS spec_revisions_section_idx
+      ON spec_revisions(section_id, created_at)
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS spec_revisions_spec_idx
+      ON spec_revisions(spec_id, created_at)
+  `;
+  // The spec section a patch was generated from / belongs to.
+  await sql`
+    ALTER TABLE patches
+    ADD COLUMN IF NOT EXISTS spec_section_id UUID
+      REFERENCES spec_sections(id) ON DELETE SET NULL
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS patches_spec_section_id_idx
+      ON patches(spec_section_id) WHERE spec_section_id IS NOT NULL
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments + specs + spec_sections + spec_revisions tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at + spec_section_id (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();
