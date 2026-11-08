@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, History, Pencil, Sparkles, Star, Trash2, X } from "lucide-react";
@@ -55,6 +55,7 @@ export function SpecEditor({
   const [title, setTitle] = useState(initialSpec.title);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const generator = useRef<GeneratorHandle>(null);
 
   // Spec-level actions all answer with the full spec.
   const specAction = async (body: unknown): Promise<boolean> => {
@@ -165,6 +166,11 @@ export function SpecEditor({
             onMove={(delta) => move(i, delta)}
             onDelete={() => removeSection(section.id)}
             onSaved={onSectionSaved}
+            onGenerate={
+              spec.project_slug
+                ? () => generator.current?.run(section.id, section.heading)
+                : undefined
+            }
           />
         ))}
       </ol>
@@ -173,6 +179,7 @@ export function SpecEditor({
 
       {spec.project_slug && (
         <GeneratePatches
+          ref={generator}
           specId={spec.id}
           projectSlug={spec.project_slug}
           onFiled={(filed) =>
@@ -379,6 +386,7 @@ function SectionCard({
   onMove,
   onDelete,
   onSaved,
+  onGenerate,
 }: {
   specId: string;
   section: SpecSectionWithPatches;
@@ -389,6 +397,8 @@ function SectionCard({
   onMove: (delta: -1 | 1) => void;
   onDelete: () => void;
   onSaved: (s: SpecSection) => void;
+  // Only for specs linked to a project (patches need somewhere to go).
+  onGenerate?: () => void;
 }) {
   const [heading, setHeading] = useState(section.heading);
   const [body, setBody] = useState(section.body);
@@ -587,6 +597,22 @@ function SectionCard({
           <History aria-hidden className="h-3 w-3" />
           {showHistory ? "Hide history" : "History"}
         </button>
+        {onGenerate && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={!body.trim()}
+            title={
+              body.trim()
+                ? "Propose patches for just this section. Patches already on the board are taken into account."
+                : "Write something in this section first"
+            }
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors disabled:opacity-40"
+          >
+            <Sparkles aria-hidden className="h-3 w-3" />
+            Generate patches
+          </button>
+        )}
       </div>
 
       {showHistory && (
@@ -740,11 +766,15 @@ function DeleteSpec({ specId, hasProject }: { specId: string; hasProject: string
 
 type Draft = ProposedPatch & { key: string; tagText: string };
 
+type GeneratorHandle = { run: (sectionId: string, heading: string) => void };
+
 function GeneratePatches({
+  ref,
   specId,
   projectSlug,
   onFiled,
 }: {
+  ref?: Ref<GeneratorHandle>;
   specId: string;
   projectSlug: string;
   onFiled: (filed: Patch[]) => void;
@@ -756,27 +786,52 @@ function GeneratePatches({
   const [filing, setFiling] = useState(false);
   const [error, setError] = useState("");
   const [filedCount, setFiledCount] = useState(0);
+  // Which section the last run targeted (null = whole spec).
+  const [scope, setScope] = useState<{ id: string; heading: string } | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const loadingRef = useRef(false);
+  const runCount = useRef(0);
 
-  const generate = async () => {
+  const generate = async (section: { id: string; heading: string } | null) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     setFiledCount(0);
+    setScope(section);
     try {
-      const data = (await send(`/api/specs/${specId}/propose`, "POST", {})) as {
-        proposals: ProposedPatch[];
-        skipped: SkippedSection[];
-      };
-      setDrafts(
-        data.proposals.map((p, i) => ({ ...p, key: `${i}-${p.section_id}`, tagText: p.tags.join(", ") }))
+      const data = (await send(
+        `/api/specs/${specId}/propose`,
+        "POST",
+        section ? { section_ids: [section.id] } : {}
+      )) as { proposals: ProposedPatch[]; skipped: SkippedSection[] };
+      const run = ++runCount.current;
+      const fresh = data.proposals.map((p, i) => ({
+        ...p,
+        key: `${run}-${i}-${p.section_id}`,
+        tagText: p.tags.join(", "),
+      }));
+      // A section run adds to unfiled proposals (replacing only that
+      // section's), so pending edits elsewhere aren't lost. Spec-wide replaces.
+      setDrafts((prev) =>
+        section && prev ? [...prev.filter((d) => d.section_id !== section.id), ...fresh] : fresh
       );
       setSkipped(data.skipped);
     } catch (err) {
       console.error("Generate patches failed", err);
       setError(err instanceof Error ? err.message : "Couldn't generate patches.");
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    run: (id, heading) => {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      void generate({ id, heading });
+    },
+  }));
 
   const update = (key: string, changes: Partial<Draft>) =>
     setDrafts((d) => d?.map((x) => (x.key === key ? { ...x, ...changes } : x)) ?? null);
@@ -809,19 +864,23 @@ function GeneratePatches({
   };
 
   return (
-    <section aria-labelledby="generate-heading" className="rounded-lg border border-border bg-card/40 p-4 space-y-3">
+    <section
+      ref={panelRef}
+      aria-labelledby="generate-heading"
+      className="rounded-lg border border-border bg-card/40 p-4 space-y-3 scroll-mt-24"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="generate-heading" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Patches from this spec
+          {scope && (loading || drafts) ? `Patches from: ${scope.heading}` : "Patches from this spec"}
         </h2>
-        <button type="button" onClick={generate} disabled={loading || filing} className={SMALL_BTN}>
+        <button type="button" onClick={() => void generate(null)} disabled={loading || filing} className={SMALL_BTN}>
           <Sparkles aria-hidden className="h-3 w-3" />
-          {loading ? "Generating…" : drafts ? "Regenerate" : "Generate patches"}
+          {loading ? "Generating…" : drafts && !scope ? "Regenerate" : "Generate for whole spec"}
         </button>
       </div>
       {!drafts && !loading && filedCount === 0 && (
         <p className="text-xs text-muted-foreground/60">
-          Proposes patches for sections that don&apos;t have any yet. Nothing is filed until you approve.
+          Proposes patches for sections that don&apos;t have any yet, or use a section&apos;s own Generate patches button. Nothing is filed until you approve.
         </p>
       )}
       {filedCount > 0 && (
