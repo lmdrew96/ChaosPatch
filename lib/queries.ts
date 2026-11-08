@@ -322,15 +322,18 @@ export async function createPatch(
   notes?: string,
   tags?: string[],
   dueDate?: string | null,
-  spec?: string | null
+  spec?: string | null,
+  // Caller validates it (assertSectionInProject in lib/specs.ts).
+  specSectionId?: string | null
 ): Promise<Patch> {
   const initialNotes = notes ?? null;
   const initialTags = tags ?? [];
   const initialDueDate = dueDate ?? null;
   const initialSpec = spec ?? null;
+  const initialSection = specSectionId ?? null;
   const rows = await sql`
-    INSERT INTO patches (project_id, title, priority, notes, spec, tags, due_date)
-    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialSpec}, ${initialTags}::text[], ${initialDueDate}::date)
+    INSERT INTO patches (project_id, title, priority, notes, spec, tags, due_date, spec_section_id)
+    VALUES (${projectId}, ${title}, ${priority}, ${initialNotes}, ${initialSpec}, ${initialTags}::text[], ${initialDueDate}::date, ${initialSection}::uuid)
     RETURNING *
   `;
   return rows[0] as Patch;

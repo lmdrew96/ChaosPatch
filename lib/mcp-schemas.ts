@@ -20,6 +20,14 @@ const isoDate = z
   .refine((v) => /^\d{4}-\d{2}-\d{2}/.test(v) && !Number.isNaN(Date.parse(v)), {
     message: "must be an ISO date (YYYY-MM-DD)",
   });
+const uuid = z.uuid({ message: "must be a UUID" });
+// MCP writers only — Nae writes in the app. "nae" is never accepted here so
+// an AI write can't be attributed to her (Specs 3/5).
+const specAuthor = z.enum(["coru", "cody"]).optional();
+const sectionInput = z.object({
+  heading: z.string().trim().min(1),
+  body: z.string().optional(),
+});
 
 export const MCP_SCHEMAS = {
   cp_list_projects: z.object({
@@ -59,6 +67,7 @@ export const MCP_SCHEMAS = {
     spec: z.string().optional(),
     tags: tags.optional(),
     due_date: isoDate.optional(),
+    spec_section_id: uuid.optional(),
   }),
   cp_get_patch: z.object({
     patch_id: z.string().min(1),
@@ -122,6 +131,7 @@ export const MCP_SCHEMAS = {
     due_date: isoDate.nullable().optional(),
     spec: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    spec_section_id: uuid.nullable().optional(),
   }),
   cp_add_tags: z.object({
     patch_id: z.string().min(1),
@@ -196,6 +206,62 @@ export const MCP_SCHEMAS = {
       message: "tags (non-empty) is required when action is 'add_tags'",
       path: ["tags"],
     }),
+  cp_list_specs: z.object({
+    project_slug: z.string().min(1).optional(),
+  }),
+  cp_get_spec: z
+    .object({
+      spec_id: uuid.optional(),
+      project_slug: z.string().min(1).optional(),
+    })
+    .refine((a) => a.spec_id !== undefined || a.project_slug !== undefined, {
+      message: "pass spec_id or project_slug",
+    }),
+  cp_create_spec: z.object({
+    title: z.string().trim().min(1),
+    project_slug: z.string().min(1).optional(),
+    is_primary: z.boolean().optional(),
+    sections: z.array(sectionInput).optional(),
+    author: specAuthor,
+  }),
+  cp_update_spec: z.object({
+    spec_id: uuid,
+    title: z.string().trim().min(1).optional(),
+    project_slug: z.string().min(1).nullable().optional(),
+    is_primary: z.boolean().optional(),
+  }),
+  cp_delete_spec: z.object({
+    spec_id: uuid,
+  }),
+  cp_add_spec_section: z.object({
+    spec_id: uuid,
+    heading: z.string().trim().min(1),
+    body: z.string().optional(),
+    author: specAuthor,
+  }),
+  cp_update_spec_section: z
+    .object({
+      section_id: uuid,
+      heading: z.string().trim().min(1).optional(),
+      body: z.string().optional(),
+      author: specAuthor,
+    })
+    .refine((a) => a.heading !== undefined || a.body !== undefined, {
+      message: "pass heading and/or body",
+    }),
+  cp_delete_spec_section: z.object({
+    section_id: uuid,
+    author: specAuthor,
+  }),
+  cp_reorder_spec_sections: z.object({
+    spec_id: uuid,
+    section_ids: z.array(uuid).min(1),
+  }),
+  cp_get_spec_history: z.object({
+    spec_id: uuid,
+    section_id: uuid.optional(),
+    limit: z.number().int().positive().max(500).optional(),
+  }),
 } as const;
 
 export type McpToolName = keyof typeof MCP_SCHEMAS;

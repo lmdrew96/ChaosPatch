@@ -478,3 +478,54 @@ export async function reorderSpecSections(
   await sql`UPDATE specs SET updated_at = now() WHERE id = ${specId} AND user_id = ${userId}`;
   return true;
 }
+
+// ── Patch ↔ section links ──────────────────────────────────────────────────
+
+/**
+ * Check that sectionId belongs to one of the user's specs linked to
+ * projectId. A patch may only point at a section of its own project's spec.
+ * Throws SpecError (user-fixable) otherwise.
+ */
+export async function assertSectionInProject(
+  userId: string,
+  sectionId: string,
+  projectId: string
+): Promise<void> {
+  const rows = await sql`
+    SELECT s.project_id FROM spec_sections ss
+    JOIN specs s ON s.id = ss.spec_id
+    WHERE ss.id = ${sectionId} AND s.user_id = ${userId}
+  `;
+  const row = rows[0] as { project_id: string | null } | undefined;
+  if (!row) throw new SpecError(`Spec section '${sectionId}' not found.`);
+  if (row.project_id !== projectId) {
+    throw new SpecError(
+      "That section's spec isn't attached to this patch's project. Attach the spec to the project first."
+    );
+  }
+}
+
+/** Link a patch to a spec section (or unlink with null). */
+export async function setPatchSpecSection(
+  userId: string,
+  patchId: string,
+  sectionId: string | null
+): Promise<Patch | null> {
+  if (sectionId) {
+    const owner = await sql`
+      SELECT pa.project_id FROM patches pa
+      JOIN projects p ON p.id = pa.project_id
+      WHERE pa.id = ${patchId} AND p.user_id = ${userId}
+    `;
+    const row = owner[0] as { project_id: string } | undefined;
+    if (!row) return null;
+    await assertSectionInProject(userId, sectionId, row.project_id);
+  }
+  const rows = await sql`
+    UPDATE patches pa SET spec_section_id = ${sectionId}
+    FROM projects p
+    WHERE pa.project_id = p.id AND p.user_id = ${userId} AND pa.id = ${patchId}
+    RETURNING pa.*
+  `;
+  return (rows[0] as Patch) ?? null;
+}

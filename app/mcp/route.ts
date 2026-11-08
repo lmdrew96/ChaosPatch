@@ -50,6 +50,8 @@ import {
 } from "@/lib/r2";
 import sharp from "sharp";
 import { MCP_SCHEMAS, isMcpToolName, type McpToolName } from "@/lib/mcp-schemas";
+import { SPEC_TOOLS, handleSpecTool, isSpecToolName, type SpecToolName } from "./spec-tools";
+import { assertSectionInProject, setPatchSpecSection } from "@/lib/specs";
 import type { z } from "zod";
 
 type ParsedArgs<T extends McpToolName> = z.infer<(typeof MCP_SCHEMAS)[T]>;
@@ -249,6 +251,11 @@ const TOOLS = [
           type: "string",
           description: "Due date in YYYY-MM-DD format (optional)",
         },
+        spec_section_id: {
+          type: "string",
+          description:
+            "Spec section this patch comes from (optional). Must belong to a spec attached to this project — see cp_get_spec.",
+        },
       },
       required: ["project_slug", "title"],
     },
@@ -444,6 +451,11 @@ const TOOLS = [
           type: ["string", "null"],
           description:
             "Long-form spec — pass a string to set, null to clear, omit to leave unchanged. Excluded from list/search payloads.",
+        },
+        spec_section_id: {
+          type: ["string", "null"],
+          description:
+            "Link to a spec section (UUID from cp_get_spec; its spec must be attached to this patch's project), null to unlink, omit to leave unchanged.",
         },
       },
       required: ["patch_id"],
@@ -646,6 +658,7 @@ const TOOLS = [
       required: ["patch_ids", "action"],
     },
   },
+  ...SPEC_TOOLS,
 ];
 
 const NOTES_PREVIEW_LEN = 200;
@@ -688,7 +701,8 @@ function toListRow<
 }
 
 async function handleTool(
-  name: McpToolName,
+  // Spec tools are routed to handleSpecTool before this.
+  name: Exclude<McpToolName, SpecToolName>,
   args: ParsedArgs<McpToolName>,
   userId: string
 ): Promise<string> {
@@ -766,6 +780,9 @@ async function handleTool(
       const project = await getProjectBySlug(userId, a.project_slug);
       if (!project) throw new Error(`Project '${a.project_slug}' not found`);
       // New work means the project is active again.
+      if (a.spec_section_id) {
+        await assertSectionInProject(userId, a.spec_section_id, project.id);
+      }
       if (project.archived) await unarchiveProject(userId, project.slug);
       const patch = await createPatch(
         project.id,
@@ -774,7 +791,8 @@ async function handleTool(
         a.notes,
         a.tags,
         a.due_date,
-        a.spec
+        a.spec,
+        a.spec_section_id
       );
       return JSON.stringify(
         project.archived ? { ...patch, project_unarchived: true } : patch,
@@ -923,6 +941,10 @@ async function handleTool(
       if (!existing) throw new Error(`Patch '${a.patch_id}' not found`);
       const title = a.title ?? existing.title;
       const priority = a.priority ?? existing.priority;
+      // First, so a bad section id fails before any other field changes.
+      if (a.spec_section_id !== undefined) {
+        await setPatchSpecSection(userId, a.patch_id, a.spec_section_id);
+      }
       const patch = await updatePatch(
         userId,
         a.patch_id,
@@ -1167,6 +1189,9 @@ async function handler(req: Request): Promise<Response> {
     });
   }
 
+  // Which Claude is calling ("coru" / "cody"), for attributing spec writes.
+  const identity = req.headers.get("X-Claude-Identity");
+
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless — new server per request
     enableJsonResponse: true,
@@ -1200,7 +1225,9 @@ async function handler(req: Request): Promise<Response> {
         const content = await getPatchImagesContent(userId, a.patch_id);
         return { content };
       }
-      const result = await handleTool(name, parsed.data as ParsedArgs<McpToolName>, userId);
+      const result = isSpecToolName(name)
+        ? await handleSpecTool(name, parsed.data, userId, identity)
+        : await handleTool(name, parsed.data as ParsedArgs<McpToolName>, userId);
       return { content: [{ type: "text", text: result }] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
