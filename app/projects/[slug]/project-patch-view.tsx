@@ -68,12 +68,21 @@ function CollapsibleSection({
 
 const STATUS_FILTERS = ["all", "open", "in_progress", "review", "done"] as const;
 const PRIORITY_FILTERS = ["all", "low", "medium", "high"] as const;
-const SORT_FIELDS = ["created", "priority", "status"] as const;
+const SORT_FIELDS = ["created", "priority", "status", "phase"] as const;
 const SORT_DIRS = ["asc", "desc"] as const;
 
 type SortField = (typeof SORT_FIELDS)[number];
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+// Build-order tag from spec patch generation ("phase:3"). null = no phase.
+const phaseOf = (p: Patch): number | null => {
+  for (const t of p.tags) {
+    const m = /^phase:(\d+)$/i.exec(t);
+    if (m) return Number(m[1]);
+  }
+  return null;
+};
+
 // Review first: those are waiting on Nae.
 const STATUS_ORDER: Record<string, number> = { review: 0, in_progress: 1, open: 2, done: 3 };
 
@@ -225,6 +234,17 @@ export function ProjectPatchView({
     }
 
     result.sort((a, b) => {
+      if (sortField === "phase") {
+        // Unphased patches go last in either direction; ties keep filing order.
+        const pa = phaseOf(a);
+        const pb = phaseOf(b);
+        if (pa === null || pb === null) {
+          if (pa !== pb) return pa === null ? 1 : -1;
+        } else if (pa !== pb) {
+          return sortDir === "desc" ? pb - pa : pa - pb;
+        }
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
       let cmp = 0;
       switch (sortField) {
         case "created":
@@ -383,6 +403,7 @@ export function ProjectPatchView({
             <option value="status">Sort: Status</option>
             <option value="created">Sort: Date</option>
             <option value="priority">Sort: Priority</option>
+            <option value="phase">Sort: Phase</option>
           </select>
           <button
             onClick={() => setSortDir(sortDir === "desc" ? "asc" : "desc")}
