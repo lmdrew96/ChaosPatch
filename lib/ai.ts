@@ -7,6 +7,11 @@ import { presignGetUrl } from "@/lib/r2";
 /** The one place the in-app Claude model is chosen. */
 export const AI_MODEL = "claude-sonnet-5-5";
 
+// Thinking is adaptive (on by default on Sonnet 5.5); effort sets how hard it
+// thinks. Patch generation (screenshot → patch, spec → patches) runs at high,
+// per Nae; the changelog writer stays at low.
+type Effort = "low" | "medium" | "high";
+
 /** Thrown when ANTHROPIC_API_KEY isn't set, so routes can answer 503. */
 export class AiNotConfiguredError extends Error {
   constructor() {
@@ -31,7 +36,9 @@ const parseStructured = async <T extends z.ZodType>(
   params: {
     system: string;
     content: Anthropic.ContentBlockParam[];
+    // Thinking tokens count toward this, so leave room at high effort.
     maxTokens: number;
+    effort: Effort;
   }
 ): Promise<z.infer<T>> => {
   const response = await getClient().messages.parse({
@@ -39,7 +46,7 @@ const parseStructured = async <T extends z.ZodType>(
     max_tokens: params.maxTokens,
     system: params.system,
     messages: [{ role: "user", content: params.content }],
-    output_config: { effort: "low", format: zodOutputFormat(schema) },
+    output_config: { effort: params.effort, format: zodOutputFormat(schema) },
   });
   if (response.stop_reason === "refusal") {
     throw new Error("Claude declined this request.");
@@ -99,7 +106,8 @@ export const draftPatchFromScreenshot = async (
   const image = await loadImageForClaude(pathname);
   return parseStructured(PatchDraftSchema, {
     system: DRAFT_SYSTEM,
-    maxTokens: 4000,
+    maxTokens: 16000,
+    effort: "high",
     content: [
       image,
       {
@@ -149,6 +157,7 @@ export const draftChangelog = async (
   return parseStructured(ChangelogSchema, {
     system: CHANGELOG_SYSTEM,
     maxTokens: 16000,
+    effort: "low",
     content: [
       {
         type: "text",
@@ -219,6 +228,7 @@ export const proposePatchesFromSpec = async (input: {
   const result = await parseStructured(SpecPatchesSchema, {
     system: SPEC_PATCHES_SYSTEM,
     maxTokens: 16000,
+    effort: "high",
     content: [
       {
         type: "text",
