@@ -200,7 +200,7 @@ Each patch:
 
 Sizing: one patch = one reviewable change that ships end to end (backend + UI) in a single sitting. Split a section into several patches when it holds several independent changes; fold trivial bits into a related patch. Data-model or schema work that other patches rely on gets its own patch, listed first. Sections that describe goals, context, or out-of-scope items usually need no patch: propose none for them.
 
-If a section lists patches already filed from it, don't propose anything those already cover. Propose only what is still missing, or nothing.`;
+You also get every patch already on the project's board, whichever section it was filed under. Work is covered if any of them already does it, even one filed under a different section: a summary or build-order section is usually covered by patches filed under the design sections it summarizes. Never propose a patch that duplicates or overlaps one on the board. If the spec changes how a board patch should be built (a later section replaces its approach, say), propose only the change itself, and start its notes with "Changes: <that patch's exact title>" so the developer can reconcile the two. Propose only what is still missing; proposing nothing is a good answer when everything is covered.`;
 
 export const proposePatchesFromSpec = async (input: {
   projectName: string;
@@ -209,6 +209,8 @@ export const proposePatchesFromSpec = async (input: {
   sections: { id: string; heading: string; body: string }[];
   // The ones to break down, each with the titles already filed from it.
   targets: { id: string; existingPatchTitles: string[] }[];
+  // Every patch already on the project's board (any section, any status).
+  board: { title: string; status: string; section_heading: string | null }[];
 }): Promise<ProposedPatch[]> => {
   const byId = new Map(input.sections.map((s) => [s.id, s]));
   const fullSpec = input.sections
@@ -225,6 +227,15 @@ export const proposePatchesFromSpec = async (input: {
     })
     .join("\n\n");
 
+  const boardList = input.board.length
+    ? input.board
+        .map(
+          (p) =>
+            `- ${p.title} [${p.status}]${p.section_heading ? ` (filed under: ${p.section_heading})` : ""}`
+        )
+        .join("\n")
+    : "(no patches yet)";
+
   const result = await parseStructured(SpecPatchesSchema, {
     system: SPEC_PATCHES_SYSTEM,
     maxTokens: 16000,
@@ -232,7 +243,7 @@ export const proposePatchesFromSpec = async (input: {
     content: [
       {
         type: "text",
-        text: `Project: ${input.projectName}\nSpec: ${input.specTitle}\n\n<spec>\n${fullSpec}\n</spec>\n\nBreak down these sections:\n\n${targetList}`,
+        text: `Project: ${input.projectName}\nSpec: ${input.specTitle}\n\n<spec>\n${fullSpec}\n</spec>\n\n<board>\n${boardList}\n</board>\n\nBreak down these sections:\n\n${targetList}`,
       },
     ],
   });

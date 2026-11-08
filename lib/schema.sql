@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS spec_sections (
   position   INTEGER NOT NULL,
   heading    TEXT NOT NULL,
   body       TEXT NOT NULL DEFAULT '',
+  -- Context only: default "Generate patches" runs skip it.
+  reference_only BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

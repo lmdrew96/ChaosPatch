@@ -1,5 +1,6 @@
 import { sql } from "./db";
 import { createPatch, unarchiveProject, type Patch, type SpecSectionRef } from "./queries";
+import { proposePatchesFromSpec, type ProposedPatch } from "./ai";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,8 @@ export type SpecSection = {
   position: number;
   heading: string;
   body: string;
+  // Context only (summary, build order…): default generate runs skip it.
+  reference_only: boolean;
   created_at: string;
   updated_at: string;
   // From the newest spec_revisions row for this section.
@@ -189,13 +192,13 @@ export async function createSpec(
     author: SpecAuthor;
     projectId?: string | null;
     isPrimary?: boolean;
-    sections?: { heading: string; body?: string }[];
+    sections?: { heading: string; body?: string; reference_only?: boolean }[];
   }
 ): Promise<SpecDetail> {
   const specId = crypto.randomUUID();
   const projectId = input.projectId ?? null;
   const isPrimary = projectId !== null && (input.isPrimary ?? false);
-  const sections =
+  const sections: { heading: string; body?: string; reference_only?: boolean }[] =
     input.sections ??
     DEFAULT_SPEC_SECTIONS.map((heading) => ({ heading, body: "" }));
 
@@ -213,9 +216,10 @@ export async function createSpec(
   sections.forEach((section, index) => {
     const sectionId = crypto.randomUUID();
     const body = section.body ?? "";
+    const referenceOnly = section.reference_only ?? false;
     queries.push(sql`
-      INSERT INTO spec_sections (id, spec_id, position, heading, body)
-      VALUES (${sectionId}, ${specId}, ${index}, ${section.heading}, ${body})
+      INSERT INTO spec_sections (id, spec_id, position, heading, body, reference_only)
+      VALUES (${sectionId}, ${specId}, ${index}, ${section.heading}, ${body}, ${referenceOnly})
     `);
     queries.push(sql`
       INSERT INTO spec_revisions (spec_id, section_id, kind, author, after_heading, after_body)
@@ -324,7 +328,8 @@ export async function addSpecSection(
   specId: string,
   heading: string,
   body: string,
-  author: SpecAuthor
+  author: SpecAuthor,
+  referenceOnly = false
 ): Promise<SpecSection | null> {
   const sectionId = crypto.randomUUID();
   const rows = await sql`
@@ -332,10 +337,10 @@ export async function addSpecSection(
       SELECT id FROM specs WHERE id = ${specId} AND user_id = ${userId}
     ),
     ins AS (
-      INSERT INTO spec_sections (id, spec_id, position, heading, body)
+      INSERT INTO spec_sections (id, spec_id, position, heading, body, reference_only)
       SELECT ${sectionId}, s.id,
         (SELECT COALESCE(MAX(position) + 1, 0) FROM spec_sections WHERE spec_id = s.id),
-        ${heading}, ${body}
+        ${heading}, ${body}, ${referenceOnly}
       FROM s
       RETURNING *
     ),
@@ -449,6 +454,24 @@ export async function deleteSpecSection(
     SELECT id FROM del
   `;
   return rows.length > 0;
+}
+
+/**
+ * Mark a section reference-only (or not). A planning flag, not content, so
+ * no revision is recorded and linked patches aren't flagged.
+ */
+export async function setSectionReferenceOnly(
+  userId: string,
+  sectionId: string,
+  referenceOnly: boolean
+): Promise<SpecSection | null> {
+  const rows = await sql`
+    UPDATE spec_sections ss SET reference_only = ${referenceOnly}
+    FROM specs s
+    WHERE ss.spec_id = s.id AND s.user_id = ${userId} AND ss.id = ${sectionId}
+    RETURNING ss.*
+  `;
+  return (rows[0] as SpecSection) ?? null;
 }
 
 /** Set section order. orderedIds must list every section of the spec once. */
@@ -569,6 +592,8 @@ export function pickProposalTargets(
     };
     if (!s.body.trim()) {
       skip("empty");
+    } else if (!chosen && s.reference_only) {
+      skip("reference only; pass its section id to break it down anyway");
     } else if (!chosen && s.patches.length > 0) {
       skip(
         `already has ${s.patches.length} ${s.patches.length === 1 ? "patch" : "patches"}; pass its section id to re-run it`
@@ -706,4 +731,46 @@ export async function getSectionThenAndNow(
   const now = nowRows[0] as SectionSnapshot | undefined;
   if (!now) return null;
   return { then: (thenRows[0] as SectionSnapshot | undefined) ?? null, now };
+}
+
+// ── One entry point for both generate paths ────────────────────────────────
+
+// Plenty for any real board; keeps the prompt bounded on huge projects.
+const BOARD_CONTEXT_LIMIT = 400;
+
+/**
+ * Propose patches for a linked spec — the in-app button and
+ * cp_propose_patches_from_spec both call this, so they behave the same.
+ * The model sees every patch already on the project's board (any section,
+ * archived and done included) so covered work isn't proposed again even when
+ * it was filed under a different section.
+ */
+export async function runSpecProposal(
+  userId: string,
+  spec: SpecDetail,
+  sectionIds?: string[]
+): Promise<{ proposals: ProposedPatch[]; skipped: SkippedSection[] }> {
+  if (!spec.project_id || !spec.project_name) {
+    throw new SpecError("Attach this spec to a project first: patches need a project to go in.");
+  }
+  const { targets, skipped } = pickProposalTargets(spec, sectionIds);
+  if (targets.length === 0) return { proposals: [], skipped };
+
+  const rows = await sql`
+    SELECT pa.title, pa.status, ss.heading AS section_heading
+    FROM patches pa
+    JOIN projects p ON p.id = pa.project_id
+    LEFT JOIN spec_sections ss ON ss.id = pa.spec_section_id
+    WHERE p.user_id = ${userId} AND p.id = ${spec.project_id}
+    ORDER BY pa.created_at ASC
+    LIMIT ${BOARD_CONTEXT_LIMIT}
+  `;
+  const proposals = await proposePatchesFromSpec({
+    projectName: spec.project_name,
+    specTitle: spec.title,
+    sections: spec.sections,
+    targets,
+    board: rows as { title: string; status: Patch["status"]; section_heading: string | null }[],
+  });
+  return { proposals, skipped };
 }

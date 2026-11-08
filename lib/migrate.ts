@@ -243,7 +243,13 @@ void (async () => {
     BEFORE UPDATE ON patches
     FOR EACH ROW EXECUTE FUNCTION patches_clear_spec_changed()
   `;
+  // A section that's context only (summary, build order, principles):
+  // default "Generate patches" runs skip it.
+  await sql`
+    ALTER TABLE spec_sections
+    ADD COLUMN IF NOT EXISTS reference_only BOOLEAN NOT NULL DEFAULT FALSE
+  `;
   console.log(
-    "Done: mcp_tokens + patch_attachments + specs + spec_sections + spec_revisions tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at + spec_section_id + spec_changed_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
+    "Done: mcp_tokens + patch_attachments + specs + spec_sections (+ reference_only) + spec_revisions tables ready, patches.tags + due_date + archived + spec + updated_at + review_steps + reviewed_at + spec_section_id + spec_changed_at (+ review status) and projects.archived + archived_at + last_changelog_at columns ensured."
   );
 })();

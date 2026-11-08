@@ -27,6 +27,7 @@ const specAuthor = z.enum(["coru", "cody"]).optional();
 const sectionInput = z.object({
   heading: z.string().trim().min(1),
   body: z.string().optional(),
+  reference_only: z.boolean().optional(),
 });
 
 export const MCP_SCHEMAS = {
@@ -239,6 +240,7 @@ export const MCP_SCHEMAS = {
     spec_id: uuid,
     heading: z.string().trim().min(1),
     body: z.string().optional(),
+    reference_only: z.boolean().optional(),
     author: specAuthor,
   }),
   cp_update_spec_section: z
@@ -246,11 +248,13 @@ export const MCP_SCHEMAS = {
       section_id: uuid,
       heading: z.string().trim().min(1).optional(),
       body: z.string().optional(),
+      reference_only: z.boolean().optional(),
       author: specAuthor,
     })
-    .refine((a) => a.heading !== undefined || a.body !== undefined, {
-      message: "pass heading and/or body",
-    }),
+    .refine(
+      (a) => a.heading !== undefined || a.body !== undefined || a.reference_only !== undefined,
+      { message: "pass heading, body, and/or reference_only" }
+    ),
   cp_delete_spec_section: z.object({
     section_id: uuid,
     author: specAuthor,

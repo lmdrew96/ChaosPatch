@@ -1,5 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
-import { deleteSpecSection, getSectionThenAndNow, updateSpecSection } from "@/lib/specs";
+import {
+  deleteSpecSection,
+  getSectionThenAndNow,
+  setSectionReferenceOnly,
+  updateSpecSection,
+} from "@/lib/specs";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,7 +28,13 @@ export async function PATCH(req: Request, { params }: Params) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { heading, body } = await req.json();
+  const { heading, body, reference_only } = await req.json();
+  // The "Reference only" toggle: a planning flag, not a content edit.
+  if (typeof reference_only === "boolean") {
+    const section = await setSectionReferenceOnly(userId, id, reference_only);
+    if (!section) return Response.json({ error: "Section not found" }, { status: 404 });
+    return Response.json(section);
+  }
   if (heading !== undefined && (typeof heading !== "string" || !heading.trim())) {
     return Response.json({ error: "Heading can't be empty" }, { status: 400 });
   }

@@ -397,6 +397,20 @@ function SectionCard({
   const [saveError, setSaveError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [referenceOnly, setReferenceOnly] = useState(section.reference_only);
+
+  const toggleReference = async () => {
+    const next = !referenceOnly;
+    setReferenceOnly(next); // optimistic
+    try {
+      await send(`/api/spec-sections/${section.id}`, "PATCH", { reference_only: next });
+    } catch (err) {
+      console.error("Reference-only toggle failed", err);
+      setReferenceOnly(!next);
+      setSaveState("error");
+      setSaveError("Couldn't change that setting.");
+    }
+  };
 
   // Refs so the debounced save and the unmount flush see current values.
   const draft = useRef({ heading: section.heading, body: section.body });
@@ -552,11 +566,23 @@ function SectionCard({
           {saveState === "saved" && "Saved"}
           {saveState === "error" && saveError}
         </span>
+        <label
+          className="ml-auto inline-flex cursor-pointer items-center gap-1 hover:text-foreground transition-colors"
+          title="Context only (summary, build order, principles). Generate patches skips it unless you run it on this section directly."
+        >
+          <input
+            type="checkbox"
+            checked={referenceOnly}
+            onChange={toggleReference}
+            className="h-3 w-3 accent-primary"
+          />
+          Reference only
+        </label>
         <button
           type="button"
           onClick={() => setShowHistory((v) => !v)}
           aria-expanded={showHistory}
-          className="ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
         >
           <History aria-hidden className="h-3 w-3" />
           {showHistory ? "Hide history" : "History"}

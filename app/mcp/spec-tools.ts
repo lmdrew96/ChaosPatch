@@ -1,7 +1,6 @@
 import type { z } from "zod";
 import { MCP_SCHEMAS } from "@/lib/mcp-schemas";
 import { getProjectBySlug } from "@/lib/queries";
-import { proposePatchesFromSpec } from "@/lib/ai";
 import {
   addSpecSection,
   attachSpec,
@@ -9,11 +8,13 @@ import {
   deleteSpec,
   deleteSpecSection,
   detachSpec,
+  getSectionRefs,
   getSpec,
   getSpecHistory,
   listSpecs,
-  pickProposalTargets,
   reorderSpecSections,
+  runSpecProposal,
+  setSectionReferenceOnly,
   setSpecPrimary,
   updateSpecSection,
   updateSpecTitle,
@@ -96,6 +97,7 @@ export const SPEC_TOOLS = [
             properties: {
               heading: { type: "string" },
               body: { type: "string", description: "Markdown (optional)" },
+              reference_only: { type: "boolean", description: "Context only; default generate runs skip it" },
             },
             required: ["heading"],
           },
@@ -140,6 +142,7 @@ export const SPEC_TOOLS = [
         spec_id: { type: "string" },
         heading: { type: "string" },
         body: { type: "string", description: "Markdown (optional)" },
+        reference_only: { type: "boolean", description: "Context only; default generate runs skip it (default false)" },
         author: AUTHOR_PROP,
       },
       required: ["spec_id", "heading"],
@@ -155,6 +158,11 @@ export const SPEC_TOOLS = [
         section_id: { type: "string" },
         heading: { type: "string" },
         body: { type: "string", description: "Full replacement markdown body" },
+        reference_only: {
+          type: "boolean",
+          description:
+            "Mark the section context only (summary, build order, principles): default cp_propose_patches_from_spec runs skip it. A flag change alone needs no author and isn't a revision.",
+        },
         author: AUTHOR_PROP,
       },
       required: ["section_id"],
@@ -203,7 +211,7 @@ export const SPEC_TOOLS = [
   {
     name: "cp_propose_patches_from_spec",
     description:
-      "Propose patches from a spec linked to a project, using the same prompt as the in-app \"Generate patches\" button. Nothing is filed: review the proposals with Nae, then file the ones she approves with cp_add_patch (project_slug, title, notes, tags, priority, and the proposal's spec_section_id). By default only non-empty sections with no linked patches are broken down (so re-runs don't duplicate); `skipped` says which sections were left out and why. Pass section_ids to re-run specific sections; the model is told what's already filed from them.",
+      "Propose patches from a spec linked to a project, using the same prompt as the in-app \"Generate patches\" button. Nothing is filed: review the proposals with Nae, then file the ones she approves with cp_add_patch (project_slug, title, notes, tags, priority, and the proposal's spec_section_id). The model sees every patch already on the project's board (any section, any status) and skips work they cover. By default it breaks down only non-empty sections that aren't reference_only and have no linked patches; `skipped` says which were left out and why. Pass section_ids to run specific sections (reference-only and covered ones included).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -245,6 +253,15 @@ async function requireSpec(userId: string, specId: string): Promise<SpecDetail> 
 }
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
+
+/** The section (as cp_get_spec shows it) after a flag-only update. */
+async function listSectionOwner(userId: string, sectionId: string): Promise<unknown> {
+  const refs = await getSectionRefs(userId, [sectionId]);
+  const ref = refs.get(sectionId);
+  if (!ref) throw new Error(`Spec section '${sectionId}' not found`);
+  const spec = await requireSpec(userId, ref.spec_id);
+  return spec.sections.find((x) => x.id === sectionId);
+}
 
 export async function handleSpecTool(
   name: SpecToolName,
@@ -313,13 +330,30 @@ export async function handleSpecTool(
     case "cp_add_spec_section": {
       const a = args as Args<"cp_add_spec_section">;
       const author = resolveAuthor(identity, a.author);
-      const section = await addSpecSection(userId, a.spec_id, a.heading, a.body ?? "", author);
+      const section = await addSpecSection(
+        userId,
+        a.spec_id,
+        a.heading,
+        a.body ?? "",
+        author,
+        a.reference_only ?? false
+      );
       if (!section) throw new Error(`Spec '${a.spec_id}' not found`);
       return json(section);
     }
 
     case "cp_update_spec_section": {
       const a = args as Args<"cp_update_spec_section">;
+      if (a.reference_only !== undefined) {
+        if (!(await setSectionReferenceOnly(userId, a.section_id, a.reference_only))) {
+          throw new Error(`Spec section '${a.section_id}' not found`);
+        }
+      }
+      if (a.heading === undefined && a.body === undefined) {
+        // Flag-only change: no content write, so no author needed.
+        const spec = await listSectionOwner(userId, a.section_id);
+        return json(spec);
+      }
       const author = resolveAuthor(identity, a.author);
       const section = await updateSpecSection(
         userId,
@@ -351,21 +385,12 @@ export async function handleSpecTool(
     case "cp_propose_patches_from_spec": {
       const a = args as Args<"cp_propose_patches_from_spec">;
       const spec = await requireSpec(userId, a.spec_id);
-      if (!spec.project_slug || !spec.project_name) {
+      if (!spec.project_slug) {
         throw new Error(
           "This spec isn't attached to a project, so there's nowhere to file patches. Attach it first with cp_update_spec (project_slug)."
         );
       }
-      const { targets, skipped } = pickProposalTargets(spec, a.section_ids);
-      const proposals =
-        targets.length === 0
-          ? []
-          : await proposePatchesFromSpec({
-              projectName: spec.project_name,
-              specTitle: spec.title,
-              sections: spec.sections,
-              targets,
-            });
+      const { proposals, skipped } = await runSpecProposal(userId, spec, a.section_ids);
       return json({
         project_slug: spec.project_slug,
         proposals: proposals.map((p) => ({ ...p, spec_section_id: p.section_id })),
