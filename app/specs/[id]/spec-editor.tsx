@@ -791,6 +791,40 @@ function GeneratePatches({
   const panelRef = useRef<HTMLElement>(null);
   const loadingRef = useRef(false);
   const runCount = useRef(0);
+  // Whole-spec runs go in batches; this is "batch 2 of 4" while running.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const toDrafts = (proposals: ProposedPatch[]): Draft[] => {
+    const run = ++runCount.current;
+    return proposals.map((p, i) => ({
+      ...p,
+      key: `${run}-${i}-${p.section_id}`,
+      tagText: p.tags.join(", "),
+    }));
+  };
+
+  // One request per batch of sections, in spec order. Each batch sees the
+  // earlier batches' proposals so nothing repeats; drafts appear as they land.
+  const generateWholeSpec = async () => {
+    const plan = (await send(`/api/specs/${specId}/propose`, "POST", { plan: true })) as {
+      batches: { section_ids: string[]; headings: string[] }[];
+      skipped: SkippedSection[];
+    };
+    setSkipped(plan.skipped);
+    setDrafts([]);
+    const titles: string[] = [];
+    setProgress({ done: 0, total: plan.batches.length });
+    for (const [i, batch] of plan.batches.entries()) {
+      const data = (await send(`/api/specs/${specId}/propose`, "POST", {
+        section_ids: batch.section_ids,
+        pending_titles: titles,
+      })) as { proposals: ProposedPatch[] };
+      titles.push(...data.proposals.map((p) => p.title));
+      const fresh = toDrafts(data.proposals);
+      setDrafts((prev) => [...(prev ?? []), ...fresh]);
+      setProgress({ done: i + 1, total: plan.batches.length });
+    }
+  };
 
   const generate = async (section: { id: string; heading: string } | null) => {
     if (loadingRef.current) return;
@@ -800,21 +834,18 @@ function GeneratePatches({
     setFiledCount(0);
     setScope(section);
     try {
-      const data = (await send(
-        `/api/specs/${specId}/propose`,
-        "POST",
-        section ? { section_ids: [section.id] } : {}
-      )) as { proposals: ProposedPatch[]; skipped: SkippedSection[] };
-      const run = ++runCount.current;
-      const fresh = data.proposals.map((p, i) => ({
-        ...p,
-        key: `${run}-${i}-${p.section_id}`,
-        tagText: p.tags.join(", "),
-      }));
+      if (!section) {
+        await generateWholeSpec();
+        return;
+      }
+      const data = (await send(`/api/specs/${specId}/propose`, "POST", {
+        section_ids: [section.id],
+      })) as { proposals: ProposedPatch[]; skipped: SkippedSection[] };
+      const fresh = toDrafts(data.proposals);
       // A section run adds to unfiled proposals (replacing only that
       // section's), so pending edits elsewhere aren't lost. Spec-wide replaces.
       setDrafts((prev) =>
-        section && prev ? [...prev.filter((d) => d.section_id !== section.id), ...fresh] : fresh
+        prev ? [...prev.filter((d) => d.section_id !== section.id), ...fresh] : fresh
       );
       setSkipped(data.skipped);
     } catch (err) {
@@ -823,6 +854,7 @@ function GeneratePatches({
     } finally {
       loadingRef.current = false;
       setLoading(false);
+      setProgress(null);
     }
   };
 
@@ -875,7 +907,13 @@ function GeneratePatches({
         </h2>
         <button type="button" onClick={() => void generate(null)} disabled={loading || filing} className={SMALL_BTN}>
           <Sparkles aria-hidden className="h-3 w-3" />
-          {loading ? "Generating…" : drafts && !scope ? "Regenerate" : "Generate for whole spec"}
+          {loading
+            ? progress && progress.total > 1
+              ? `Batch ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`
+              : "Generating…"
+            : drafts && !scope
+              ? "Regenerate"
+              : "Generate for whole spec"}
         </button>
       </div>
       {!drafts && !loading && filedCount === 0 && (
@@ -901,7 +939,9 @@ function GeneratePatches({
       {drafts && (
         <>
           {drafts.length === 0 ? (
-            <p className="text-xs text-muted-foreground/70">No new patches proposed.</p>
+            <p className="text-xs text-muted-foreground/70">
+              {loading ? "Working through the spec…" : "No new patches proposed."}
+            </p>
           ) : (
             <ul className="space-y-3">
               {drafts.map((d) => (

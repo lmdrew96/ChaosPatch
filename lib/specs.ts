@@ -743,12 +743,14 @@ const BOARD_CONTEXT_LIMIT = 400;
  * cp_propose_patches_from_spec both call this, so they behave the same.
  * The model sees every patch already on the project's board (any section,
  * archived and done included) so covered work isn't proposed again even when
- * it was filed under a different section.
+ * it was filed under a different section. pendingTitles are proposals from
+ * earlier batches of the same run (not filed yet), so batches don't overlap.
  */
 export async function runSpecProposal(
   userId: string,
   spec: SpecDetail,
-  sectionIds?: string[]
+  sectionIds?: string[],
+  pendingTitles: string[] = []
 ): Promise<{ proposals: ProposedPatch[]; skipped: SkippedSection[] }> {
   if (!spec.project_id || !spec.project_name) {
     throw new SpecError("Attach this spec to a project first: patches need a project to go in.");
@@ -770,7 +772,49 @@ export async function runSpecProposal(
     specTitle: spec.title,
     sections: spec.sections,
     targets,
-    board: rows as { title: string; status: Patch["status"]; section_heading: string | null }[],
+    board: [
+      ...(rows as { title: string; status: string; section_heading: string | null }[]),
+      ...pendingTitles.map((title) => ({
+        title,
+        status: "proposed in this run, not filed yet",
+        section_heading: null,
+      })),
+    ],
   });
   return { proposals, skipped };
+}
+
+// Target section text per batch. A fresh whole-spec run at high effort scales
+// with output; ~6K chars of sections keeps one request well inside the
+// function limit (Flavortown's full 30K-char run took up to 245s in one call).
+const BATCH_CHARS = 6000;
+
+/**
+ * Split a whole-spec run into batches of sections (spec order), so the app
+ * can run them one request at a time. A section bigger than the budget gets
+ * a batch to itself. Same targets and skips as a default run.
+ */
+export function planProposalBatches(spec: SpecDetail): {
+  batches: { section_ids: string[]; headings: string[] }[];
+  skipped: SkippedSection[];
+} {
+  const { targets, skipped } = pickProposalTargets(spec);
+  const byId = new Map(spec.sections.map((s) => [s.id, s]));
+  const batches: { section_ids: string[]; headings: string[] }[] = [];
+  let current: { section_ids: string[]; headings: string[] } | null = null;
+  let size = 0;
+  for (const t of targets) {
+    const section = byId.get(t.id);
+    if (!section) continue;
+    const len = section.body.length;
+    if (!current || size + len > BATCH_CHARS) {
+      current = { section_ids: [], headings: [] };
+      batches.push(current);
+      size = 0;
+    }
+    current.section_ids.push(section.id);
+    current.headings.push(section.heading);
+    size += len;
+  }
+  return { batches, skipped };
 }

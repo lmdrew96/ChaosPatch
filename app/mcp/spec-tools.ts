@@ -221,6 +221,12 @@ export const SPEC_TOOLS = [
           items: { type: "string" },
           description: "Only these sections, covered ones included (optional)",
         },
+        pending_titles: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Titles of proposals from your earlier calls that aren't filed yet, so this call doesn't repeat them. For a big spec, run a few sections per call (section_ids) and pass the titles you've already been given.",
+        },
       },
       required: ["spec_id"],
     },
@@ -390,7 +396,12 @@ export async function handleSpecTool(
           "This spec isn't attached to a project, so there's nowhere to file patches. Attach it first with cp_update_spec (project_slug)."
         );
       }
-      const { proposals, skipped } = await runSpecProposal(userId, spec, a.section_ids);
+      const { proposals, skipped } = await runSpecProposal(
+        userId,
+        spec,
+        a.section_ids,
+        a.pending_titles ?? []
+      );
       return json({
         project_slug: spec.project_slug,
         proposals: proposals.map((p) => ({ ...p, spec_section_id: p.section_id })),

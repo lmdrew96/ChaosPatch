@@ -266,6 +266,7 @@ export const MCP_SCHEMAS = {
   cp_propose_patches_from_spec: z.object({
     spec_id: uuid,
     section_ids: z.array(uuid).min(1).optional(),
+    pending_titles: z.array(z.string().trim().min(1)).max(500).optional(),
   }),
   cp_get_spec_history: z.object({
     spec_id: uuid,
