@@ -166,8 +166,9 @@ pre {
 
 /* iOS Safari zooms the page when a focused field's text is under 16px.
    Unlayered, so it beats Tailwind's text-xs/text-sm utilities on phones
-   without disabling pinch-zoom via maximum-scale. */
-@media (max-width: 639px) {
+   without disabling pinch-zoom via maximum-scale. pointer: coarse covers
+   touch screens wider than a phone (iPad, iPhone in landscape). */
+@media (max-width: 639px), (pointer: coarse) {
   input,
   textarea,
   select {
